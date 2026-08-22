@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Meetral",
+  "version": "4.8.4",
+  "identifier": "com.meetral.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build:sparse && npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Meetral",
+        "width": 984,
+        "height": 720,
+        "resizable": true,
+        "minWidth": 720,
+        "minHeight": 560,
+        "visible": false,
+        "backgroundColor": "#0f1117"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "iamnhaan",
+    "copyright": "Copyright (C) 2026 iamnhaan",
+    "category": "Utility",
+    "shortDescription": "Real-time voice translation for online meetings",
+    "longDescription": "Meetral translates speech live between you and your meeting (Teams, Slack, and more). Switch Direct audio or Translate per direction, pick Gemini, OpenAI, or Soniox, optional ElevenLabs voice clone, and keep transcripts with AI summaries — all on your desktop with system-tray support.",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerHooks": "./installer-hooks.nsh"
+      },
+      "wix": {
+        "fragmentPaths": [
+          "./windows/fragments/sparse-identity.wxs"
+        ],
+        "componentRefs": [
+          "MeetralSparseIdentity"
+        ]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "bundleName": "Meetral",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist",
+      "infoPlist": "Info.plist",
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      }
+    }
+  }
+}

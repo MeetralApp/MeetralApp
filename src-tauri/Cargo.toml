@@ -1,0 +1,79 @@
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+# Use unwind (not abort) so an isolated panic in a worker thread (audio capture,
+# playback, a spawned task) does not tear down the whole long-running app.
+panic = "unwind"
+
+[package]
+name = "meetral"
+version = "4.8.4"
+description = "Real-time voice translation for online meetings"
+authors = ["iamnhaan"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "meetral_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tracing-appender = "0.2"
+tauri-plugin-store = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = { version = "0.3", features = ["sink"] }
+base64 = "0.22"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
+tokio-util = "0.7"
+rusqlite = { version = "0.32", features = ["bundled"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+tauri-plugin-prevent-default = "5.0.1"
+dotenvy = "0.15"
+unicode-segmentation = "1.13"
+opus = "0.3"
+rubato = "0.16"
+rfd = "0.15"
+ogg = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+wasapi = "0.23"
+windows-dpapi = "0.2"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+] }
+windows-core = "0.62"
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSWindow",
+] }
+objc2-core-audio = { version = "0.3", features = ["AudioHardware", "block2"] }
+objc2-core-audio-types = "0.3"
+objc2-core-foundation = "0.3"

@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # upload artifacts to the draft release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: ""
+          - os: macos-latest
+            args: "--target aarch64-apple-darwin"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Unsigned scaffold: no TAURI_SIGNING_* env on purpose.
+      # To enable updater signing + platform codesigning, configure the secrets
+      # listed in docs/development/release.md and pass them via env here.
+      #
+      # SPARSE_DEV_PFX_* signs the sparse-identity MSIX on Windows with the shared
+      # dev cert (scripts/sparse-identity). Without the secret, CI falls back to an
+      # ephemeral self-signed cert and grouping requires manual cert trust.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          SPARSE_DEV_PFX_BASE64: ${{ secrets.SPARSE_DEV_PFX_BASE64 }}
+          SPARSE_DEV_PFX_PASSWORD: ${{ secrets.SPARSE_DEV_PFX_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Meetral ${{ github.ref_name }}"
+          releaseDraft: true
+          args: ${{ matrix.args }}

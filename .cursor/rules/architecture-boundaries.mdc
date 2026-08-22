@@ -1,0 +1,17 @@
+---
+description: Meetral architecture boundaries — capability routing, one SegmentEngine.
+globs: src-tauri/src/**/*.rs,src/features/**/*.{ts,tsx}
+alwaysApply: true
+---
+
+# Architecture boundaries
+
+Start at [AGENTS.md](AGENTS.md). Read [docs/features/current.md](docs/features/current.md), [docs/features/catalog.md](docs/features/catalog.md), and [docs/architecture/overview.md](docs/architecture/overview.md) before changing `src-tauri/src/**` or `src/features/**`.
+
+Meetral is live translation + meeting library + summaries. Do not start capabilities that are not in the catalog unless the user asks.
+
+`meeting/segment_engine.rs` is the only transcript-stabilization owner. Do not add a second persist engine. `PhraseCommitter` is an OpenAI protocol helper, not a commit engine.
+
+Pipeline, session, mux, and engine branch on `ProviderCapabilities` / `PlaybackSource` / factory helpers — never `AiProvider` identity. Allow-list: docs/architecture/overview.md Hard rules.
+
+Prefer `capabilities/` and `providers/` in new Rust code. Do not grow the `ai/` or `voice/` re-export facades. New live vendor = new folder under `providers/` + one factory registration.

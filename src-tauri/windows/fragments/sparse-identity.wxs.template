@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparse MSIX identity for MSI installs (NSIS uses installer-hooks.nsh).
+
+  Rendered by scripts/sparse-identity/Build-SparsePackage.ps1 — substitutes the
+  sparse payload directory placeholder with an absolute staged path so candle/light
+  can find Meetral-sparse.msix + logos + register scripts at build time.
+
+  Files land next to meetral.exe (INSTALLDIR). Registration is best-effort;
+  failure must not roll back the MSI (Return="ignore").
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="MeetralSparseIdentity" Guid="8F3C2A91-5B4E-4D7A-9C1F-2E6B8A0D4F73">
+        <File Id="MeetralSparseMsix" Source="@SPARSE_PAYLOAD_DIR@\Meetral-sparse.msix" KeyPath="yes" />
+@SPARSE_LOGO_FILES@
+        <File Id="MeetralSparseResourcesPri" Source="@SPARSE_PAYLOAD_DIR@\resources.pri" />
+        <File Id="MeetralSparseRegister" Source="@SPARSE_PAYLOAD_DIR@\Register-MeetralIdentity.ps1" />
+        <File Id="MeetralSparseUnregister" Source="@SPARSE_PAYLOAD_DIR@\Unregister-MeetralIdentity.ps1" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Directory=INSTALLDIR → cwd is the install folder; script infers -InstallDir from its path. -->
+    <CustomAction
+      Id="RegisterMeetralSparseIdentity"
+      Directory="INSTALLDIR"
+      ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File Register-MeetralIdentity.ps1"
+      Execute="deferred"
+      Impersonate="yes"
+      Return="ignore" />
+
+    <CustomAction
+      Id="UnregisterMeetralSparseIdentity"
+      Directory="INSTALLDIR"
+      ExeCommand="powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File Unregister-MeetralIdentity.ps1"
+      Execute="deferred"
+      Impersonate="yes"
+      Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="RegisterMeetralSparseIdentity" After="InstallFiles">NOT REMOVE</Custom>
+      <Custom Action="UnregisterMeetralSparseIdentity" Before="RemoveFiles">REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>

@@ -1,0 +1,52 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+*.tsbuildinfo
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Rust
+src-tauri/target/
+
+# Env
+.env
+setup_test_trace.txt
+
+# Tauri
+src-tauri/gen/
+
+# Sparse identity build artifacts (private key must never be committed)
+src-tauri/installer/sparse/
+src-tauri/installer-hooks.nsh
+src-tauri/windows/fragments/sparse-identity.wxs
+scripts/sparse-identity/*.msix
+scripts/sparse-identity/*.pfx
+scripts/sparse-identity/*.cer
+# Generated at build: unplated taskbar variants + PRI index
+scripts/sparse-identity/pkg-root/MeetralAppList.targetsize-*.png
+scripts/sparse-identity/pkg-root/resources.pri
+scripts/sparse-identity/pkg-root/priconfig.xml
+src-tauri/icons/_taskbar_capture.png
+
+# Graphify
+graphify-out/
+coverage/
+
+# Cursor local agent data (keep committed project rules)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**

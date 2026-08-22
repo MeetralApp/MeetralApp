@@ -1,0 +1,21 @@
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <!-- Package identity for sparse-MSIX registration (see scripts/sparse-identity).
+       publisher must match the sparse package's Identity Publisher and the signing
+       cert subject; packageName/applicationId must match the sparse AppxManifest. -->
+  <msix xmlns="urn:schemas-microsoft-com:msix.v1"
+        publisher="CN=MeetralDev"
+        packageName="Meetral"
+        applicationId="Meetral" />
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
+</assembly>

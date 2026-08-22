@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Version agreement
+        run: npm run check:version
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend knip
+        run: npm run knip
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Frontend tests
+        run: npm run test
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Rust fmt
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Heavy packaging only on main/tag pushes — PRs stop at test/lint.
+      # SPARSE_DEV_PFX_* optional: shared dev cert for sparse-identity MSIX.
+      # Without secrets, Build-SparsePackage.ps1 falls back to ephemeral self-signed.
+      - name: Tauri build
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          SPARSE_DEV_PFX_BASE64: ${{ secrets.SPARSE_DEV_PFX_BASE64 }}
+          SPARSE_DEV_PFX_PASSWORD: ${{ secrets.SPARSE_DEV_PFX_PASSWORD }}
+        run: npm run tauri build
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Version agreement
+        run: npm run check:version
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend knip
+        run: npm run knip
+
+      - name: Frontend build
+        run: npm run build
+
+      - name: Frontend tests
+        run: npm run test
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Rust fmt
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Heavy packaging only on main/tag pushes — PRs stop at test/lint.
+      - name: Tauri build (arm64)
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        run: npm run tauri build -- --target aarch64-apple-darwin
+
+  # Warn-only: surfaces new advisories without blocking PRs.
+  audit:
+    name: Cargo audit (warn-only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: taiki-e/install-action@cargo-audit
+
+      - name: cargo audit
+        working-directory: src-tauri
+        run: cargo audit
