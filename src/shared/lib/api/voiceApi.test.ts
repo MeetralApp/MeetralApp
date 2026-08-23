@@ -3,11 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   listElevenLabsModels,
   listElevenLabsVoices,
+  listFishAudioModels,
+  listFishAudioVoices,
   listSonioxVoices,
   previewElevenLabsVoice,
+  previewFishAudioVoice,
   previewSonioxVoice,
   testElevenLabsApiKey,
+  testFishAudioApiKey,
   validateElevenLabsVoice,
+  validateFishAudioVoice,
 } from "./voiceApi";
 
 describe("voiceApi", () => {
@@ -54,6 +59,27 @@ describe("voiceApi", () => {
     await previewSonioxVoice("Adrian", "s");
     expect(invoke).toHaveBeenCalledWith("preview_soniox_voice", {
       request: { apiKey: "s", voice: "Adrian" },
+    });
+  });
+
+  it("lists, validates, and previews Fish Audio voices", async () => {
+    await testFishAudioApiKey("fa-key");
+    expect(invoke).toHaveBeenCalledWith("test_fishaudio_api_key", {
+      request: { apiKey: "fa-key" },
+    });
+    await listFishAudioVoices("k");
+    expect(invoke).toHaveBeenCalledWith("list_fishaudio_voices", {
+      request: { apiKey: "k" },
+    });
+    await listFishAudioModels();
+    expect(invoke).toHaveBeenCalledWith("list_fishaudio_models");
+    await validateFishAudioVoice("v1", "k");
+    expect(invoke).toHaveBeenCalledWith("validate_fishaudio_voice", {
+      request: { apiKey: "k", voiceId: "v1" },
+    });
+    await previewFishAudioVoice("v1", "k");
+    expect(invoke).toHaveBeenCalledWith("preview_fishaudio_voice", {
+      request: { apiKey: "k", voiceId: "v1" },
     });
   });
 });

@@ -87,11 +87,11 @@ Overlay open action: label **Open overlay** / **Open** — do not reuse voice �
 
 | State | UI |
 |-------|-----|
-| Missing | Full `SecretApiKeyField` under owner (Engine / Intelligence Provider / ElevenLabs) — no duplicate L1 “API key” section once configured path exists |
+| Missing | Full `SecretApiKeyField` under owner (Engine / Intelligence Provider / ElevenLabs / Fish Audio) — no duplicate L1 “API key” section once configured path exists |
 | Ready | Icon-only `ApiKeyChip` (Key + status tone) on **owner header**; tooltip `API key · {status}`; expand → `border-t` + field with `showLabel={false}` |
 | Dirty | Auto-open panel; status “Not saved”; must feed drawer `hasUnsavedChanges` (including Intelligence) |
 
-Owners: Engine field (Translate cluster), Intelligence Provider block header, ElevenLabs L2.
+Owners: Engine field (Translate cluster), Intelligence Provider block header, ElevenLabs L2, Fish Audio L2.
 
 ### Typography
 
@@ -123,10 +123,10 @@ Two L1 sections (do not wrap in a redundant “Voice” L1). Status badge on **M
 
 | Section (L1) | Content |
 |--------------|---------|
-| **Meeting → You** | L3 mode; Soniox → L2 Soniox TTS (**shared model once**, per-direction voice + speed + Preview on voice field); Gemini/OpenAI Engine → session note; ElevenLabs → L2 + Advanced L2 collapsible |
+| **Meeting → You** | L3 mode; Custom voice engine (ElevenLabs \| Fish Audio) when custom voice is on; Soniox → L2 Soniox TTS (**shared TTS model on both Engine columns**, same field; per-direction voice + speed + Preview on voice field); Gemini/OpenAI Engine → session note; vendor L2 + Advanced L2 collapsible |
 | **You → Meeting** | Same anatomy |
 
-ElevenLabs API key once on first visible clone group. Advanced: Speaking style (hidden for Soniox live engine), TTS model, Stability, Similarity; draft footer when dirty.
+Custom voice API keys once per vendor on the first visible custom voice group that uses that vendor. ElevenLabs Advanced: Speaking style (hidden for Soniox live engine), TTS model (`SettingsField` + Refresh), Stability, Similarity. Fish Audio Advanced: TTS model (`SettingsField` + Refresh, same chrome as ElevenLabs), latency, temperature, speed, top-p. Draft footer when dirty.
 
 ### Audio
 
@@ -188,7 +188,7 @@ Tab owns the name — omit redundant L1 “Intelligence” while only one cluste
 | Pattern | Examples |
 |---------|----------|
 | Instant | Engine, languages, live/summary model, Soniox TTS voice/speed, voice mode, segment layout, overlay, theme |
-| Draft + Save | API keys (Translate + Intelligence), Audio devices, Speech detection, Soniox context edit, ElevenLabs Advanced, tray prefs |
+| Draft + Save | API keys (Translate + Intelligence), Audio devices, Speech detection, Soniox context edit, custom voice Advanced, tray prefs |
 
 All drafts (including Intelligence API key) → drawer discard dialog.
 
@@ -198,7 +198,7 @@ Deep link: `focusKey` + `activeFocus` → `scrollIntoView`.
 | Tab | Focus aliases |
 |-----|---------------|
 | Translate | `translate`, `api`, `provider`, `languages`, `sonioxContext` |
-| Voice | `voice`, `clone` |
+| Voice | `voice`, `customVoice` |
 | Audio | `audio` |
 | Intelligence | `intelligence`, `summaries`, `summary` |
 | App | `app`, `overlay` |
@@ -208,9 +208,9 @@ Deep link: `focusKey` + `activeFocus` → `scrollIntoView`.
 | Area | Lock when |
 |------|-----------|
 | Engine / Languages | Any pipeline busy |
-| Meeting → You / inbound ElevenLabs | Inbound active/starting |
-| You → Meeting / outbound ElevenLabs | Outbound active/starting |
-| Shared ElevenLabs API key | Either direction active/starting |
+| Meeting → You / inbound custom voice knobs | Inbound active/starting |
+| You → Meeting / outbound custom voice knobs | Outbound active/starting |
+| Shared custom voice API keys (EL / Fish) | Either direction that uses that vendor is active/starting |
 
 ---
 

@@ -1,6 +1,7 @@
 import SonioxEngineVoiceSettings from "./SonioxEngineVoiceSettings";
 import type { SonioxTtsModelOption } from "@/features/ai/lib/aiTypes";
-import type { ConfigView, SaveConfigPayload, SaveConfigResult, SonioxVoiceOption } from "@/shared/lib/types/pipeline";
+import type { ConfigView, SaveConfigResult, SonioxVoiceOption } from "@/shared/lib/types/pipeline";
+import { toSavePayload } from "@/features/pipeline/lib/toSavePayload";
 import type { ToastType } from "@/shared/context/toastTypes";
 
 /** Meeting → You Engine voice settings (Soniox). */
@@ -13,7 +14,9 @@ export default function SonioxInboundVoiceSettings(props: {
   showSharedModel?: boolean;
   onRefreshCatalog: () => void;
   onPreviewVoice?: (voice: string, apiKey?: string) => Promise<void>;
-  onSave: (payload: SaveConfigPayload) => Promise<SaveConfigResult | void>;
+  onSave: (
+    patch: Parameters<typeof toSavePayload>[1],
+  ) => Promise<SaveConfigResult | void>;
   onToast: (type: ToastType, text: string) => void;
 }) {
   const { inboundLocked, ...rest } = props;

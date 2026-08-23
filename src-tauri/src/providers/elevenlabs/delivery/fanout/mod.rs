@@ -14,7 +14,7 @@ use crate::providers::shared::live::TranscriptEvent;
 use crate::voice::config::TtsSynthesisMode;
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 
 use self::context::FanoutContext;
 use self::r#loop::run_delivery_loop;
@@ -28,7 +28,7 @@ pub fn spawn_outbound_transcript_fanout(
     voice_engine: Arc<AtomicU8>,
     voice_switch_in_progress: Arc<AtomicBool>,
     relay_chars_while_provider: Arc<AtomicU64>,
-    latency_tx: Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: Arc<TurnLatencySlot>,
     uses_separate_tts: bool,
     idle_flush_unflushed_text: bool,

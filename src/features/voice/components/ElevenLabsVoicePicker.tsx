@@ -203,9 +203,9 @@ export default function ElevenLabsVoicePicker({
       labelContent={
         <span className="inline-flex items-center gap-1.5">
           <Label htmlFor={selectId} className={settingsFieldLabelClass}>
-            Clone voice
+            Voice
           </Label>
-          <SettingInfoHint label="About cloned voice">
+          <SettingInfoHint label="About custom voice">
             Lists voices from your ElevenLabs My Voices. Professional Voice
             Clones work best for meeting translation.
           </SettingInfoHint>

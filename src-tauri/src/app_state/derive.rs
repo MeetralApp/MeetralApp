@@ -201,7 +201,7 @@ fn translate_disabled_reason(
     audio: &AudioConnectionState,
     api_configured: bool,
     translate_audio_ready: bool,
-    elevenlabs_ready: bool,
+    custom_voice_ready: bool,
 ) -> Option<String> {
     if can_translate {
         return None;
@@ -215,8 +215,8 @@ fn translate_disabled_reason(
     if !api_configured {
         return Some("API key required".into());
     }
-    if !elevenlabs_ready {
-        return Some("Complete voice clone setup in Settings".into());
+    if !custom_voice_ready {
+        return Some("Complete custom voice setup in Settings".into());
     }
     if !translate_audio_ready {
         return Some("Complete audio setup in Settings".into());
@@ -240,11 +240,12 @@ pub fn build_setup_state(view: &EngineView<'_>, revision: u64) -> SetupState {
     let can_direct_inbound = direct_inbound_ready;
 
     let can_translate_outbound = api_configured
-        && view.config.validate_elevenlabs_setup().is_ok()
+        && view.config.validate_custom_voice_outbound_setup().is_ok()
         && direct_outbound_ready
         && can_start_outbound_audio(view.config, &audio)
         && !column_audio_fault(&outbound_audio);
     let can_translate_inbound = api_configured
+        && view.config.validate_custom_voice_inbound_setup().is_ok()
         && direct_inbound_ready
         && can_start_inbound_audio(view.config, &audio)
         && !column_audio_fault(&inbound_audio);
@@ -314,7 +315,11 @@ fn build_column_ui(
         )
     };
 
-    let elevenlabs_ready = !direction_outbound || view.config.validate_elevenlabs_setup().is_ok();
+    let custom_voice_ready = if direction_outbound {
+        view.config.validate_custom_voice_outbound_setup().is_ok()
+    } else {
+        view.config.validate_custom_voice_inbound_setup().is_ok()
+    };
 
     ColumnUiState {
         pipeline,
@@ -326,7 +331,7 @@ fn build_column_ui(
             &audio,
             setup.api_key_configured,
             translate_audio_ready,
-            elevenlabs_ready,
+            custom_voice_ready,
         ),
         idle_badge,
         pipeline_live,

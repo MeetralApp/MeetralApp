@@ -64,7 +64,7 @@ Use **Settings → Audio devices → Auto-fill BlackHole** after installing both
 
 With **Meeting → Direct**, meeting audio is relayed from BlackHole 16ch capture to local playback (Teams speaker no longer goes straight to your headphones).
 
-When Meeting → You is Translated or Clone, Meetral may mix a quiet copy of the meeting floor under TTS. Use headphones and ensure BlackHole/Playback is not looped back into Meeting Capture, or STT will hear the app’s own output. Direct relay is not that mix path — [direct-audio.md](../integrations/direct-audio.md).
+When Meeting → You is Translated or Custom, Meetral may mix a quiet copy of the meeting floor under TTS. Use headphones and ensure BlackHole/Playback is not looped back into Meeting Capture, or STT will hear the app’s own output. Direct relay is not that mix path — [direct-audio.md](../integrations/direct-audio.md).
 
 ## Code signing and notarization
 

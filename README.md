@@ -10,7 +10,7 @@ Desktop app (Windows & macOS) for real-time speech translation in online meeting
 
 - Bidirectional live translate (**You** / **Meeting**): Direct passthrough or Translate
 - Multi-provider live engines (**Gemini**, **OpenAI**, **Soniox**)
-- Voice clone via **ElevenLabs** (You and Meeting columns)
+- Custom voice via **ElevenLabs** and/or **Fish Audio** (You and Meeting columns)
 - Meeting library: SQLite transcripts, FTS, AI summary, artifacts, history drawer
 - System tray (close-to-tray) and hot-plug audio resilience
 

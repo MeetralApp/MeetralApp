@@ -22,7 +22,7 @@ export const NotesPathIcon = NotebookPen;
 /** Output mode icons for Translate dropdown / active chip. */
 export function pipelineOutputModeIcon(value: string): LucideIcon {
   switch (value) {
-    case "translatedClone":
+    case "translatedCustom":
       return UserRound;
     case "originalAudio":
       return AudioWaveform;

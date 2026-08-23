@@ -57,7 +57,7 @@ pub fn estimate_payload_chars(payload: &SonioxContextPayload) -> usize {
 /// - `profile == None` → Always-on only
 /// - `include_always_on == false` → profile payload only
 /// - else: general keys (profile wins), terms/translation union (profile wins),
-/// text = always_on then profile (newline-separated)
+///   text = always_on then profile (newline-separated)
 pub fn merge_soniox_context(
     always_on: &SonioxContextPayload,
     profile: Option<&SonioxContextProfile>,

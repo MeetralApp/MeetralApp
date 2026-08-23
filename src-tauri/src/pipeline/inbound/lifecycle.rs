@@ -20,8 +20,8 @@ pub(crate) async fn teardown_inbound_parts(mut parts: InboundTeardown) {
         if let Some(session) = tts.provider_session.take() {
             stop_tts_session(session, "inbound provider tts").await;
         }
-        if let Some(session) = tts.el_session.take() {
-            stop_tts_session(session, "inbound elevenlabs").await;
+        if let Some(session) = tts.custom_session.take() {
+            stop_tts_session(session, "inbound custom tts").await;
         }
     }
     // Abort immediately — live transcript was already flushed by TranslationEngine.

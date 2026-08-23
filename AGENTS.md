@@ -1,6 +1,6 @@
 # Agents
 
-Meetral is a **live meeting interpreter** (Tauri 2 + React + Rust): bidirectional **You** / **Meeting** translation, meeting library, and summaries. Version **4.8.4**.
+Meetral is a **live meeting interpreter** (Tauri 2 + React + Rust): bidirectional **You** / **Meeting** translation, meeting library, and summaries. Version **4.8.5**.
 
 Shipped surface: [docs/features/catalog.md](docs/features/catalog.md). Do not start capabilities that are not in the catalog unless the user asks — there is no implementation plan for unlisted work.
 
@@ -40,7 +40,7 @@ src/                 React app — features/{pipeline,config,ai,voice,audio,meet
 src/shared/          UI primitives, layout, hooks, types
 src-tauri/src/       Rust crate (one crate — no workspace split)
   capabilities/      ProviderCapabilities + PlaybackSource + routing helpers
-  providers/         gemini, openai, soniox, elevenlabs, compatible, shared/live
+  providers/         gemini, openai, soniox, elevenlabs, fishaudio, compatible, shared/live
   runtime/           engine, factories, voice_runtime, playback_mux, direct_relay
   pipeline/          inbound / outbound session wiring
   meeting/           SQLite library, SegmentEngine, summary, prompts, recording

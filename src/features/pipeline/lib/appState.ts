@@ -89,6 +89,8 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     overlay: { ...DEFAULT_OVERLAY_SETTINGS, ...(data.overlay ?? {}) },
     inboundVoiceOutput: data.inboundVoiceOutput ?? "providerNative",
     outboundVoiceOutput: data.outboundVoiceOutput ?? "providerNative",
+    outboundCustomVoiceVendor: data.outboundCustomVoiceVendor ?? "elevenLabs",
+    inboundCustomVoiceVendor: data.inboundCustomVoiceVendor ?? "elevenLabs",
     sonioxAlwaysOn: data.sonioxAlwaysOn ?? {
       general: [],
       text: "",
@@ -132,6 +134,18 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     elevenlabsTtsSynthesisMode: data.elevenlabsTtsSynthesisMode ?? "streaming",
     elevenlabsPlaybackCrossfade: data.elevenlabsPlaybackCrossfade ?? false,
     elevenlabsCrossfadeMs: data.elevenlabsCrossfadeMs ?? 8,
+    fishaudioVoiceId: data.fishaudioVoiceId ?? "",
+    fishaudioInboundVoiceId: data.fishaudioInboundVoiceId ?? "",
+    fishaudioVoices: data.fishaudioVoices ?? [],
+    fishaudioModels: data.fishaudioModels ?? [],
+    fishaudioTtsModel: data.fishaudioTtsModel ?? "s2.1-pro",
+    fishaudioInboundTtsModel: data.fishaudioInboundTtsModel ?? "s2.1-pro",
+    fishaudioLatency: data.fishaudioLatency ?? "balanced",
+    fishaudioInboundLatency: data.fishaudioInboundLatency ?? "balanced",
+    fishaudioTemperature: data.fishaudioTemperature ?? 0.7,
+    fishaudioInboundTemperature: data.fishaudioInboundTemperature ?? 0.7,
+    fishaudioSpeed: data.fishaudioSpeed ?? 1.0,
+    fishaudioTopP: data.fishaudioTopP ?? 0.7,
     liveModel:
       data.liveModel ??
       (data.aiProvider === "openAi"

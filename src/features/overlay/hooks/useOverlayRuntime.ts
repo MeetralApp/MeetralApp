@@ -126,7 +126,7 @@ function deriveColumn(
 function isOutboundToolbarMode(value: string): value is OutboundToolbarMode {
   return (
     value === "translated" ||
-    value === "translatedClone" ||
+    value === "translatedCustom" ||
     value === "originalAudio" ||
     value === "textOnly"
   );
@@ -199,9 +199,9 @@ export function useOverlayRuntime(): OverlayRuntime {
     () => getPipelineModeOptions("inbound", config ?? undefined),
     [config],
   );
-  const cloneActive =
+  const customActive =
     outbound.pathMode === "translate" &&
-    outboundToolbarMode === "translatedClone";
+    outboundToolbarMode === "translatedCustom";
 
   const toggleMicMuted = useCallback(async () => {
     await setMicMuted(!(status?.micMuted ?? false));
@@ -362,7 +362,7 @@ export function useOverlayRuntime(): OverlayRuntime {
       inboundMode,
       outboundModeOptions,
       inboundModeOptions,
-      cloneActive,
+      customActive,
       toggleMicMuted,
       toggleSpeakerMuted,
       setOutboundPath,
@@ -380,7 +380,7 @@ export function useOverlayRuntime(): OverlayRuntime {
       inboundMode,
       outboundModeOptions,
       inboundModeOptions,
-      cloneActive,
+      customActive,
       toggleMicMuted,
       toggleSpeakerMuted,
       setOutboundPath,

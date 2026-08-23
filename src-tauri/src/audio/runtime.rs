@@ -18,7 +18,7 @@ use super::playback_buffer::PlaybackBufferConfig;
 use super::resampler::upsample_24k_to_48k;
 use super::ResolvedDevice;
 use crate::config::PipelineOutputMode;
-use crate::voice::config::VOICE_ENGINE_CLONE;
+use crate::voice::config::VOICE_ENGINE_CUSTOM;
 
 const MODE_TRANSLATED: u8 = 0;
 const MODE_ORIGINAL: u8 = 1;
@@ -406,7 +406,7 @@ pub fn spawn_pipeline_audio(
                                                                            && voice_engine.as_ref().is_some_and(
                                                                                |engine| {
                                                                                    engine.load(Ordering::SeqCst)
-                                                                                       == VOICE_ENGINE_CLONE
+                                                                                       == VOICE_ENGINE_CUSTOM
                                                                                },
                                                                            );
                                                                        let pcm_48k = if crossfade_active {
@@ -519,7 +519,7 @@ pub fn spawn_pipeline_audio(
 fn playback_buffer_config(voice_engine: &Option<Arc<AtomicU8>>) -> PlaybackBufferConfig {
     if voice_engine
         .as_ref()
-        .is_some_and(|engine| engine.load(Ordering::SeqCst) == VOICE_ENGINE_CLONE)
+        .is_some_and(|engine| engine.load(Ordering::SeqCst) == VOICE_ENGINE_CUSTOM)
     {
         PlaybackBufferConfig::clone_outbound()
     } else {
@@ -569,7 +569,7 @@ fn prepare_translated_pcm_48k(
     let crossfade_active = crossfade_enabled
         && voice_engine
             .as_ref()
-            .is_some_and(|engine| engine.load(Ordering::SeqCst) == VOICE_ENGINE_CLONE);
+            .is_some_and(|engine| engine.load(Ordering::SeqCst) == VOICE_ENGINE_CUSTOM);
     if crossfade_active {
         if let Some(mixer) = crossfade_mixer.as_mut() {
             mixer.push_chunk(PlaybackPcmChunk {

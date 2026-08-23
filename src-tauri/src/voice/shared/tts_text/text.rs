@@ -4,7 +4,7 @@ pub fn normalize_interim_translated(text: &str) -> String {
 
 /// Merge a streaming interim against what we've already tracked.
 ///
-/// Mirrors `meeting::segment_engine::merge_streaming_text` so the cloned voice follows
+/// Mirrors `meeting::segment_engine::merge_streaming_text` so the custom voice follows
 /// the exact same accumulation rule as the on-screen transcript.
 pub fn merge_streaming_text(previous: &str, next: &str) -> String {
     if next.trim().is_empty() {

@@ -204,7 +204,7 @@ async fn run_session(
                 if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
                     warn!("elevenlabs audio playback channel closed");
                     let message =
-                        "Voice clone playback unavailable — Stop and Start to retry.".into();
+                        "Custom voice playback unavailable — Stop and Start to retry.".into();
                     crate::runtime::control_channel::try_send_control(
                         status_tx,
                         VoiceTtsStatus::Degraded { message },
@@ -221,7 +221,7 @@ async fn run_session(
         };
         if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
             warn!("elevenlabs audio playback channel closed");
-            let message = "Voice clone playback unavailable — Stop and Start to retry.".into();
+            let message = "Custom voice playback unavailable — Stop and Start to retry.".into();
             crate::runtime::control_channel::try_send_control(
                 status_tx,
                 VoiceTtsStatus::Degraded { message },

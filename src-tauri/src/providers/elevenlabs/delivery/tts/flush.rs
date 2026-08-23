@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use crate::voice::shared::debug;
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 
 use super::commands::{append_delta, emit_turn_latency, send_tts_cmd};
 use super::types::FlushReason;
@@ -15,7 +15,7 @@ pub(crate) fn flush_tts(
     tts_cmd_tx: &std::sync::Mutex<mpsc::Sender<TtsTextCommand>>,
     voice_engine: &AtomicU8,
     relay_chars_while_provider: &AtomicU64,
-    latency_tx: &Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: &Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: &TurnLatencySlot,
     reason: FlushReason,
     hard: bool,

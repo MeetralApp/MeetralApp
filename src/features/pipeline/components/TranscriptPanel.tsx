@@ -63,7 +63,7 @@ export default function TranscriptPanel({
 
   const isOutboundToolbarMode = (value: string): value is OutboundToolbarMode =>
     value === "translated" ||
-    value === "translatedClone" ||
+    value === "translatedCustom" ||
     value === "originalAudio" ||
     value === "textOnly";
 
@@ -103,7 +103,7 @@ export default function TranscriptPanel({
 
   const isInboundToolbarMode = (value: string): value is InboundToolbarMode =>
     value === "translated" ||
-    value === "translatedClone" ||
+    value === "translatedCustom" ||
     value === "originalAudio" ||
     value === "textOnly";
 

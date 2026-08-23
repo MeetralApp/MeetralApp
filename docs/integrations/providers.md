@@ -2,7 +2,7 @@
 
 Live speech vendors and the summary Chat LLM. Routing rules: [capabilities.md](../architecture/capabilities.md). Hard rules: [overview.md](../architecture/overview.md).
 
-`AiProvider` (`ai/provider.rs`) is **Gemini | OpenAi | Soniox** only. ElevenLabs is a voice engine, not an `AiProvider`. Compatible Chat LLM profiles are config data, not a fourth `AiProvider`.
+`AiProvider` (`ai/provider.rs`) is **Gemini | OpenAi | Soniox** only. ElevenLabs and Fish Audio are voice engines, not `AiProvider`s. Compatible Chat LLM profiles are config data, not a fourth `AiProvider`.
 
 ---
 
@@ -16,15 +16,30 @@ Live speech vendors and the summary Chat LLM. Routing rules: [capabilities.md](.
 
 Shared live kernel: `providers/shared/live/`. Factory connect: `runtime/factories/live.rs` + `setup.rs`.
 
-When Meeting → You is Translated or Clone, the pipeline may mix a quiet copy of the meeting floor under TTS inside `spawn_pipeline_audio` — **not** via `DirectRelay`. Use headphones; do not route Local Playback into Meeting Capture.
+When Meeting → You is Translated or Custom, the pipeline may mix a quiet copy of the meeting floor under TTS inside `spawn_pipeline_audio` — **not** via `DirectRelay`. Use headphones; do not route Local Playback into Meeting Capture.
 
 ---
 
-## ElevenLabs (clone)
+## ElevenLabs (custom voice)
 
-`providers/elevenlabs/` + `runtime/voice_runtime.rs`. Shared API key; per-direction voice / model / stability / similarity / synthesis mode. `PlaybackSource::CloneTts` on **both** You and Meeting columns.
+`providers/elevenlabs/` + `runtime/voice_runtime.rs` + `runtime/factories/custom.rs`. Shared API key; per-direction voice / model / stability / similarity / synthesis mode. `PlaybackSource::CustomTts` when that column’s vendor is ElevenLabs.
 
-Do not recreate a shared mega `tts_delivery`. Delivery stays inside the vendor slice.
+Do not recreate a shared mega `tts_delivery`. Delivery stays inside the ElevenLabs slice as Gemini/OpenAI text coalescing. Do not point the ElevenLabs worker at Fish’s ElevenLabs-compat URL.
+
+---
+
+## Fish Audio (custom voice)
+
+`providers/fishaudio/` + factory spawn in `runtime/factories/custom.rs`. Not a live `AiProvider`. Native API only:
+
+- Live: `wss://api.fish.audio/v1/tts/live`, MessagePack (`start` / `text` / `flush` / `stop`)
+- REST: `POST https://api.fish.audio/v1/tts`, `GET /model?self=true`
+- Auth: `Authorization: Bearer` + header `model`
+- PCM: `format=pcm`, `sample_rate=24000`
+- Default model: `s2.1-pro` (`s2.1-pro-free` is a Settings option with no latency SLA)
+- Voices: `reference_id` from fish.audio — no in-app `POST /model` training
+
+Per-direction vendor (`outboundCustomVoiceVendor` / `inboundCustomVoiceVendor`). Mixed sessions (You = Fish, Meeting = ElevenLabs) are in scope. One custom voice WebSocket per direction.
 
 ---
 

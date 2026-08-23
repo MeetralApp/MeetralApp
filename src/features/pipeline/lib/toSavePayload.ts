@@ -1,6 +1,9 @@
 import type {
   ConfigView,
+  CustomVoiceVendor,
   ElevenLabsChunkSchedulePreset,
+  FishAudioLatency,
+  FishAudioVoiceOption,
   InboundVoiceOutput,
   SaveConfigPayload,
   OutboundVoiceOutput,
@@ -27,12 +30,16 @@ export function toSavePayload(
     clearSonioxApiKey?: boolean;
     inboundVoiceOutput?: InboundVoiceOutput;
     outboundVoiceOutput?: OutboundVoiceOutput;
+    outboundCustomVoiceVendor?: CustomVoiceVendor;
+    inboundCustomVoiceVendor?: CustomVoiceVendor;
     sonioxAlwaysOn?: SonioxContextPayload;
     sonioxContextProfiles?: SonioxContextProfile[];
     sonioxActiveContextProfileId?: string | null;
     sonioxTtsVoice?: string;
     sonioxTtsOutboundVoice?: string;
     sonioxTtsModel?: string;
+    /** Catalog-only persist — do not send a selected model (keeps the user's pick). */
+    skipSonioxTtsModel?: boolean;
     sonioxTtsVoices?: SonioxVoiceOption[];
     sonioxTtsModels?: SonioxTtsModelOption[];
     sonioxTtsInboundSpeed?: number;
@@ -65,12 +72,34 @@ export function toSavePayload(
     elevenlabsTtsSynthesisMode?: TtsSynthesisMode;
     elevenlabsPlaybackCrossfade?: boolean;
     elevenlabsCrossfadeMs?: number;
+    fishaudioApiKey?: string;
+    clearFishaudioApiKey?: boolean;
+    fishaudioVoiceId?: string;
+    fishaudioInboundVoiceId?: string;
+    fishaudioVoices?: FishAudioVoiceOption[];
+    fishaudioModels?: FishAudioModelOption[];
+    fishaudioTtsModel?: string;
+    fishaudioInboundTtsModel?: string;
+    fishaudioLatency?: FishAudioLatency;
+    fishaudioInboundLatency?: FishAudioLatency;
+    fishaudioTemperature?: number;
+    fishaudioInboundTemperature?: number;
+    fishaudioSpeed?: number;
+    fishaudioTopP?: number;
     artifactsEnabled?: boolean;
     answerLanguage?: string;
     meetingContext?: MeetingContextPayload;
   } = {},
 ): SaveConfigPayload {
   const notesMode = (config.sessionMode ?? "interpreter") === "notes";
+  const outboundVoiceOutput =
+    options.outboundVoiceOutput ??
+    config.outboundVoiceOutput ??
+    "providerNative";
+  const inboundVoiceOutput =
+    options.inboundVoiceOutput ??
+    config.inboundVoiceOutput ??
+    "providerNative";
   return {
     aiProvider: config.aiProvider,
     geminiApiKey: options.geminiApiKey ?? "",
@@ -94,15 +123,11 @@ export function toSavePayload(
       ? (config.interpreterInboundMode ?? "translated")
       : config.inboundMode,
     interpreterOutboundVoiceOutput: notesMode
-      ? (config.interpreterOutboundVoiceOutput ??
-        config.outboundVoiceOutput ??
-        "providerNative")
-      : (config.outboundVoiceOutput ?? "providerNative"),
+      ? (config.interpreterOutboundVoiceOutput ?? outboundVoiceOutput)
+      : outboundVoiceOutput,
     interpreterInboundVoiceOutput: notesMode
-      ? (config.interpreterInboundVoiceOutput ??
-        config.inboundVoiceOutput ??
-        "providerNative")
-      : (config.inboundVoiceOutput ?? "providerNative"),
+      ? (config.interpreterInboundVoiceOutput ?? inboundVoiceOutput)
+      : inboundVoiceOutput,
     userMic: config.userMic,
     teamsMicFeed: config.teamsMicFeed,
     meetingCapture: config.meetingCapture,
@@ -132,10 +157,16 @@ export function toSavePayload(
     proactiveSessionRefresh: config.proactiveSessionRefresh,
     transcriptLayout: config.transcriptLayout,
     overlay: config.overlay ?? { ...DEFAULT_OVERLAY_SETTINGS },
-    inboundVoiceOutput:
-      options.inboundVoiceOutput ?? config.inboundVoiceOutput ?? "providerNative",
-    outboundVoiceOutput:
-      options.outboundVoiceOutput ?? config.outboundVoiceOutput ?? "providerNative",
+    inboundVoiceOutput,
+    outboundVoiceOutput,
+    outboundCustomVoiceVendor:
+      options.outboundCustomVoiceVendor ??
+      config.outboundCustomVoiceVendor ??
+      "elevenLabs",
+    inboundCustomVoiceVendor:
+      options.inboundCustomVoiceVendor ??
+      config.inboundCustomVoiceVendor ??
+      "elevenLabs",
     sonioxAlwaysOn:
       options.sonioxAlwaysOn ??
       config.sonioxAlwaysOn ?? {
@@ -156,7 +187,9 @@ export function toSavePayload(
       config.sonioxTtsOutboundVoice ??
       config.sonioxTtsVoice ??
       "Adrian",
-    sonioxTtsModel: options.sonioxTtsModel ?? config.sonioxTtsModel ?? "tts-rt-v1",
+    sonioxTtsModel: options.skipSonioxTtsModel
+      ? undefined
+      : (options.sonioxTtsModel ?? config.sonioxTtsModel ?? "tts-rt-v1"),
     sonioxTtsVoices: options.sonioxTtsVoices ?? config.sonioxTtsVoices ?? [],
     sonioxTtsModels: options.sonioxTtsModels ?? config.sonioxTtsModels ?? [],
     sonioxTtsInboundSpeed:
@@ -223,6 +256,34 @@ export function toSavePayload(
       false,
     elevenlabsCrossfadeMs:
       options.elevenlabsCrossfadeMs ?? config.elevenlabsCrossfadeMs ?? 8,
+    fishaudioApiKey: options.fishaudioApiKey ?? "",
+    clearFishaudioApiKey: options.clearFishaudioApiKey,
+    fishaudioVoiceId:
+      options.fishaudioVoiceId ?? config.fishaudioVoiceId ?? "",
+    fishaudioInboundVoiceId:
+      options.fishaudioInboundVoiceId ?? config.fishaudioInboundVoiceId ?? "",
+    fishaudioVoices: options.fishaudioVoices ?? config.fishaudioVoices ?? [],
+    fishaudioModels: options.fishaudioModels ?? config.fishaudioModels ?? [],
+    fishaudioTtsModel:
+      options.fishaudioTtsModel ?? config.fishaudioTtsModel ?? "s2.1-pro",
+    fishaudioInboundTtsModel:
+      options.fishaudioInboundTtsModel ??
+      config.fishaudioInboundTtsModel ??
+      "s2.1-pro",
+    fishaudioLatency:
+      options.fishaudioLatency ?? config.fishaudioLatency ?? "balanced",
+    fishaudioInboundLatency:
+      options.fishaudioInboundLatency ??
+      config.fishaudioInboundLatency ??
+      "balanced",
+    fishaudioTemperature:
+      options.fishaudioTemperature ?? config.fishaudioTemperature ?? 0.7,
+    fishaudioInboundTemperature:
+      options.fishaudioInboundTemperature ??
+      config.fishaudioInboundTemperature ??
+      0.7,
+    fishaudioSpeed: options.fishaudioSpeed ?? config.fishaudioSpeed ?? 1.0,
+    fishaudioTopP: options.fishaudioTopP ?? config.fishaudioTopP ?? 0.7,
     artifactsEnabled:
       options.artifactsEnabled ?? config.artifactsEnabled ?? true,
     answerLanguage: options.answerLanguage ?? config.answerLanguage ?? "",

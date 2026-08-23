@@ -6,6 +6,8 @@ pub mod custom_llm;
 pub mod device;
 pub mod elevenlabs_public;
 pub mod elevenlabs_settings;
+pub mod fishaudio_public;
+pub mod fishaudio_settings;
 pub mod meeting_context;
 pub mod modes;
 pub mod overlay_settings;
@@ -21,12 +23,13 @@ pub use custom_llm::{
 };
 pub use device::DeviceRef;
 pub use elevenlabs_settings::ElevenLabsSettings;
+pub use fishaudio_settings::{FishAudioLatency, FishAudioSettings};
 pub use meeting_context::{
     MeetingContextPair, MeetingContextPayload, MeetingContextTranslationTerm,
 };
 pub use modes::{
-    AudioPathMode, InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode, SessionMode,
-    ThemePreference, TranscriptLayout, VadSensitivity,
+    AudioPathMode, CustomVoiceVendor, InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode,
+    SessionMode, ThemePreference, TranscriptLayout, VadSensitivity,
 };
 pub use overlay_settings::{
     default_overlay_height, default_overlay_width, OverlayPosition, OverlaySettings,

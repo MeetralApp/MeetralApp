@@ -9,6 +9,11 @@ vi.mock("@/shared/lib/api/voiceApi", () => ({
   previewElevenLabsVoice: vi.fn(),
   previewSonioxVoice: vi.fn(),
   testElevenLabsApiKey: vi.fn(),
+  testFishAudioApiKey: vi.fn(),
+  listFishAudioVoices: vi.fn(),
+  listFishAudioModels: vi.fn(),
+  validateFishAudioVoice: vi.fn(),
+  previewFishAudioVoice: vi.fn(),
 }));
 
 import * as voiceApi from "@/shared/lib/api/voiceApi";
@@ -29,6 +34,11 @@ describe("useVoiceCatalog", () => {
     expect(result.current.previewSonioxVoice).toBe(voiceApi.previewSonioxVoice);
     expect(result.current.testElevenLabsApiKey).toBe(
       voiceApi.testElevenLabsApiKey,
+    );
+    expect(result.current.testFishAudioApiKey).toBe(voiceApi.testFishAudioApiKey);
+    expect(result.current.listFishAudioVoices).toBe(voiceApi.listFishAudioVoices);
+    expect(result.current.previewFishAudioVoice).toBe(
+      voiceApi.previewFishAudioVoice,
     );
   });
 });

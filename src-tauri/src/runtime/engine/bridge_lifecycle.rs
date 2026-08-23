@@ -4,7 +4,7 @@ use super::{
 };
 use crate::ai::{BridgeStatusEvent, TranscriptEvent};
 use crate::audio::list_devices_async;
-use crate::voice::types::{VoiceCloneLatencyEvent, VoiceTtsStatus, VoiceTtsStatusPayload};
+use crate::voice::types::{VoiceCustomLatencyEvent, VoiceTtsStatus, VoiceTtsStatusPayload};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 
@@ -217,13 +217,13 @@ impl TranslationEngine {
         });
     }
 
-    pub(super) fn spawn_voice_clone_latency_listener(
+    pub(super) fn spawn_voice_custom_latency_listener(
         app: AppHandle,
-        mut latency_rx: mpsc::Receiver<VoiceCloneLatencyEvent>,
+        mut latency_rx: mpsc::Receiver<VoiceCustomLatencyEvent>,
     ) {
         tokio::spawn(async move {
             while let Some(event) = latency_rx.recv().await {
-                let _ = app.emit("voice-clone-latency", &event);
+                let _ = app.emit("voice-custom-latency", &event);
             }
         });
     }

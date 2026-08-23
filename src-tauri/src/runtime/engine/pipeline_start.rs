@@ -271,7 +271,7 @@ impl TranslationEngine {
                     Self::spawn_voice_tts_status_listener(app.clone(), rx);
                 }
                 if let Some(rx) = connected.voice_latency_rx.take() {
-                    Self::spawn_voice_clone_latency_listener(app.clone(), rx);
+                    Self::spawn_voice_custom_latency_listener(app.clone(), rx);
                 }
 
                 self.stop_direct_outbound_internal().await;

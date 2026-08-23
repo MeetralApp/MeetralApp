@@ -133,7 +133,7 @@ export default function SettingsDrawer({
 
   const effectiveFocus = internalFocus ?? settingsFocus;
   const voiceSectionFocus =
-    effectiveFocus === "clone" ? "voice" : effectiveFocus;
+    effectiveFocus === "customVoice" ? "voice" : effectiveFocus;
 
   const hasUnsavedChanges =
     apiKeyDirty ||

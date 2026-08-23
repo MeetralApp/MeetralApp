@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// How translated text is fed to a TTS provider for outbound voice clone.
+/// How translated text is fed to a TTS provider for outbound custom voice.
 ///
 /// `Streaming` optimises for latency (interim deltas relayed as they arrive);
 /// `Sentence` optimises for natural prosody by buffering whole sentences and
@@ -13,9 +13,9 @@ pub enum TtsSynthesisMode {
     Sentence,
 }
 
-/// Provider native TTS vs voice-clone routing for outbound playback mux.
+/// Provider native TTS vs custom-voice routing for outbound playback mux.
 pub const VOICE_ENGINE_PROVIDER: u8 = 0;
-pub const VOICE_ENGINE_CLONE: u8 = 1;
+pub const VOICE_ENGINE_CUSTOM: u8 = 1;
 
 pub const EL_PCM_COALESCE_MIN_SAMPLES: usize = 1920; // ~80 ms @ 24 kHz
 

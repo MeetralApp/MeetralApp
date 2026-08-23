@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use super::types::VoiceCloneLatencyEvent;
+use super::types::VoiceCustomLatencyEvent;
 
 /// Per-turn latency timestamps shared between transcript delivery and TTS workers.
 #[derive(Debug, Default)]
@@ -35,7 +35,7 @@ impl TurnLatencySlot {
         &self,
         flush_ms: u64,
         flush_reason: &str,
-    ) -> Option<VoiceCloneLatencyEvent> {
+    ) -> Option<VoiceCustomLatencyEvent> {
         let phrase_started = self.phrase_started_ms.load(Ordering::SeqCst);
         let first_translated = self.first_translated_ms.load(Ordering::SeqCst);
         if phrase_started == 0 || first_translated == 0 {
@@ -53,7 +53,7 @@ impl TurnLatencySlot {
         } else {
             flush_ms.saturating_sub(phrase_started) as i64
         };
-        Some(VoiceCloneLatencyEvent {
+        Some(VoiceCustomLatencyEvent {
             phrase_started_ms: phrase_started,
             first_translated_text_ms: first_translated,
             first_tts_audio_ms: first_audio,

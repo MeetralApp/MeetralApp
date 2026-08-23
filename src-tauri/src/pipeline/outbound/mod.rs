@@ -15,7 +15,7 @@ use crate::audio::{
 use crate::config::{AppConfig, PipelineOutputMode};
 use crate::providers::shared::live::LiveBridgeHandle;
 use crate::runtime::voice_runtime::OutboundVoiceRuntime;
-use crate::voice::{types::VoiceCloneLatencyEvent, VoiceTtsStatus};
+use crate::voice::{types::VoiceCustomLatencyEvent, VoiceTtsStatus};
 
 pub(crate) use lifecycle::{
     await_outbound_session_tasks, teardown_outbound_parts, OutboundTeardown,
@@ -39,7 +39,7 @@ pub(crate) struct OutboundStartConnect {
     pub(crate) session_tasks: Option<OutboundSessionTasks>,
     pub(crate) voice_runtime: Option<Arc<OutboundVoiceRuntime>>,
     pub(crate) voice_tts_status_rx: Option<mpsc::Receiver<VoiceTtsStatus>>,
-    pub(crate) voice_latency_rx: Option<mpsc::Receiver<VoiceCloneLatencyEvent>>,
+    pub(crate) voice_latency_rx: Option<mpsc::Receiver<VoiceCustomLatencyEvent>>,
 }
 
 pub struct OutboundPipeline {

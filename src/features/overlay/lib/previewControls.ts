@@ -25,7 +25,7 @@ function previewColumn(
 
 const OUTBOUND_OPTIONS: PipelineModeOption[] = [
   { value: "translated", label: "Translated voice", shortLabel: "Translated" },
-  { value: "translatedClone", label: "My cloned voice", shortLabel: "Clone" },
+  { value: "translatedCustom", label: "Custom voice", shortLabel: "Custom" },
   { value: "originalAudio", label: "My voice (raw)", shortLabel: "Raw" },
   { value: "textOnly", label: "Captions only", shortLabel: "Captions" },
 ];
@@ -45,11 +45,11 @@ export function createPreviewOverlayControls(): OverlayControlsProps {
     inbound: previewColumn("direct", "Ready"),
     micMuted: false,
     speakerMuted: false,
-    outboundToolbarMode: "translatedClone",
+    outboundToolbarMode: "translatedCustom",
     inboundMode: "translated",
     outboundModeOptions: OUTBOUND_OPTIONS,
     inboundModeOptions: INBOUND_OPTIONS,
-    cloneActive: true,
+    customActive: true,
     onMicToggle: noop,
     onSpeakerToggle: noop,
     onOutboundPath: noop,

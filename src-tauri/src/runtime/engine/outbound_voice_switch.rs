@@ -8,8 +8,8 @@ use super::types::PipelineState;
 use super::TranslationEngine;
 use crate::config::{AppConfig, OutboundVoiceOutput, PipelineOutputMode};
 use crate::runtime::voice_runtime::{
-    engine_to_voice_output, ensure_el_worker, ensure_provider_tts_worker, stop_el_worker,
-    stop_provider_tts_worker, sync_bridge_play_audio, voice_output_to_engine, VOICE_ENGINE_CLONE,
+    engine_to_voice_output, ensure_custom_worker, ensure_provider_tts_worker, stop_custom_worker,
+    stop_provider_tts_worker, sync_bridge_play_audio, voice_output_to_engine, VOICE_ENGINE_CUSTOM,
     VOICE_ENGINE_PROVIDER,
 };
 
@@ -19,8 +19,8 @@ pub async fn set_outbound_voice_output(
     voice_output: OutboundVoiceOutput,
     app: &AppHandle,
 ) -> Result<(), String> {
-    if voice_output.uses_elevenlabs() {
-        config.validate_elevenlabs_setup()?;
+    if voice_output.uses_custom_tts() {
+        config.validate_custom_voice_outbound_setup()?;
     }
 
     let target_engine = voice_output_to_engine(voice_output);
@@ -66,8 +66,8 @@ pub async fn set_outbound_voice_output(
         .voice_switch_in_progress
         .store(true, std::sync::atomic::Ordering::SeqCst);
 
-    let result = if target_engine == VOICE_ENGINE_CLONE {
-        switch_to_clone(config, voice_output, &runtime).await
+    let result = if target_engine == VOICE_ENGINE_CUSTOM {
+        switch_to_custom(config, voice_output, &runtime).await
     } else {
         switch_to_provider(config, voice_output, &runtime).await
     };
@@ -107,7 +107,7 @@ pub async fn set_outbound_voice_output(
     }
 }
 
-async fn switch_to_clone(
+async fn switch_to_custom(
     config: &mut AppConfig,
     voice_output: OutboundVoiceOutput,
     runtime: &Arc<crate::runtime::voice_runtime::OutboundVoiceRuntime>,
@@ -118,11 +118,11 @@ async fn switch_to_clone(
     runtime.bump_mux_generation();
     runtime.flush_playback();
 
-    match ensure_el_worker(runtime, config, None).await {
+    match ensure_custom_worker(runtime, config, None).await {
         Ok(()) => {
             runtime
                 .voice_engine
-                .store(VOICE_ENGINE_CLONE, std::sync::atomic::Ordering::SeqCst);
+                .store(VOICE_ENGINE_CUSTOM, std::sync::atomic::Ordering::SeqCst);
             sync_bridge_play_audio(runtime);
             runtime.bump_mux_generation();
             config.outbound_voice_output = voice_output;
@@ -150,7 +150,7 @@ async fn switch_to_provider(
         .store(VOICE_ENGINE_PROVIDER, std::sync::atomic::Ordering::SeqCst);
     sync_bridge_play_audio(runtime);
 
-    stop_el_worker(runtime).await;
+    stop_custom_worker(runtime).await;
     stop_provider_tts_worker(runtime).await;
     runtime.bump_mux_generation();
     runtime.flush_playback();

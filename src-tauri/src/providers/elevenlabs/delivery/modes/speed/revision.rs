@@ -10,7 +10,7 @@ use crate::providers::elevenlabs::delivery::tts::{
 };
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 
 use super::constants::MAJOR_REWRITE_MIN_LCP;
 
@@ -54,7 +54,7 @@ pub(crate) fn apply_pending_revision(
     tts_cmd_tx: &std::sync::Mutex<mpsc::Sender<TtsTextCommand>>,
     voice_engine: &AtomicU8,
     relay_chars_while_provider: &AtomicU64,
-    latency_tx: &Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: &Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: &TurnLatencySlot,
     state: &mut RelayState,
     sentence_flush_at: &mut Option<Instant>,

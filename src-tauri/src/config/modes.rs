@@ -51,12 +51,14 @@ impl PipelineOutputMode {
 pub enum OutboundVoiceOutput {
     #[default]
     ProviderNative,
-    ElevenLabsClone,
+    /// Custom voice path (ElevenLabs or Fish Audio catalog / generated / cloned voices).
+    #[serde(rename = "custom")]
+    Custom,
 }
 
 impl OutboundVoiceOutput {
-    pub fn uses_elevenlabs(self) -> bool {
-        matches!(self, Self::ElevenLabsClone)
+    pub fn uses_custom_tts(self) -> bool {
+        matches!(self, Self::Custom)
     }
 }
 
@@ -65,12 +67,31 @@ impl OutboundVoiceOutput {
 pub enum InboundVoiceOutput {
     #[default]
     ProviderNative,
-    ElevenLabsClone,
+    #[serde(rename = "custom")]
+    Custom,
 }
 
 impl InboundVoiceOutput {
-    pub fn uses_elevenlabs(self) -> bool {
-        matches!(self, Self::ElevenLabsClone)
+    pub fn uses_custom_tts(self) -> bool {
+        matches!(self, Self::Custom)
+    }
+}
+
+/// Which custom-voice vendor backs a column on the Custom voice path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum CustomVoiceVendor {
+    #[default]
+    ElevenLabs,
+    FishAudio,
+}
+
+impl CustomVoiceVendor {
+    pub fn as_log_label(self) -> &'static str {
+        match self {
+            Self::ElevenLabs => "elevenlabs",
+            Self::FishAudio => "fishaudio",
+        }
     }
 }
 

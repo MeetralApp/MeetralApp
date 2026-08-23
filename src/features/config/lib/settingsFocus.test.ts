@@ -19,7 +19,7 @@ const FOCUS_TO_TAB: [SettingsFocus | null | undefined, SettingsTab][] = [
   ["summary", "intelligence"],
   ["intelligence", "intelligence"],
   ["voice", "voice"],
-  ["clone", "voice"],
+  ["customVoice", "voice"],
   ["audio", "audio"],
   ["app", "app"],
   ["overlay", "app"],
@@ -35,6 +35,6 @@ describe("resolveSettingsTab", () => {
     // overlay privacy / hide-from-capture opens App.
     expect(resolveSettingsTab("languages")).toBe("translate");
     expect(resolveSettingsTab("overlay")).toBe("app");
-    expect(resolveSettingsTab("clone")).toBe("voice");
+    expect(resolveSettingsTab("customVoice")).toBe("voice");
   });
 });

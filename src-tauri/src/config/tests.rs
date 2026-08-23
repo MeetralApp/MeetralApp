@@ -254,11 +254,11 @@ fn uses_provider_tts_helpers() {
     assert!(config.uses_provider_tts_for_outbound());
     assert!(config.uses_provider_tts_for_inbound());
 
-    config.outbound_voice_output = OutboundVoiceOutput::ElevenLabsClone;
+    config.outbound_voice_output = OutboundVoiceOutput::Custom;
     assert!(!config.uses_provider_tts_for_outbound());
     assert!(config.uses_provider_tts_for_inbound());
 
-    config.inbound_voice_output = InboundVoiceOutput::ElevenLabsClone;
+    config.inbound_voice_output = InboundVoiceOutput::Custom;
     assert!(!config.uses_provider_tts_for_inbound());
     config.inbound_voice_output = InboundVoiceOutput::ProviderNative;
 
@@ -274,6 +274,51 @@ fn uses_provider_tts_helpers() {
     config.inbound_mode = PipelineOutputMode::Translated;
     assert!(!config.uses_provider_tts_for_outbound());
     assert!(!config.uses_provider_tts_for_inbound());
+}
+
+#[test]
+fn custom_voice_serde_and_vendor_defaults() {
+    let outbound: OutboundVoiceOutput = serde_json::from_str("\"custom\"").unwrap();
+    assert_eq!(outbound, OutboundVoiceOutput::Custom);
+    let inbound: InboundVoiceOutput = serde_json::from_str("\"custom\"").unwrap();
+    assert_eq!(inbound, InboundVoiceOutput::Custom);
+    assert_eq!(
+        serde_json::to_string(&OutboundVoiceOutput::Custom).unwrap(),
+        "\"custom\""
+    );
+    let config = AppConfig::default();
+    assert_eq!(
+        config.outbound_custom_voice_vendor,
+        crate::config::CustomVoiceVendor::ElevenLabs
+    );
+    assert_eq!(
+        config.inbound_custom_voice_vendor,
+        crate::config::CustomVoiceVendor::ElevenLabs
+    );
+}
+
+#[test]
+fn validate_custom_voice_mixed_vendors() {
+    let mut config = AppConfig {
+        outbound_voice_output: OutboundVoiceOutput::Custom,
+        inbound_voice_output: InboundVoiceOutput::Custom,
+        outbound_mode: PipelineOutputMode::Translated,
+        inbound_mode: PipelineOutputMode::Translated,
+        outbound_custom_voice_vendor: crate::config::CustomVoiceVendor::FishAudio,
+        inbound_custom_voice_vendor: crate::config::CustomVoiceVendor::ElevenLabs,
+        ..AppConfig::default()
+    };
+    let outbound_err = config.validate_custom_voice_outbound_setup().unwrap_err();
+    assert!(outbound_err.contains("Fish Audio"));
+    let inbound_err = config.validate_custom_voice_inbound_setup().unwrap_err();
+    assert!(inbound_err.contains("ElevenLabs"));
+
+    config.elevenlabs.elevenlabs_api_key = "el".into();
+    config.elevenlabs.elevenlabs_inbound_voice_id = "el-voice".into();
+    config.fishaudio.fishaudio_api_key = "fish".into();
+    config.fishaudio.fishaudio_voice_id = "fish-voice".into();
+    assert!(config.validate_custom_voice_outbound_setup().is_ok());
+    assert!(config.validate_custom_voice_inbound_setup().is_ok());
 }
 
 #[test]

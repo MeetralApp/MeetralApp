@@ -9,7 +9,7 @@ use super::TranslationEngine;
 use crate::capabilities::{bridge_emits_playback_audio, bridge_play_audio_enabled};
 use crate::config::{AppConfig, InboundVoiceOutput, PipelineOutputMode};
 use crate::pipeline::inbound::inbound_voice_output_to_engine;
-use crate::runtime::voice_runtime::VOICE_ENGINE_CLONE;
+use crate::runtime::voice_runtime::VOICE_ENGINE_CUSTOM;
 
 const VOICE_SWITCH_COOLDOWN: Duration = Duration::from_millis(800);
 
@@ -19,10 +19,10 @@ pub async fn set_inbound_voice_output(
     voice_output: InboundVoiceOutput,
     app: &AppHandle,
 ) -> Result<(), String> {
-    if voice_output.uses_elevenlabs() {
+    if voice_output.uses_custom_tts() {
         let mut candidate = config.clone();
         candidate.inbound_voice_output = voice_output;
-        candidate.validate_elevenlabs_inbound_setup()?;
+        candidate.validate_custom_voice_inbound_setup()?;
     }
 
     let target_engine = inbound_voice_output_to_engine(voice_output);
@@ -85,10 +85,10 @@ pub async fn set_inbound_voice_output(
 
     let mut target_config = config.clone();
     target_config.inbound_voice_output = voice_output;
-    let result = if target_engine == VOICE_ENGINE_CLONE {
+    let result = if target_engine == VOICE_ENGINE_CUSTOM {
         engine
             .inbound
-            .ensure_inbound_el_worker(&target_config)
+            .ensure_inbound_custom_worker(&target_config)
             .await
     } else {
         engine.inbound.stop_provider_tts().await;
@@ -101,8 +101,8 @@ pub async fn set_inbound_voice_output(
         *last_switch_at
             .lock()
             .map_err(|_| "inbound voice switch clock lock poisoned".to_string())? = Instant::now();
-    } else if current == VOICE_ENGINE_CLONE {
-        let _ = engine.inbound.ensure_inbound_el_worker(config).await;
+    } else if current == VOICE_ENGINE_CUSTOM {
+        let _ = engine.inbound.ensure_inbound_custom_worker(config).await;
     } else {
         let _ = engine.inbound.ensure_provider_tts(config).await;
     }

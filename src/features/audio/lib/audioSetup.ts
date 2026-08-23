@@ -4,6 +4,7 @@ import type {
   ConfigView,
   PipelineOutputMode,
 } from "@/shared/lib/types/pipeline";
+import { isCustomVoiceOutput } from "@/shared/lib/types/pipeline";
 import { needsPlaybackMode } from "@/features/pipeline/lib/pipelineStatus";
 import { providerLabel } from "@/features/ai/lib/aiTypes";
 
@@ -371,12 +372,42 @@ export function buildSetupIssues(
     );
   }
 
-  if (config.outboundVoiceOutput === "elevenLabsClone") {
-    if (!config.elevenlabsApiKeyConfigured) {
-      issues.push("Add your ElevenLabs API key in Settings → Voice for voice clone");
+  if (isCustomVoiceOutput(config.outboundVoiceOutput)) {
+    const vendor = config.outboundCustomVoiceVendor ?? "elevenLabs";
+    if (vendor === "fishAudio") {
+      if (!config.fishaudioApiKeyConfigured) {
+        issues.push("Add your Fish Audio API key in Settings → Voice for custom voice");
+      }
+      if (!config.fishaudioVoiceId?.trim()) {
+        issues.push("Select a Fish Audio voice in Settings → Voice");
+      }
+    } else {
+      if (!config.elevenlabsApiKeyConfigured) {
+        issues.push("Add your ElevenLabs API key in Settings → Voice for custom voice");
+      }
+      if (!config.elevenlabsVoiceId?.trim()) {
+        issues.push("Select or enter an ElevenLabs voice in Settings → Voice");
+      }
     }
-    if (!config.elevenlabsVoiceId?.trim()) {
-      issues.push("Select or enter an ElevenLabs voice in Settings → Voice");
+  }
+
+  if (isCustomVoiceOutput(config.inboundVoiceOutput)) {
+    const vendor = config.inboundCustomVoiceVendor ?? "elevenLabs";
+    if (vendor === "fishAudio") {
+      if (!config.fishaudioApiKeyConfigured) {
+        issues.push(
+          "Add your Fish Audio API key in Settings → Voice for Meeting custom voice",
+        );
+      }
+      if (!config.fishaudioInboundVoiceId?.trim()) {
+        issues.push("Select a Fish Audio voice for Meeting → You in Settings → Voice");
+      }
+    } else if (!config.elevenlabsApiKeyConfigured) {
+      issues.push(
+        "Add your ElevenLabs API key in Settings → Voice for Meeting custom voice",
+      );
+    } else if (!config.elevenlabsInboundVoiceId?.trim()) {
+      issues.push("Select an ElevenLabs voice for Meeting → You in Settings → Voice");
     }
   }
 

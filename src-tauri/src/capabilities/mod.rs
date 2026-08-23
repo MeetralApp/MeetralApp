@@ -14,11 +14,11 @@ pub use catalog::{
 };
 pub use tts::{
     bridge_emits_playback_audio, bridge_play_audio_enabled, inbound_fanout_kind,
-    inbound_playback_source, live_caps, needs_elevenlabs_for_inbound,
-    needs_elevenlabs_for_outbound, outbound_fanout_kind, outbound_playback_source,
-    scaffolds_inbound_text_tts, scaffolds_provider_tts, tts_text_pipeline_active,
-    uses_provider_tts_for_inbound, uses_provider_tts_for_outbound, uses_separate_tts, FanoutKind,
-    PlaybackSource,
+    inbound_playback_source, live_caps, needs_custom_tts_for_inbound,
+    needs_custom_tts_for_outbound, needs_elevenlabs_for_inbound, needs_elevenlabs_for_outbound,
+    outbound_fanout_kind, outbound_playback_source, scaffolds_inbound_text_tts,
+    scaffolds_provider_tts, tts_text_pipeline_active, uses_provider_tts_for_inbound,
+    uses_provider_tts_for_outbound, uses_separate_tts, FanoutKind, PlaybackSource,
 };
 
 #[cfg(test)]

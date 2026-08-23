@@ -19,14 +19,13 @@ use crate::config::{AppConfig, OutboundVoiceOutput, PipelineOutputMode};
 use crate::runtime::control_channel;
 use crate::voice::elevenlabs::latency::TurnLatencySlot;
 use crate::voice::{
-    spawn_elevenlabs_tts_worker, spawn_soniox_tts_worker, ElevenLabsWorkerConfig,
-    SonioxTtsWorkerConfig, TtsTextCommand, VoiceTtsStatus,
+    spawn_soniox_tts_worker, SonioxTtsWorkerConfig, TtsTextCommand, VoiceTtsStatus,
 };
 
-/// Provider native TTS = 0, ElevenLabs clone = 1
+/// Provider native TTS = 0, custom voice = 1
 pub type VoiceEngineAtomic = Arc<AtomicU8>;
 
-pub use crate::voice::config::{VOICE_ENGINE_CLONE, VOICE_ENGINE_PROVIDER};
+pub use crate::voice::config::{VOICE_ENGINE_CUSTOM, VOICE_ENGINE_PROVIDER};
 
 const EL_READY_TIMEOUT: Duration = Duration::from_secs(15);
 const EL_JOIN_TIMEOUT: Duration = Duration::from_secs(3);
@@ -36,25 +35,25 @@ const EL_IDLE_CLOSE: Duration = Duration::from_secs(60);
 pub fn voice_output_to_engine(output: OutboundVoiceOutput) -> u8 {
     match output {
         OutboundVoiceOutput::ProviderNative => VOICE_ENGINE_PROVIDER,
-        OutboundVoiceOutput::ElevenLabsClone => VOICE_ENGINE_CLONE,
+        OutboundVoiceOutput::Custom => VOICE_ENGINE_CUSTOM,
     }
 }
 
 pub fn engine_to_voice_output(engine: u8) -> OutboundVoiceOutput {
-    if engine == VOICE_ENGINE_CLONE {
-        OutboundVoiceOutput::ElevenLabsClone
+    if engine == VOICE_ENGINE_CUSTOM {
+        OutboundVoiceOutput::Custom
     } else {
         OutboundVoiceOutput::ProviderNative
     }
 }
 
-/// Text→TTS pipeline is active for ElevenLabs clone, or Soniox Provider (separate TTS).
+/// Text→TTS pipeline is active for custom voice, or Soniox Provider (separate TTS).
 pub fn tts_active_for_engine(
     mode: PipelineOutputMode,
     engine: u8,
     switch_in_progress: bool,
 ) -> bool {
-    !switch_in_progress && mode == PipelineOutputMode::Translated && engine == VOICE_ENGINE_CLONE
+    !switch_in_progress && mode == PipelineOutputMode::Translated && engine == VOICE_ENGINE_CUSTOM
 }
 
 pub fn tts_text_pipeline_active(
@@ -83,17 +82,17 @@ pub struct OutboundVoiceRuntime {
     pub relay_chars_while_provider: Arc<AtomicU64>,
     pub el_parent_cancel: CancellationToken,
     pub tts_cmd_tx: Arc<StdMutex<mpsc::Sender<TtsTextCommand>>>,
-    pub clone_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
+    pub custom_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
     pub provider_tts_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
     /// From live caps — provider uses a separate text→TTS WebSocket.
     pub uses_separate_tts: bool,
     /// From live caps — live bridge emits STS playback PCM.
     pub bridge_emits_playback_audio: bool,
-    /// ElevenLabs clone worker only.
-    pub el_worker: Mutex<Option<OutboundTtsSession>>,
+    /// Custom voice worker (ElevenLabs or Fish Audio) for this direction.
+    pub custom_worker: Mutex<Option<OutboundTtsSession>>,
     /// Soniox (or other provider-native) text→TTS worker.
     pub provider_tts_worker: Mutex<Option<OutboundTtsSession>>,
-    pub voice_latency_tx: Option<mpsc::Sender<crate::voice::types::VoiceCloneLatencyEvent>>,
+    pub voice_latency_tx: Option<mpsc::Sender<crate::voice::types::VoiceCustomLatencyEvent>>,
     pub turn_latency: Arc<TurnLatencySlot>,
     /// Shared with `AudioModeHandle` — bump to stop WASAPI/CoreAudio and drain PCM queues.
     pub playback_generation: Arc<AtomicU8>,
@@ -106,9 +105,9 @@ impl OutboundVoiceRuntime {
         config: &AppConfig,
         audio_mode: Arc<AtomicU8>,
         el_parent_cancel: CancellationToken,
-        clone_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
+        custom_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
         provider_tts_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
-        voice_latency_tx: Option<mpsc::Sender<crate::voice::types::VoiceCloneLatencyEvent>>,
+        voice_latency_tx: Option<mpsc::Sender<crate::voice::types::VoiceCustomLatencyEvent>>,
         playback_generation: Arc<AtomicU8>,
         pcm_drops: Arc<AtomicU64>,
     ) -> Arc<Self> {
@@ -127,11 +126,11 @@ impl OutboundVoiceRuntime {
             relay_chars_while_provider: Arc::new(AtomicU64::new(0)),
             el_parent_cancel,
             tts_cmd_tx: Arc::new(StdMutex::new(tts_cmd_tx)),
-            clone_pcm_tx,
+            custom_pcm_tx,
             provider_tts_pcm_tx,
             uses_separate_tts: caps.uses_separate_tts,
             bridge_emits_playback_audio: caps.bridge_emits_playback_audio,
-            el_worker: Mutex::new(None),
+            custom_worker: Mutex::new(None),
             provider_tts_worker: Mutex::new(None),
             voice_latency_tx,
             turn_latency: TurnLatencySlot::new_shared(),
@@ -175,111 +174,39 @@ pub fn sync_bridge_play_audio(runtime: &OutboundVoiceRuntime) {
     runtime.bridge_play_audio.store(play, Ordering::SeqCst);
 }
 
-pub async fn ensure_el_worker(
+pub async fn ensure_custom_worker(
     runtime: &Arc<OutboundVoiceRuntime>,
     config: &AppConfig,
     app_status_tx: Option<mpsc::Sender<VoiceTtsStatus>>,
 ) -> Result<(), String> {
     stop_provider_tts_worker(runtime).await;
-    if runtime.el_worker.lock().await.is_some() {
-        stop_el_worker(runtime).await;
+    if runtime.custom_worker.lock().await.is_some() {
+        stop_custom_worker(runtime).await;
     }
 
     let (tts_cmd_tx, tts_cmd_rx) = mpsc::channel(control_channel::TTS_CMD_CHANNEL_DEPTH);
-    let (worker_status_tx, worker_status_rx) =
-        mpsc::channel(control_channel::TTS_STATUS_CHANNEL_DEPTH);
-
     {
         let mut guard = crate::meeting::lock_poison_recover(&runtime.tts_cmd_tx, "tts cmd tx");
         *guard = tts_cmd_tx;
     }
 
-    let worker_cancel = runtime.el_parent_cancel.child_token();
-    let (ready_tx, ready_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
-    let mut ready_tx = Some(ready_tx);
-
-    let forward_cancel = worker_cancel.child_token();
-    let app_status = app_status_tx.clone();
-    tokio::spawn(async move {
-        let mut rx = worker_status_rx;
-        let mut ready_signaled = false;
-        while let Some(status) = rx.recv().await {
-            let is_ready = matches!(status, VoiceTtsStatus::Ready);
-            let degraded = if let VoiceTtsStatus::Degraded { ref message } = status {
-                Some(message.clone())
-            } else {
-                None
-            };
-            if let Some(ref app_tx) = app_status {
-                control_channel::try_send_control(app_tx, status, "tts-status");
-            }
-            if is_ready && !ready_signaled {
-                ready_signaled = true;
-                if let Some(tx) = ready_tx.take() {
-                    let _ = tx.send(Ok(()));
-                }
-            } else if let Some(msg) = degraded {
-                if !ready_signaled {
-                    if let Some(tx) = ready_tx.take() {
-                        let _ = tx.send(Err(msg));
-                    }
-                    return;
-                }
-            }
-        }
-        if !ready_signaled {
-            if let Some(tx) = ready_tx.take() {
-                let _ = tx.send(Err("ElevenLabs worker stopped unexpectedly".to_string()));
-            }
-        }
-    });
-
-    let worker = spawn_elevenlabs_tts_worker(
-        ElevenLabsWorkerConfig {
-            api_key: config.elevenlabs.elevenlabs_api_key.clone(),
-            voice_id: config.elevenlabs.elevenlabs_voice_id.clone(),
-            model_id: config.elevenlabs.elevenlabs_tts_model.clone(),
-            init_settings: config.elevenlabs_init_settings(),
-            language_code: config.resolve_elevenlabs_tts_language_code(),
-            auto_mode: config.elevenlabs.elevenlabs_auto_mode,
-        },
+    let session = crate::runtime::factories::spawn_custom_tts_session(
+        config,
+        crate::runtime::factories::CustomVoiceDirection::Outbound,
         tts_cmd_rx,
-        runtime.clone_pcm_tx.clone(),
+        runtime.custom_pcm_tx.clone(),
         runtime.pcm_drops.clone(),
-        worker_status_tx,
         runtime.turn_latency.clone(),
-        worker_cancel.clone(),
+        runtime.el_parent_cancel.clone(),
+        app_status_tx,
+    )
+    .await?;
+    *runtime.custom_worker.lock().await = Some(session);
+    info!(
+        vendor = config.outbound_custom_voice_vendor.as_log_label(),
+        "custom voice worker ready for outbound"
     );
-
-    let ready = tokio::time::timeout(EL_READY_TIMEOUT, ready_rx).await;
-
-    match ready {
-        Ok(Ok(Ok(()))) => {
-            *runtime.el_worker.lock().await = Some(OutboundTtsSession {
-                worker,
-                worker_cancel,
-                forward_cancel,
-            });
-            info!("elevenlabs worker ready for outbound clone");
-            Ok(())
-        }
-        Ok(Ok(Err(msg))) => {
-            worker_cancel.cancel();
-            let _ = tokio::time::timeout(EL_JOIN_TIMEOUT, worker).await;
-            Err(msg)
-        }
-        Ok(Err(_)) => {
-            worker_cancel.cancel();
-            let _ = tokio::time::timeout(EL_JOIN_TIMEOUT, worker).await;
-            Err("ElevenLabs worker stopped unexpectedly".to_string())
-        }
-        Err(_) => {
-            worker_cancel.cancel();
-            forward_cancel.cancel();
-            let _ = tokio::time::timeout(EL_JOIN_TIMEOUT, worker).await;
-            Err("ElevenLabs connect timeout (15s)".to_string())
-        }
-    }
+    Ok(())
 }
 
 /// Start provider-native TTS worker for Provider voice (feeds `provider_tts_pcm_tx`).
@@ -289,7 +216,7 @@ pub async fn ensure_provider_tts_worker(
     language: &str,
     app_status_tx: Option<mpsc::Sender<VoiceTtsStatus>>,
 ) -> Result<(), String> {
-    stop_el_worker(runtime).await;
+    stop_custom_worker(runtime).await;
     if runtime.provider_tts_worker.lock().await.is_some() {
         stop_provider_tts_worker(runtime).await;
     }
@@ -401,15 +328,15 @@ pub(crate) async fn stop_tts_session(session: OutboundTtsSession, label: &str) {
     }
 }
 
-pub async fn stop_el_worker(runtime: &Arc<OutboundVoiceRuntime>) {
-    let session = runtime.el_worker.lock().await.take();
+pub async fn stop_custom_worker(runtime: &Arc<OutboundVoiceRuntime>) {
+    let session = runtime.custom_worker.lock().await.take();
     let Some(session) = session else {
         return;
     };
 
     runtime.send_tts_cmd(TtsTextCommand::Flush);
     runtime.send_tts_cmd(TtsTextCommand::Reset);
-    stop_tts_session(session, "elevenlabs").await;
+    stop_tts_session(session, "custom tts").await;
 }
 
 pub async fn stop_provider_tts_worker(runtime: &Arc<OutboundVoiceRuntime>) {
@@ -424,12 +351,12 @@ pub async fn stop_provider_tts_worker(runtime: &Arc<OutboundVoiceRuntime>) {
 }
 
 pub async fn stop_all_tts_workers(runtime: &Arc<OutboundVoiceRuntime>) {
-    stop_el_worker(runtime).await;
+    stop_custom_worker(runtime).await;
     stop_provider_tts_worker(runtime).await;
 }
 
-/// Idle-close ElevenLabs only. Soniox Provider TTS stays up while outbound Translated.
-pub fn spawn_el_idle_watcher(
+/// Idle-close custom voice TTS only. Soniox Provider TTS stays up while outbound Translated.
+pub fn spawn_custom_idle_watcher(
     runtime: Arc<OutboundVoiceRuntime>,
     cancel: CancellationToken,
 ) -> JoinHandle<()> {
@@ -448,13 +375,13 @@ pub fn spawn_el_idle_watcher(
             let engine = runtime.voice_engine.load(Ordering::SeqCst);
             let in_progress = runtime.voice_switch_in_progress.load(Ordering::SeqCst);
 
-            // Clone path still active → keep ElevenLabs warm.
+            // Custom voice path still active → keep the custom worker warm.
             if tts_active_for_engine(mode, engine, in_progress) {
                 idle_since = None;
                 continue;
             }
 
-            if runtime.el_worker.lock().await.is_none() {
+            if runtime.custom_worker.lock().await.is_none() {
                 idle_since = None;
                 continue;
             }
@@ -463,8 +390,8 @@ pub fn spawn_el_idle_watcher(
             if idle_since.is_none() {
                 idle_since = Some(now);
             } else if now.duration_since(idle_since.unwrap()) >= EL_IDLE_CLOSE {
-                info!("elevenlabs idle auto-close after 60s");
-                stop_el_worker(&runtime).await;
+                info!("custom tts idle auto-close after 60s");
+                stop_custom_worker(&runtime).await;
                 idle_since = None;
             }
         }
@@ -503,16 +430,16 @@ mod tests {
 
         runtime
             .voice_engine
-            .store(VOICE_ENGINE_CLONE, Ordering::SeqCst);
+            .store(VOICE_ENGINE_CUSTOM, Ordering::SeqCst);
         sync_bridge_play_audio(&runtime);
         assert!(!runtime.bridge_play_audio.load(Ordering::SeqCst));
     }
 
     #[test]
-    fn tts_active_only_clone_translated() {
+    fn tts_active_only_custom_translated() {
         assert!(tts_active_for_engine(
             PipelineOutputMode::Translated,
-            VOICE_ENGINE_CLONE,
+            VOICE_ENGINE_CUSTOM,
             false
         ));
         assert!(!tts_active_for_engine(
@@ -522,12 +449,12 @@ mod tests {
         ));
         assert!(!tts_active_for_engine(
             PipelineOutputMode::Translated,
-            VOICE_ENGINE_CLONE,
+            VOICE_ENGINE_CUSTOM,
             true
         ));
         assert!(!tts_active_for_engine(
             PipelineOutputMode::TextOnly,
-            VOICE_ENGINE_CLONE,
+            VOICE_ENGINE_CUSTOM,
             false
         ));
     }
@@ -554,7 +481,7 @@ mod tests {
         ));
         assert!(tts_text_pipeline_active(
             PipelineOutputMode::Translated,
-            VOICE_ENGINE_CLONE,
+            VOICE_ENGINE_CUSTOM,
             false,
             true,
         ));
@@ -567,12 +494,12 @@ mod tests {
             VOICE_ENGINE_PROVIDER
         );
         assert_eq!(
-            voice_output_to_engine(OutboundVoiceOutput::ElevenLabsClone),
-            VOICE_ENGINE_CLONE
+            voice_output_to_engine(OutboundVoiceOutput::Custom),
+            VOICE_ENGINE_CUSTOM
         );
         assert_eq!(
-            engine_to_voice_output(VOICE_ENGINE_CLONE),
-            OutboundVoiceOutput::ElevenLabsClone
+            engine_to_voice_output(VOICE_ENGINE_CUSTOM),
+            OutboundVoiceOutput::Custom
         );
         assert_eq!(
             engine_to_voice_output(VOICE_ENGINE_PROVIDER),

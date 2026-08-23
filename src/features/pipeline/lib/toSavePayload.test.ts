@@ -20,8 +20,10 @@ describe("toSavePayload", () => {
     const payload = toSavePayload(baseConfig, {
       geminiApiKey: "g-key",
       clearOpenaiApiKey: true,
-      outboundVoiceOutput: "elevenLabsClone",
-      inboundVoiceOutput: "elevenLabsClone",
+      outboundVoiceOutput: "custom",
+      inboundVoiceOutput: "custom",
+      outboundCustomVoiceVendor: "fishAudio",
+      inboundCustomVoiceVendor: "fishAudio",
       elevenlabsInboundVoiceId: "voice-in",
       elevenlabsInboundTtsModel: "model-in",
       elevenlabsInboundStability: 0.4,
@@ -32,8 +34,10 @@ describe("toSavePayload", () => {
     });
     expect(payload.geminiApiKey).toBe("g-key");
     expect(payload.clearOpenaiApiKey).toBe(true);
-    expect(payload.outboundVoiceOutput).toBe("elevenLabsClone");
-    expect(payload.inboundVoiceOutput).toBe("elevenLabsClone");
+    expect(payload.outboundVoiceOutput).toBe("custom");
+    expect(payload.inboundVoiceOutput).toBe("custom");
+    expect(payload.outboundCustomVoiceVendor).toBe("fishAudio");
+    expect(payload.inboundCustomVoiceVendor).toBe("fishAudio");
     expect(payload.elevenlabsInboundVoiceId).toBe("voice-in");
     expect(payload.elevenlabsInboundTtsModel).toBe("model-in");
     expect(payload.elevenlabsInboundStability).toBe(0.4);

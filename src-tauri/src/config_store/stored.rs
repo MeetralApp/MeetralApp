@@ -206,6 +206,38 @@ pub(crate) struct StoredConfig {
     pub(crate) elevenlabs_inbound_similarity_boost: f32,
     #[serde(default = "default_elevenlabs_tts_synthesis_mode")]
     pub(crate) elevenlabs_inbound_tts_synthesis_mode: crate::voice::config::TtsSynthesisMode,
+    #[serde(default)]
+    pub(crate) outbound_custom_voice_vendor: crate::config::CustomVoiceVendor,
+    #[serde(default)]
+    pub(crate) inbound_custom_voice_vendor: crate::config::CustomVoiceVendor,
+    #[serde(default)]
+    pub(crate) encrypted_fishaudio_api_key: Option<String>,
+    #[serde(default)]
+    pub(crate) fishaudio_api_key: Option<String>,
+    #[serde(default)]
+    pub(crate) fishaudio_voice_id: String,
+    #[serde(default)]
+    pub(crate) fishaudio_inbound_voice_id: String,
+    #[serde(default)]
+    pub(crate) fishaudio_voices: Vec<crate::providers::fishaudio::FishAudioVoiceOption>,
+    #[serde(default)]
+    pub(crate) fishaudio_models: Vec<crate::providers::fishaudio::FishAudioModelOption>,
+    #[serde(default = "default_fishaudio_tts_model")]
+    pub(crate) fishaudio_tts_model: String,
+    #[serde(default = "default_fishaudio_tts_model")]
+    pub(crate) fishaudio_inbound_tts_model: String,
+    #[serde(default)]
+    pub(crate) fishaudio_latency: crate::config::FishAudioLatency,
+    #[serde(default)]
+    pub(crate) fishaudio_inbound_latency: crate::config::FishAudioLatency,
+    #[serde(default = "default_fishaudio_temperature")]
+    pub(crate) fishaudio_temperature: f32,
+    #[serde(default = "default_fishaudio_temperature")]
+    pub(crate) fishaudio_inbound_temperature: f32,
+    #[serde(default = "default_fishaudio_speed")]
+    pub(crate) fishaudio_speed: f32,
+    #[serde(default = "default_fishaudio_top_p")]
+    pub(crate) fishaudio_top_p: f32,
 }
 
 pub(crate) fn stored_default_unified_outbound_topology() -> bool {
@@ -313,6 +345,22 @@ pub(crate) fn default_elevenlabs_tts_language_auto() -> bool {
     crate::voice::default_elevenlabs_tts_language_auto()
 }
 
+pub(crate) fn default_fishaudio_tts_model() -> String {
+    crate::config::fishaudio_settings::default_fishaudio_tts_model()
+}
+
+pub(crate) fn default_fishaudio_temperature() -> f32 {
+    crate::config::fishaudio_settings::default_fishaudio_temperature()
+}
+
+pub(crate) fn default_fishaudio_speed() -> f32 {
+    crate::config::fishaudio_settings::default_fishaudio_speed()
+}
+
+pub(crate) fn default_fishaudio_top_p() -> f32 {
+    crate::config::fishaudio_settings::default_fishaudio_top_p()
+}
+
 fn read_elevenlabs_api_key(stored: &StoredConfig) -> Result<String> {
     if let Some(encoded) = stored.encrypted_elevenlabs_api_key.as_ref() {
         if encoded.is_empty() {
@@ -330,7 +378,37 @@ fn write_elevenlabs_api_key(key: &str) -> Result<Option<String>> {
     if key.trim().is_empty() {
         return Ok(None);
     }
-    let encrypted = secret::encrypt_for_account(crate::voice::ELEVENLABS_KEYCHAIN_ACCOUNT, key)?;
+    let encrypted = secret::encrypt_for_account(
+        crate::providers::elevenlabs::config::ELEVENLABS_KEYCHAIN_ACCOUNT,
+        key,
+    )?;
+    Ok(Some(STANDARD.encode(encrypted)))
+}
+
+fn read_fishaudio_api_key(stored: &StoredConfig) -> Result<String> {
+    if let Some(encoded) = stored.encrypted_fishaudio_api_key.as_ref() {
+        if encoded.is_empty() {
+            return Ok(String::new());
+        }
+        let bytes = STANDARD
+            .decode(encoded)
+            .context("decode encrypted Fish Audio API key")?;
+        return secret::decrypt_for_account(
+            crate::providers::fishaudio::config::FISHAUDIO_KEYCHAIN_ACCOUNT,
+            &bytes,
+        );
+    }
+    Ok(stored.fishaudio_api_key.clone().unwrap_or_default())
+}
+
+fn write_fishaudio_api_key(key: &str) -> Result<Option<String>> {
+    if key.trim().is_empty() {
+        return Ok(None);
+    }
+    let encrypted = secret::encrypt_for_account(
+        crate::providers::fishaudio::config::FISHAUDIO_KEYCHAIN_ACCOUNT,
+        key,
+    )?;
     Ok(Some(STANDARD.encode(encrypted)))
 }
 
@@ -421,6 +499,7 @@ fn write_custom_llm_keys(config: &AppConfig) -> Result<std::collections::HashMap
 impl StoredConfig {
     pub(crate) fn into_app_config(self) -> Result<AppConfig> {
         let elevenlabs_api_key = read_elevenlabs_api_key(&self)?;
+        let fishaudio_api_key = read_fishaudio_api_key(&self)?;
         // Computed before the struct literal: `self` fields move during it,
         // so a later `&self` borrow would not compile.
         let custom_llm_api_keys = read_custom_llm_keys(&self)?;
@@ -469,6 +548,8 @@ impl StoredConfig {
             overlay: self.overlay,
             outbound_voice_output: self.outbound_voice_output,
             inbound_voice_output: self.inbound_voice_output,
+            outbound_custom_voice_vendor: self.outbound_custom_voice_vendor,
+            inbound_custom_voice_vendor: self.inbound_custom_voice_vendor,
             soniox: crate::config::SonioxSettings {
                 soniox_always_on: migrate_soniox_always_on(
                     self.soniox_always_on,
@@ -518,6 +599,21 @@ impl StoredConfig {
                 elevenlabs_inbound_stability: self.elevenlabs_inbound_stability,
                 elevenlabs_inbound_similarity_boost: self.elevenlabs_inbound_similarity_boost,
                 elevenlabs_inbound_tts_synthesis_mode: self.elevenlabs_inbound_tts_synthesis_mode,
+            },
+            fishaudio: crate::config::FishAudioSettings {
+                fishaudio_api_key,
+                fishaudio_voice_id: self.fishaudio_voice_id,
+                fishaudio_inbound_voice_id: self.fishaudio_inbound_voice_id,
+                fishaudio_voices: self.fishaudio_voices,
+                fishaudio_models: self.fishaudio_models,
+                fishaudio_tts_model: self.fishaudio_tts_model,
+                fishaudio_inbound_tts_model: self.fishaudio_inbound_tts_model,
+                fishaudio_latency: self.fishaudio_latency,
+                fishaudio_inbound_latency: self.fishaudio_inbound_latency,
+                fishaudio_temperature: self.fishaudio_temperature,
+                fishaudio_inbound_temperature: self.fishaudio_inbound_temperature,
+                fishaudio_speed: self.fishaudio_speed,
+                fishaudio_top_p: self.fishaudio_top_p,
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,
@@ -590,6 +686,8 @@ impl StoredConfig {
             overlay: config.overlay.clone(),
             outbound_voice_output: config.outbound_voice_output,
             inbound_voice_output: config.inbound_voice_output,
+            outbound_custom_voice_vendor: config.outbound_custom_voice_vendor,
+            inbound_custom_voice_vendor: config.inbound_custom_voice_vendor,
             soniox_context_domain: String::new(),
             soniox_context_topic: String::new(),
             soniox_general: Vec::new(),
@@ -639,6 +737,22 @@ impl StoredConfig {
             elevenlabs_inbound_tts_synthesis_mode: config
                 .elevenlabs
                 .elevenlabs_inbound_tts_synthesis_mode,
+            encrypted_fishaudio_api_key: write_fishaudio_api_key(
+                &config.fishaudio.fishaudio_api_key,
+            )?,
+            fishaudio_api_key: None,
+            fishaudio_voice_id: config.fishaudio.fishaudio_voice_id.clone(),
+            fishaudio_inbound_voice_id: config.fishaudio.fishaudio_inbound_voice_id.clone(),
+            fishaudio_voices: config.fishaudio.fishaudio_voices.clone(),
+            fishaudio_models: config.fishaudio.fishaudio_models.clone(),
+            fishaudio_tts_model: config.fishaudio.fishaudio_tts_model.clone(),
+            fishaudio_inbound_tts_model: config.fishaudio.fishaudio_inbound_tts_model.clone(),
+            fishaudio_latency: config.fishaudio.fishaudio_latency,
+            fishaudio_inbound_latency: config.fishaudio.fishaudio_inbound_latency,
+            fishaudio_temperature: config.fishaudio.fishaudio_temperature,
+            fishaudio_inbound_temperature: config.fishaudio.fishaudio_inbound_temperature,
+            fishaudio_speed: config.fishaudio.fishaudio_speed,
+            fishaudio_top_p: config.fishaudio.fishaudio_top_p,
             artifacts_enabled: config.artifacts_enabled,
             answer_language: config.answer_language.clone(),
             meeting_context: config.meeting_context.clone(),

@@ -429,7 +429,7 @@ export function VoiceTabPanel({
       status={voiceStatus}
       focusKey="voice"
       activeFocus={voiceSectionFocus}
-      focusTarget={effectiveFocus === "clone" ? "clone" : undefined}
+      focusTarget={effectiveFocus === "customVoice" ? "customVoice" : undefined}
       onSave={onSave}
       onToast={onToast}
       onStateChange={({ dirty }) => onVoiceDirty(dirty)}

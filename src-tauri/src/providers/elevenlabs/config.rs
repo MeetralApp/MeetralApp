@@ -5,7 +5,7 @@ use crate::voice::config::TtsSynthesisMode;
 pub const ELEVENLABS_KEYCHAIN_ACCOUNT: &str = "elevenlabs_api_key";
 pub const DEFAULT_TTS_MODEL: &str = "eleven_flash_v2_5";
 
-/// Model IDs known to work with outbound clone WebSocket `stream-input`.
+/// Model IDs known to work with outbound custom-voice WebSocket `stream-input`.
 pub const CLONE_STREAM_INPUT_MODEL_IDS: &[&str] = &[
     "eleven_flash_v2_5",
     "eleven_flash_v2",

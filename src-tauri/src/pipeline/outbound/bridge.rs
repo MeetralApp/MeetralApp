@@ -19,7 +19,8 @@ use crate::runtime::factories::{
 };
 use crate::runtime::playback_mux::spawn_outbound_playback_mux;
 use crate::runtime::voice_runtime::{
-    ensure_el_worker, ensure_provider_tts_worker, spawn_el_idle_watcher, OutboundVoiceRuntime,
+    ensure_custom_worker, ensure_provider_tts_worker, spawn_custom_idle_watcher,
+    OutboundVoiceRuntime,
 };
 
 use super::{OutboundPipeline, OutboundSessionTasks, OutboundStartConnect};
@@ -58,7 +59,7 @@ impl OutboundPipeline {
         let playback_generation = audio_mode.shared_generation();
 
         let el_parent_cancel = cancel.child_token();
-        let (clone_pcm_tx, clone_pcm_rx) = mpsc::channel(PLAYBACK_PCM_CHANNEL_DEPTH);
+        let (custom_pcm_tx, custom_pcm_rx) = mpsc::channel(PLAYBACK_PCM_CHANNEL_DEPTH);
         let (provider_tts_pcm_tx, provider_tts_pcm_rx) = mpsc::channel(PLAYBACK_PCM_CHANNEL_DEPTH);
         let (mux_tx, mux_rx) = mpsc::channel(PLAYBACK_PCM_CHANNEL_DEPTH);
         let (fanout_tx, fanout_rx) =
@@ -72,7 +73,7 @@ impl OutboundPipeline {
             config,
             shared_mode.clone(),
             el_parent_cancel.clone(),
-            clone_pcm_tx,
+            custom_pcm_tx,
             provider_tts_pcm_tx,
             Some(latency_tx.clone()),
             playback_generation,
@@ -114,15 +115,15 @@ impl OutboundPipeline {
             uses_separate_tts(config.ai_provider),
             bridge_pcm_rx,
             provider_tts_pcm_rx,
-            clone_pcm_rx,
+            custom_pcm_rx,
             mux_tx,
             pcm_drops,
         );
 
-        let idle_watcher = spawn_el_idle_watcher(voice_runtime.clone(), cancel.clone());
+        let idle_watcher = spawn_custom_idle_watcher(voice_runtime.clone(), cancel.clone());
 
-        let voice_tts_status_for_connect = if config.needs_elevenlabs_for_outbound() {
-            ensure_el_worker(&voice_runtime, config, Some(voice_tts_status_tx))
+        let voice_tts_status_for_connect = if config.needs_custom_tts_for_outbound() {
+            ensure_custom_worker(&voice_runtime, config, Some(voice_tts_status_tx))
                 .await
                 .map_err(|e| anyhow::anyhow!(e))?;
             Some(voice_tts_status_rx)

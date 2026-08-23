@@ -42,8 +42,39 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   width: 420,
   height: 280,
 };
-export type InboundVoiceOutput = "providerNative" | "elevenLabsClone";
-export type OutboundVoiceOutput = "providerNative" | "elevenLabsClone";
+export type CustomVoiceVendor = "elevenLabs" | "fishAudio";
+export type FishAudioLatency = "low" | "balanced" | "normal";
+export type InboundVoiceOutput = "providerNative" | "custom";
+export type OutboundVoiceOutput = "providerNative" | "custom";
+
+export function isCustomVoiceOutput(
+  value: InboundVoiceOutput | OutboundVoiceOutput | undefined,
+): boolean {
+  return value === "custom";
+}
+
+export function normalizeVoiceOutput<
+  T extends InboundVoiceOutput | OutboundVoiceOutput,
+>(value: T | undefined): T {
+  return (value ?? "providerNative") as T;
+}
+
+export function normalizeCustomVoiceVendor(
+  value: CustomVoiceVendor | string | undefined,
+): CustomVoiceVendor {
+  return value === "fishAudio" ? "fishAudio" : "elevenLabs";
+}
+
+export interface FishAudioVoiceOption {
+  voiceId: string;
+  name: string;
+}
+
+export interface FishAudioModelOption {
+  modelId: string;
+  name: string;
+  description?: string;
+}
 export type ElevenLabsChunkSchedulePreset = "live" | "fast" | "balanced" | "quality";
 export type TtsSynthesisMode = "streaming" | "sentence";
 
@@ -242,6 +273,8 @@ export interface ConfigView {
   overlay?: OverlaySettings;
   inboundVoiceOutput?: InboundVoiceOutput;
   outboundVoiceOutput: OutboundVoiceOutput;
+  outboundCustomVoiceVendor?: CustomVoiceVendor;
+  inboundCustomVoiceVendor?: CustomVoiceVendor;
   sonioxApiKeyConfigured?: boolean;
   sonioxAlwaysOn?: SonioxContextPayload;
   sonioxContextProfiles?: SonioxContextProfile[];
@@ -267,6 +300,7 @@ export interface ConfigView {
   sonioxMaxEndpointDelayMs?: number;
   summaryFallbackAvailable?: boolean;
   elevenlabsApiKeyConfigured: boolean;
+  fishaudioApiKeyConfigured?: boolean;
   elevenlabsInboundVoiceId?: string;
   elevenlabsInboundTtsModel?: string;
   elevenlabsInboundStability?: number;
@@ -288,6 +322,19 @@ export interface ConfigView {
   elevenlabsTtsSynthesisMode: TtsSynthesisMode;
   elevenlabsPlaybackCrossfade: boolean;
   elevenlabsCrossfadeMs: number;
+  fishaudioVoiceId?: string;
+  fishaudioInboundVoiceId?: string;
+  fishaudioVoices?: FishAudioVoiceOption[];
+  /** Cached Fish Audio TTS models (persisted; Refresh re-syncs allow-list). */
+  fishaudioModels?: FishAudioModelOption[];
+  fishaudioTtsModel?: string;
+  fishaudioInboundTtsModel?: string;
+  fishaudioLatency?: FishAudioLatency;
+  fishaudioInboundLatency?: FishAudioLatency;
+  fishaudioTemperature?: number;
+  fishaudioInboundTemperature?: number;
+  fishaudioSpeed?: number;
+  fishaudioTopP?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   /** Preferred AI output language; "" = match the meeting's You language. */
@@ -373,6 +420,8 @@ export interface SaveConfigPayload {
   overlay?: OverlaySettings;
   inboundVoiceOutput: InboundVoiceOutput;
   outboundVoiceOutput: OutboundVoiceOutput;
+  outboundCustomVoiceVendor?: CustomVoiceVendor;
+  inboundCustomVoiceVendor?: CustomVoiceVendor;
   sonioxAlwaysOn?: SonioxContextPayload;
   sonioxContextProfiles?: SonioxContextProfile[];
   /** Pass `""` or `null` to clear active profile (Always-on only). */
@@ -408,6 +457,21 @@ export interface SaveConfigPayload {
   elevenlabsTtsSynthesisMode?: TtsSynthesisMode;
   elevenlabsPlaybackCrossfade?: boolean;
   elevenlabsCrossfadeMs?: number;
+  fishaudioApiKey?: string;
+  clearFishaudioApiKey?: boolean;
+  fishaudioVoiceId?: string;
+  fishaudioInboundVoiceId?: string;
+  fishaudioVoices?: FishAudioVoiceOption[];
+  /** Cached Fish Audio TTS models (persisted; Refresh re-syncs allow-list). */
+  fishaudioModels?: FishAudioModelOption[];
+  fishaudioTtsModel?: string;
+  fishaudioInboundTtsModel?: string;
+  fishaudioLatency?: FishAudioLatency;
+  fishaudioInboundLatency?: FishAudioLatency;
+  fishaudioTemperature?: number;
+  fishaudioInboundTemperature?: number;
+  fishaudioSpeed?: number;
+  fishaudioTopP?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   answerLanguage?: string;

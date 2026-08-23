@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Play, RefreshCw } from "lucide-react";
 
 import SettingInfoHint from "@/shared/components/SettingInfoHint";
@@ -16,11 +16,13 @@ import {
 import { rangeTrackStyle } from "@/shared/lib/rangeTrackStyle";
 import { settingsFieldLabelClass } from "@/features/config/lib/settingsTypography";
 import type { SonioxTtsModelOption } from "@/features/ai/lib/aiTypes";
-import type { ConfigView, SaveConfigPayload, SaveConfigResult, SonioxVoiceOption } from "@/shared/lib/types/pipeline";
+import type { ConfigView, SaveConfigResult, SonioxVoiceOption } from "@/shared/lib/types/pipeline";
 import { toSavePayload } from "@/features/pipeline/lib/toSavePayload";
 import type { ToastType } from "@/shared/context/toastTypes";
 
 export type SonioxEngineDirection = "inbound" | "outbound";
+
+type SonioxVoicePatch = Parameters<typeof toSavePayload>[1];
 
 interface Props {
   config: ConfigView;
@@ -29,11 +31,11 @@ interface Props {
   ttsModels: SonioxTtsModelOption[];
   sonioxVoices: SonioxVoiceOption[];
   catalogLoading: boolean;
-  /** Shared TTS model — show once across directions. */
+  /** Shared TTS model — same field on both Engine columns. */
   showSharedModel?: boolean;
   onRefreshCatalog: () => void;
   onPreviewVoice?: (voice: string, apiKey?: string) => Promise<void>;
-  onSave: (payload: SaveConfigPayload) => Promise<SaveConfigResult | void>;
+  onSave: (patch: SonioxVoicePatch) => Promise<SaveConfigResult | void>;
   onToast: (type: ToastType, text: string) => void;
 }
 
@@ -50,10 +52,14 @@ export default function SonioxEngineVoiceSettings({
   onSave,
   onToast,
 }: Props) {
-  const [previewing, setPreviewing] = useState(false);
   const isInbound = direction === "inbound";
   const directionLabel = isInbound ? "Meeting → You" : "You → Meeting";
   const selectedModel = config.sonioxTtsModel ?? "tts-rt-v1";
+  const [previewing, setPreviewing] = useState(false);
+  const [draftModel, setDraftModel] = useState(selectedModel);
+  useEffect(() => {
+    setDraftModel(selectedModel);
+  }, [selectedModel]);
   const selectedVoice = isInbound
     ? (config.sonioxTtsVoice ?? "Adrian")
     : (config.sonioxTtsOutboundVoice ??
@@ -140,15 +146,18 @@ export default function SonioxEngineVoiceSettings({
       {showSharedModel ? (
         <SettingsField label="TTS model" htmlFor={modelId}>
           <Select
-            value={selectedModel}
+            value={draftModel}
             disabled={disabled || ttsModels.length === 0}
             onValueChange={(model) => {
-              void onSave(toSavePayload(config, { sonioxTtsModel: model }))
+              setDraftModel(model);
+              void onSave({ sonioxTtsModel: model })
                 .then(() => {
                   onToast("success", "Soniox TTS model saved");
-                  onRefreshCatalog();
                 })
-                .catch((e) => onToast("error", String(e)));
+                .catch((e) => {
+                  setDraftModel(selectedModel);
+                  onToast("error", String(e));
+                });
             }}
           >
             <SelectTrigger id={modelId} className="w-full">
@@ -162,10 +171,10 @@ export default function SonioxEngineVoiceSettings({
                   {model.name ?? model.id}
                 </SelectItem>
               ))}
-              {config.sonioxTtsModel &&
-              !ttsModels.some((m) => m.id === config.sonioxTtsModel) ? (
-                <SelectItem value={config.sonioxTtsModel}>
-                  {config.sonioxTtsModel} (saved)
+              {draftModel &&
+              !ttsModels.some((m) => m.id === draftModel) ? (
+                <SelectItem value={draftModel}>
+                  {draftModel} (saved)
                 </SelectItem>
               ) : null}
             </SelectContent>
@@ -185,7 +194,7 @@ export default function SonioxEngineVoiceSettings({
             const payload = isInbound
               ? { sonioxTtsVoice: voice }
               : { sonioxTtsOutboundVoice: voice };
-            void onSave(toSavePayload(config, payload))
+            void onSave(payload)
               .then(() =>
                 onToast(
                   "success",
@@ -247,7 +256,7 @@ export default function SonioxEngineVoiceSettings({
             const payload = isInbound
               ? { sonioxTtsInboundSpeed: next }
               : { sonioxTtsOutboundSpeed: next };
-            void onSave(toSavePayload(config, payload))
+            void onSave(payload)
               .then(() =>
                 onToast("success", `${directionLabel} speed saved`),
               )

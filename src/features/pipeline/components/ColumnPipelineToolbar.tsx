@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import type { AppStatus, AudioPathMode, ConfigView } from "@/shared/lib/types/pipeline";
+import { isCustomVoiceOutput } from "@/shared/lib/types/pipeline";
 import { getAudioPathMode, isColumnAwaitingDirectStandby, isDirectionDirect } from "../lib/pipelineStatus";
 import { isColumnAudioFaultFromUi, type ColumnUiState } from "../lib/columnUi";
 import { type PipelineModeOption } from "../lib/pipelineLabels";
@@ -101,8 +102,8 @@ export default function ColumnPipelineToolbar({
   const translateSelected = pathMode === "translate";
   const cloneToolbarActive =
     (direction === "outbound"
-      ? config.outboundVoiceOutput === "elevenLabsClone"
-      : config.inboundVoiceOutput === "elevenLabsClone") &&
+      ? isCustomVoiceOutput(config.outboundVoiceOutput)
+      : isCustomVoiceOutput(config.inboundVoiceOutput)) &&
     translateSelected &&
     (state === "active" || state === "starting" || state === "stopping");
   const { degradedMessage: voiceCloneDegraded } =

@@ -7,7 +7,7 @@ Living knowledge for developers and coding agents. Start at [AGENTS.md](../AGENT
 | Tree | Role |
 |------|------|
 | `architecture/`, `features/`, `integrations/`, `development/` | **Current project knowledge.** Treat as source of truth. |
-| `work/plans/`, `work/research/`, `work/bugs/` | **Working knowledge.** May contain assumptions, experiments, or alternatives. Do not implement from here. |
+| `work/plans/`, `work/research/`, `work/bugs/`, `plans/` | **Working knowledge.** May contain assumptions, experiments, or alternatives. Do not implement from here. |
 
 If a living document disagrees with code, **code wins**. Update the document in the same change.
 
@@ -21,6 +21,7 @@ docs/
 ├── features/         Product now, shipped catalog, glossary
 ├── integrations/     Live vendors, Direct audio
 ├── development/      Tests, Windows, macOS, release
+├── plans/            Version-cut drafts for review (not SSOT)
 └── work/             Plans, research, bugs (not SSOT)
 ```
 
@@ -40,6 +41,7 @@ docs/
 | [development/macos.md](development/macos.md) | macOS build and BlackHole |
 | [development/release.md](development/release.md) | Tag-driven releases |
 | [work/README.md](work/README.md) | How to use working docs |
+| [plans/](plans/) | Version-cut implementation drafts (fold into living docs, then delete) |
 
 ## After a feature ships
 
@@ -47,4 +49,4 @@ docs/
 2. Update `features/current.md` if out-of-scope or deferred changed.
 3. Update `features/glossary.md` if a term was coined.
 4. Update architecture / integration docs if a boundary or vendor contract changed.
-5. Delete the matching file under `work/plans/` once it is folded in.
+5. Delete the matching file under `work/plans/` or `plans/` once it is folded in.

@@ -18,11 +18,11 @@ fn outbound_fanout_kind_maps_providers() {
         FanoutKind::ProviderTts
     );
     assert_eq!(
-        outbound_fanout_kind(AiProvider::Soniox, OutboundVoiceOutput::ElevenLabsClone),
+        outbound_fanout_kind(AiProvider::Soniox, OutboundVoiceOutput::Custom),
         FanoutKind::ProviderTts
     );
     assert_eq!(
-        outbound_fanout_kind(AiProvider::Gemini, OutboundVoiceOutput::ElevenLabsClone),
+        outbound_fanout_kind(AiProvider::Gemini, OutboundVoiceOutput::Custom),
         FanoutKind::ElevenLabsDelivery
     );
 }

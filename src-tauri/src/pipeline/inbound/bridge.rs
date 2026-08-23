@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 use crate::audio::pcm_crossfade::PlaybackPcmChunk;
 use crate::audio::{AudioModeHandle, PLAYBACK_PCM_CHANNEL_DEPTH};
 use crate::capabilities::{
-    bridge_emits_playback_audio, bridge_play_audio_enabled, needs_elevenlabs_for_inbound,
+    bridge_emits_playback_audio, bridge_play_audio_enabled, needs_custom_tts_for_inbound,
     scaffolds_inbound_text_tts, uses_provider_tts_for_inbound, uses_separate_tts,
 };
 use crate::config::{AppConfig, InboundVoiceOutput};
@@ -19,20 +19,20 @@ use crate::providers::shared::live::{
     BridgeFatalSender, BridgeStatusSender, ReconnectPolicy, TranscriptSender,
 };
 use crate::runtime::factories::{
-    connect_live_bridge_for, live_setup_for_provider, spawn_inbound_fanout,
-    InboundFanoutSpawnParams,
+    connect_live_bridge_for, live_setup_for_provider, spawn_custom_tts_session,
+    spawn_inbound_fanout, CustomVoiceDirection, InboundFanoutSpawnParams,
 };
 use crate::runtime::playback_mux::spawn_outbound_playback_mux;
-use crate::runtime::voice_runtime::{VOICE_ENGINE_CLONE, VOICE_ENGINE_PROVIDER};
+use crate::runtime::voice_runtime::{VOICE_ENGINE_CUSTOM, VOICE_ENGINE_PROVIDER};
 use crate::voice::elevenlabs::latency::TurnLatencySlot;
 
-use super::provider_tts::{spawn_inbound_el_session, spawn_inbound_provider_tts_session};
+use super::provider_tts::spawn_inbound_provider_tts_session;
 use super::{InboundBridgeConnect, InboundPipeline, InboundProviderTts};
 
 pub(crate) fn inbound_voice_output_to_engine(output: InboundVoiceOutput) -> u8 {
     match output {
         InboundVoiceOutput::ProviderNative => VOICE_ENGINE_PROVIDER,
-        InboundVoiceOutput::ElevenLabsClone => VOICE_ENGINE_CLONE,
+        InboundVoiceOutput::Custom => VOICE_ENGINE_CUSTOM,
     }
 }
 
@@ -85,7 +85,7 @@ impl InboundPipeline {
             drop(tts_cmd_rx);
             let (provider_tts_pcm_tx, provider_tts_pcm_rx) =
                 mpsc::channel::<PlaybackPcmChunk>(PLAYBACK_PCM_CHANNEL_DEPTH);
-            let (clone_pcm_tx, clone_pcm_rx) =
+            let (custom_pcm_tx, custom_pcm_rx) =
                 mpsc::channel::<PlaybackPcmChunk>(PLAYBACK_PCM_CHANNEL_DEPTH);
             let (mux_tx, mux_rx) = mpsc::channel::<PlaybackPcmChunk>(PLAYBACK_PCM_CHANNEL_DEPTH);
 
@@ -124,7 +124,7 @@ impl InboundPipeline {
                 uses_separate_tts(config.ai_provider),
                 bridge_audio_rx,
                 provider_tts_pcm_rx,
-                clone_pcm_rx,
+                custom_pcm_rx,
                 mux_tx,
                 pcm_drops.clone(),
             );
@@ -133,7 +133,7 @@ impl InboundPipeline {
                 tts_cmd_tx: tts_cmd_shared,
                 pcm_tx: provider_tts_pcm_tx.clone(),
                 provider_session: None,
-                el_session: None,
+                custom_session: None,
                 pipeline_cancel: cancel.clone(),
                 voice_engine,
                 bridge_play_audio: play_audio,
@@ -142,26 +142,28 @@ impl InboundPipeline {
                 voice_switch_mutex: Arc::new(tokio::sync::Mutex::new(())),
                 last_switch_at: Arc::new(StdMutex::new(Instant::now())),
                 provider_tts_pcm_tx,
-                clone_pcm_tx,
+                custom_pcm_tx,
                 playback_generation,
                 turn_latency,
                 pcm_drops: pcm_drops.clone(),
             };
 
-            if needs_elevenlabs_for_inbound(config) {
+            if needs_custom_tts_for_inbound(config) {
                 let (cmd_tx, cmd_rx) =
                     mpsc::channel(crate::runtime::control_channel::TTS_CMD_CHANNEL_DEPTH);
                 *tts.tts_cmd_tx
                     .lock()
                     .map_err(|_| anyhow::anyhow!("inbound tts cmd lock poisoned"))? = cmd_tx;
-                tts.el_session = Some(
-                    spawn_inbound_el_session(
+                tts.custom_session = Some(
+                    spawn_custom_tts_session(
                         config,
+                        CustomVoiceDirection::Inbound,
                         cmd_rx,
-                        tts.clone_pcm_tx.clone(),
+                        tts.custom_pcm_tx.clone(),
                         tts.pcm_drops.clone(),
                         tts.turn_latency.clone(),
                         cancel.clone(),
+                        None,
                     )
                     .await
                     .map_err(|e| {

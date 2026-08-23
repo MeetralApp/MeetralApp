@@ -6,7 +6,7 @@ use tracing::info;
 use crate::voice::config::VOICE_ENGINE_PROVIDER;
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 
 use super::types::FlushReason;
 use crate::providers::elevenlabs::delivery::state::RelayState;
@@ -32,7 +32,7 @@ pub(crate) fn send_tts_cmd(
 }
 
 pub(crate) fn emit_turn_latency(
-    latency_tx: &Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: &Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: &TurnLatencySlot,
     flush_reason: FlushReason,
 ) {
@@ -45,7 +45,7 @@ pub(crate) fn emit_turn_latency(
         translate_ms = event.translate_ms,
         tts_ms = event.tts_ms,
         total_ms = event.total_ms,
-        "voice-clone-latency"
+        "voice-custom-latency"
     );
     if let Some(tx) = latency_tx {
         crate::runtime::control_channel::try_send_control(tx, event, "voice-latency");

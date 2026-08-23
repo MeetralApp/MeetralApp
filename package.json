@@ -1,7 +1,7 @@
 {
   "name": "meetral",
   "private": true,
-  "version": "4.8.4",
+  "version": "4.8.5",
   "license": "MIT",
   "author": "iamnhaan",
   "description": "Real-time voice translation for online meetings",

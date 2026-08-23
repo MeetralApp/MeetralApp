@@ -6,7 +6,7 @@ use crate::capabilities::{
     PlaybackSource,
 };
 use crate::config::{AppConfig, InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode};
-use crate::voice::config::{VOICE_ENGINE_CLONE, VOICE_ENGINE_PROVIDER};
+use crate::voice::config::{VOICE_ENGINE_CUSTOM, VOICE_ENGINE_PROVIDER};
 
 #[test]
 fn routing_matrix_playback_source_and_fanout() {
@@ -40,18 +40,18 @@ fn routing_matrix_playback_source_and_fanout() {
         ),
         (
             AiProvider::Gemini,
-            VOICE_ENGINE_CLONE,
-            OutboundVoiceOutput::ElevenLabsClone,
-            PlaybackSource::CloneTts,
+            VOICE_ENGINE_CUSTOM,
+            OutboundVoiceOutput::Custom,
+            PlaybackSource::CustomTts,
             FanoutKind::ElevenLabsDelivery,
             true,
             false,
         ),
         (
             AiProvider::Soniox,
-            VOICE_ENGINE_CLONE,
-            OutboundVoiceOutput::ElevenLabsClone,
-            PlaybackSource::CloneTts,
+            VOICE_ENGINE_CUSTOM,
+            OutboundVoiceOutput::Custom,
+            PlaybackSource::CustomTts,
             FanoutKind::ProviderTts,
             false,
             true,
@@ -87,7 +87,7 @@ fn routing_matrix_playback_source_and_fanout() {
 fn tts_text_pipeline_active_matrix() {
     assert!(tts_text_pipeline_active(
         PipelineOutputMode::Translated,
-        VOICE_ENGINE_CLONE,
+        VOICE_ENGINE_CUSTOM,
         false,
         false, // Gemini: no separate TTS
     ));
@@ -105,13 +105,13 @@ fn tts_text_pipeline_active_matrix() {
     ));
     assert!(!tts_text_pipeline_active(
         PipelineOutputMode::TextOnly,
-        VOICE_ENGINE_CLONE,
+        VOICE_ENGINE_CUSTOM,
         false,
         false,
     ));
     assert!(!tts_text_pipeline_active(
         PipelineOutputMode::Translated,
-        VOICE_ENGINE_CLONE,
+        VOICE_ENGINE_CUSTOM,
         true,
         false,
     ));
@@ -136,7 +136,7 @@ fn bridge_play_audio_enabled_matrix() {
     ));
     assert!(!bridge_play_audio_enabled(
         PipelineOutputMode::Translated,
-        VOICE_ENGINE_CLONE,
+        VOICE_ENGINE_CUSTOM,
         true,
     ));
     assert!(!bridge_play_audio_enabled(
@@ -158,11 +158,11 @@ fn uses_provider_tts_helpers_follow_config() {
     assert!(uses_provider_tts_for_outbound(&config));
     assert!(uses_provider_tts_for_inbound(&config));
 
-    config.outbound_voice_output = OutboundVoiceOutput::ElevenLabsClone;
+    config.outbound_voice_output = OutboundVoiceOutput::Custom;
     assert!(!uses_provider_tts_for_outbound(&config));
     assert!(uses_provider_tts_for_inbound(&config));
 
-    config.inbound_voice_output = InboundVoiceOutput::ElevenLabsClone;
+    config.inbound_voice_output = InboundVoiceOutput::Custom;
     assert!(!uses_provider_tts_for_inbound(&config));
 
     config.ai_provider = AiProvider::Gemini;

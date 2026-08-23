@@ -124,7 +124,7 @@ export default function SessionHeaderHub({
         if (leavingNotes) {
           // Capture Notes language, then restore Interpreter stash → active so
           // toSavePayload does not mirror Notes-clamped originalAudio/providerNative
-          // into the interpreter mode/voice stash (would wipe Clone/Translate).
+          // into the interpreter mode/voice stash (would wipe Custom/Translate).
           patch.notesLanguage = config.myLanguage;
           patch.myLanguage =
             config.interpreterMyLanguage ?? config.myLanguage;

@@ -71,7 +71,7 @@ impl DuckingMixer {
         if self.params.exclusive_tts_parity() || tts_48k.is_empty() {
             return EnqueueTtsOutcome::Skipped;
         }
-        // ~30s @ 48 kHz — safety valve for bursty clone/TTS; prefers continuity
+        // ~30s @ 48 kHz — safety valve for bursty custom-voice/TTS; prefers continuity
         // of queued head over accepting unbounded lag.
         const MAX_Q: usize = 48_000 * 30;
         if self.tts_q.len().saturating_add(tts_48k.len()) > MAX_Q {

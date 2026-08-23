@@ -7,8 +7,8 @@ import {
   getPipelineModeOptions,
   inboundToolbarModeFromConfig,
   inboundToolbarPatch,
-  isInboundCloneReady,
-  isOutboundCloneReady,
+  isInboundCustomVoiceReady,
+  isOutboundCustomVoiceReady,
   outboundToolbarModeFromConfig,
 } from "./pipelineLabels";
 import type { AppStatus, ConfigView } from "@/shared/lib/types/pipeline";
@@ -97,52 +97,52 @@ describe("getPipelineModeOptions", () => {
     expect(inboundOpenAi?.title).toContain("OpenAI");
   });
 
-  it("disables clone options until each ElevenLabs voice is configured", () => {
-    const outboundClone = getOutboundToolbarModeOptions(baseConfig).find(
-      (o) => o.value === "translatedClone",
+  it("disables custom voice options until each ElevenLabs voice is configured", () => {
+    const outboundCustom = getOutboundToolbarModeOptions(baseConfig).find(
+      (o) => o.value === "translatedCustom",
     );
-    const inboundClone = getPipelineModeOptions("inbound", baseConfig).find(
-      (o) => o.value === "translatedClone",
+    const inboundCustom = getPipelineModeOptions("inbound", baseConfig).find(
+      (o) => o.value === "translatedCustom",
     );
-    expect(outboundClone?.disabled).toBe(true);
-    expect(inboundClone?.disabled).toBe(true);
-    expect(inboundClone?.label).toBe("Cloned voice");
-    expect(inboundClone?.shortLabel).toBe("Clone");
+    expect(outboundCustom?.disabled).toBe(true);
+    expect(inboundCustom?.disabled).toBe(true);
+    expect(inboundCustom?.label).toBe("Custom voice");
+    expect(inboundCustom?.shortLabel).toBe("Custom");
 
-    const readyInboundClone = getPipelineModeOptions("inbound", {
+    const readyInboundCustom = getPipelineModeOptions("inbound", {
       ...baseConfig,
       elevenlabsApiKeyConfigured: true,
       elevenlabsInboundVoiceId: "meeting-voice",
-    }).find((o) => o.value === "translatedClone");
-    expect(readyInboundClone?.disabled).toBe(false);
+    }).find((o) => o.value === "translatedCustom");
+    expect(readyInboundCustom?.disabled).toBe(false);
   });
 });
 
 describe("outboundToolbarModeFromConfig", () => {
-  it("maps translated + clone to translatedClone", () => {
+  it("maps translated + custom to translatedCustom", () => {
     expect(
       outboundToolbarModeFromConfig({
         ...baseConfig,
         outboundMode: "translated",
-        outboundVoiceOutput: "elevenLabsClone",
+        outboundVoiceOutput: "custom",
       }),
-    ).toBe("translatedClone");
+    ).toBe("translatedCustom");
   });
 });
 
 describe("inbound toolbar mapping", () => {
-  it("maps translated clone config to and from the toolbar value", () => {
-    const cloneConfig = {
+  it("maps translated custom config to and from the toolbar value", () => {
+    const customConfig = {
       ...baseConfig,
       inboundMode: "translated" as const,
-      inboundVoiceOutput: "elevenLabsClone" as const,
+      inboundVoiceOutput: "custom" as const,
     };
-    expect(inboundToolbarModeFromConfig(cloneConfig)).toBe("translatedClone");
-    expect(inboundToolbarPatch("translatedClone", baseConfig)).toEqual({
+    expect(inboundToolbarModeFromConfig(customConfig)).toBe("translatedCustom");
+    expect(inboundToolbarPatch("translatedCustom", baseConfig)).toEqual({
       inboundMode: "translated",
-      inboundVoiceOutput: "elevenLabsClone",
+      inboundVoiceOutput: "custom",
     });
-    expect(inboundToolbarPatch("translated", cloneConfig)).toEqual({
+    expect(inboundToolbarPatch("translated", customConfig)).toEqual({
       inboundMode: "translated",
       inboundVoiceOutput: "providerNative",
     });
@@ -150,16 +150,16 @@ describe("inbound toolbar mapping", () => {
 });
 
 describe("formatOutboundToolbarShort", () => {
-  it("shows Clone when clone output is active", () => {
+  it("shows Custom when custom voice output is active", () => {
     expect(
       formatOutboundToolbarShort({
         ...baseConfig,
         outboundMode: "translated",
-        outboundVoiceOutput: "elevenLabsClone",
+        outboundVoiceOutput: "custom",
         elevenlabsApiKeyConfigured: true,
         elevenlabsVoiceId: "voice-1",
       }),
-    ).toBe("Clone");
+    ).toBe("Custom");
   });
 });
 
@@ -181,18 +181,18 @@ describe("formatDirectionChipLabel", () => {
   });
 });
 
-describe("isOutboundCloneReady", () => {
+describe("isOutboundCustomVoiceReady", () => {
   it("requires key and voice id", () => {
-    expect(isOutboundCloneReady(baseConfig)).toBe(false);
+    expect(isOutboundCustomVoiceReady(baseConfig)).toBe(false);
     expect(
-      isOutboundCloneReady({
+      isOutboundCustomVoiceReady({
         ...baseConfig,
         elevenlabsApiKeyConfigured: true,
         elevenlabsVoiceId: "  ",
       }),
     ).toBe(false);
     expect(
-      isOutboundCloneReady({
+      isOutboundCustomVoiceReady({
         ...baseConfig,
         elevenlabsApiKeyConfigured: true,
         elevenlabsVoiceId: "voice-1",
@@ -201,18 +201,18 @@ describe("isOutboundCloneReady", () => {
   });
 });
 
-describe("isInboundCloneReady", () => {
+describe("isInboundCustomVoiceReady", () => {
   it("requires key and trimmed inbound voice id", () => {
-    expect(isInboundCloneReady(baseConfig)).toBe(false);
+    expect(isInboundCustomVoiceReady(baseConfig)).toBe(false);
     expect(
-      isInboundCloneReady({
+      isInboundCustomVoiceReady({
         ...baseConfig,
         elevenlabsApiKeyConfigured: true,
         elevenlabsInboundVoiceId: "  ",
       }),
     ).toBe(false);
     expect(
-      isInboundCloneReady({
+      isInboundCustomVoiceReady({
         ...baseConfig,
         elevenlabsApiKeyConfigured: true,
         elevenlabsInboundVoiceId: "meeting-voice",

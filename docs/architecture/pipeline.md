@@ -10,7 +10,7 @@ Capture (WASAPI / CoreAudio, 48 kHz)
   → transcript fanout (UI + optional TTS)
   → SegmentEngine.process()     ← ONE commit pipeline
   → TranscriptDbWriter (async SQLite)
-  → TTS (bridge STS | provider TTS | ElevenLabs clone)
+  → TTS (bridge STS | provider TTS | custom voice TTS)
   → playback_mux
   → local playback / Teams mic feed
 ```

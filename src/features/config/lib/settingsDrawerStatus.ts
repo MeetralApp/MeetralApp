@@ -4,6 +4,7 @@ import { formatAudioSectionStatus } from "@/features/audio/lib/audioSetup";
 import type { AudioSetupValidation } from "@/features/audio/lib/audioSetup";
 import { selectionUsable } from "@/features/config/lib/summaryProvider";
 import type { ConfigView } from "@/shared/lib/types/pipeline";
+import { isCustomVoiceOutput, normalizeCustomVoiceVendor } from "@/shared/lib/types/pipeline";
 
 export type SettingsSectionTone = "ok" | "warn" | "muted";
 
@@ -41,28 +42,45 @@ export function audioSectionStatus(
   return formatAudioSectionStatus(audioSetup);
 }
 
+function customVoiceDirectionReady(
+  config: ConfigView,
+  direction: "outbound" | "inbound",
+): boolean {
+  const vendor = normalizeCustomVoiceVendor(
+    direction === "outbound"
+      ? config.outboundCustomVoiceVendor
+      : config.inboundCustomVoiceVendor,
+  );
+  if (vendor === "fishAudio") {
+    const voiceId =
+      direction === "outbound"
+        ? config.fishaudioVoiceId
+        : config.fishaudioInboundVoiceId;
+    return Boolean(config.fishaudioApiKeyConfigured) && Boolean(voiceId?.trim());
+  }
+  const voiceId =
+    direction === "outbound"
+      ? config.elevenlabsVoiceId
+      : config.elevenlabsInboundVoiceId;
+  return config.elevenlabsApiKeyConfigured && Boolean(voiceId?.trim());
+}
+
 export function voiceSectionStatus(
   config: ConfigView,
   voiceDirty: boolean,
 ): SettingsSectionStatus {
-  const inboundClone = config.inboundVoiceOutput === "elevenLabsClone";
-  const outboundClone = config.outboundVoiceOutput === "elevenLabsClone";
-  if (!inboundClone && !outboundClone) {
+  const inboundCustom = isCustomVoiceOutput(config.inboundVoiceOutput);
+  const outboundCustom = isCustomVoiceOutput(config.outboundVoiceOutput);
+  if (!inboundCustom && !outboundCustom) {
     return { tone: "ok", label: "Engine voice" };
   }
   if (voiceDirty) {
     return { tone: "warn", label: "Not saved" };
   }
-  const inboundReady =
-    !inboundClone || Boolean(config.elevenlabsInboundVoiceId?.trim());
-  const outboundReady =
-    !outboundClone || Boolean(config.elevenlabsVoiceId.trim());
-  if (
-    config.elevenlabsApiKeyConfigured &&
-    inboundReady &&
-    outboundReady
-  ) {
-    return { tone: "ok", label: "Clone ready" };
+  const inboundReady = !inboundCustom || customVoiceDirectionReady(config, "inbound");
+  const outboundReady = !outboundCustom || customVoiceDirectionReady(config, "outbound");
+  if (inboundReady && outboundReady) {
+    return { tone: "ok", label: "Custom voice ready" };
   }
   return { tone: "warn", label: "Setup needed" };
 }
@@ -92,14 +110,13 @@ export function intelligenceTabWarn(config: ConfigView): boolean {
 }
 
 export function voiceTabWarn(config: ConfigView, voiceDirty: boolean): boolean {
-  const inboundClone = config.inboundVoiceOutput === "elevenLabsClone";
-  const outboundClone = config.outboundVoiceOutput === "elevenLabsClone";
-  if (!inboundClone && !outboundClone) return false;
+  const inboundCustom = isCustomVoiceOutput(config.inboundVoiceOutput);
+  const outboundCustom = isCustomVoiceOutput(config.outboundVoiceOutput);
+  if (!inboundCustom && !outboundCustom) return false;
   return (
     voiceDirty ||
-    !config.elevenlabsApiKeyConfigured ||
-    (inboundClone && !config.elevenlabsInboundVoiceId?.trim()) ||
-    (outboundClone && !config.elevenlabsVoiceId.trim())
+    (inboundCustom && !customVoiceDirectionReady(config, "inbound")) ||
+    (outboundCustom && !customVoiceDirectionReady(config, "outbound"))
   );
 }
 

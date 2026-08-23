@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   engineVoiceHint,
+  FALLBACK_FISH_MODELS,
   FALLBACK_SONIOX_VOICES,
   inboundVoiceNote,
   OUTPUT_OPTIONS,
   SYNTHESIS_MODE_OPTIONS,
 } from "./voiceSettings";
+import { normalizeCustomVoiceVendor } from "@/shared/lib/types/pipeline";
 
 describe("voiceSettings", () => {
   it("exposes outbound engine options", () => {
     expect(OUTPUT_OPTIONS.map((o) => o.value)).toEqual([
       "providerNative",
-      "elevenLabsClone",
+      "custom",
     ]);
   });
 
@@ -31,5 +33,18 @@ describe("voiceSettings", () => {
       "streaming",
       "sentence",
     ]);
+  });
+
+  it("seeds Fish Audio models including s2.1-pro", () => {
+    expect(FALLBACK_FISH_MODELS.map((m) => m.modelId)).toContain("s2.1-pro");
+  });
+});
+
+describe("normalizeCustomVoiceVendor", () => {
+  it("keeps Fish Audio and falls back to ElevenLabs", () => {
+    expect(normalizeCustomVoiceVendor("fishAudio")).toBe("fishAudio");
+    expect(normalizeCustomVoiceVendor("elevenLabs")).toBe("elevenLabs");
+    expect(normalizeCustomVoiceVendor(undefined)).toBe("elevenLabs");
+    expect(normalizeCustomVoiceVendor("")).toBe("elevenLabs");
   });
 });
