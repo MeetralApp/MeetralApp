@@ -3,6 +3,7 @@ import type {
   CustomVoiceVendor,
   ElevenLabsChunkSchedulePreset,
   FishAudioLatency,
+  FishAudioModelOption,
   FishAudioVoiceOption,
   InboundVoiceOutput,
   SaveConfigPayload,
