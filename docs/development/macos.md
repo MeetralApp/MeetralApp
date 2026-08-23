@@ -2,7 +2,7 @@
 
 Production builds target **Apple Silicon (arm64)** on **macOS 13+**.
 
-App identity: **Meetral** (`com.meetral.desktop`) · Dock/menu name from `Info.plist` + `bundle.macOS.bundleName`.
+App identity: **Meetral** (`com.meetral.desktop`) · Dev overlay **Meetral Dev** (`com.meetral.desktop.dev`) · Dock/menu name from `Info.plist` + `bundle.macOS.bundleName`.
 
 ## Requirements
 
@@ -24,12 +24,13 @@ App identity: **Meetral** (`com.meetral.desktop`) · Dock/menu name from `Info.p
 
 ```bash
 npm install
-npm run tauri dev
+npm run tauri:dev
 ```
 
 Grant **Microphone** permission when prompted (required for capture roles).
 
-> Dock hover may show `meetral` under `tauri dev` (Cargo package name). Release `.app` shows **Meetral**.
+> Dock hover may show `meetral` under `tauri:dev` (Cargo package name). Window title is **Meetral Dev**; release `.app` shows **Meetral**.
+> Dev data dir: `~/Library/Application Support/com.meetral.desktop.dev/` (install uses `com.meetral.desktop`).
 
 ## Release build (local)
 
@@ -84,8 +85,9 @@ Unsigned builds are fine for local testing only.
 
 | Path | Purpose |
 |------|---------|
-| `~/Library/Application Support/com.meetral.desktop/config.json` | Settings |
-| `~/Library/Application Support/com.meetral.desktop/logs/app.log` | App log |
+| `~/Library/Application Support/com.meetral.desktop.dev/…` | Dev (`npm run tauri:dev`) settings / logs |
+| `~/Library/Application Support/com.meetral.desktop/config.json` | Install / release settings |
+| `~/Library/Application Support/com.meetral.desktop/logs/app.log` | Install / release app log |
 
 ## Troubleshooting
 
