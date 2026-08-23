@@ -91,6 +91,7 @@ docs/                Project knowledge — see docs/README.md
 ## Testing
 
 ```bash
+npm run check            # full local CI PR gate (before push)
 npm test
 cd src-tauri && cargo test --lib
 cd src-tauri && cargo test --test meeting_lifecycle --test provider_protocol_ws
@@ -103,7 +104,7 @@ No real WebSocket, WASAPI, or network in unit tests. Details: [development/testi
 ## Definition of Done
 
 - Behavior matches the catalog row invariant and the Hard rules.
-- `npm test` and `cargo test --lib` (+ named integration tests when you touched meeting/provider protocol) pass.
+- `npm run check` (or at least `npm test` and `cargo test --lib` + named integration tests when you touched meeting/provider protocol) passes.
 - Grep gates are clean for the allow-list.
 - UI changes follow the matching `design-system/pages/` file.
 - Living docs updated if the contract or entry files changed.

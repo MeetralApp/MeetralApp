@@ -190,21 +190,21 @@ export default function FishAudioCustomVoicePanel({
       </SettingsGroup>
 
       <Collapsible className="group flex flex-col gap-3">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span className="inline-flex items-center gap-1.5">
+        <div className="flex w-full items-center gap-1.5">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <SectionHeading as="h4">Advanced</SectionHeading>
-              <SettingInfoHint label="About Fish Audio advanced settings">
-                Model, latency, temperature, speed, and top-p. Defaults work for
-                most meetings. s2.1-pro-free has no latency SLA.
-              </SettingInfoHint>
-            </span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-          </button>
-        </CollapsibleTrigger>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <SettingInfoHint label="About Fish Audio advanced settings">
+            Model, latency, temperature, speed, and top-p. Defaults work for
+            most meetings. s2.1-pro-free has no latency SLA.
+          </SettingInfoHint>
+        </div>
         <CollapsibleContent className="flex flex-col gap-4">
           <FishAudioModelSelect
             value={ttsModel}

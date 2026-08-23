@@ -17,6 +17,8 @@
     "test:all": "vitest run && cd src-tauri && cargo test",
     "knip": "knip",
     "check:version": "node scripts/check-version-sync.mjs",
+    "check": "node scripts/check-ci.mjs",
+    "check:ci": "node scripts/check-ci.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },
