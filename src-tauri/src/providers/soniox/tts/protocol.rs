@@ -108,8 +108,8 @@ fn decode_pcm_s16le_b64(b64: &str) -> Option<Vec<i16>> {
         return Some(Vec::new());
     }
     let mut samples = Vec::with_capacity(bytes.len() / 2);
-    for chunk in bytes.chunks_exact(2) {
-        samples.push(i16::from_le_bytes([chunk[0], chunk[1]]));
+    for chunk in bytes.as_chunks::<2>().0 {
+        samples.push(i16::from_le_bytes(*chunk));
     }
     Some(samples)
 }

@@ -129,8 +129,10 @@ pub fn parse_server_message(bytes: &[u8]) -> Option<ParsedServer> {
                 return None;
             }
             let samples: Vec<i16> = bytes
-                .chunks_exact(2)
-                .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|chunk| i16::from_le_bytes(*chunk))
                 .collect();
             Some(ParsedServer::Audio(ParsedAudio {
                 samples,

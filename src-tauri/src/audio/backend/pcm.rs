@@ -24,8 +24,8 @@ pub fn bytes_to_mono_i16_into(
         PcmSampleFormat::Float32 => {
             out.reserve(bytes.len() / (4 * channels));
             let mut floats = Vec::with_capacity(bytes.len() / 4);
-            for chunk in bytes.chunks_exact(4) {
-                floats.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+            for chunk in bytes.as_chunks::<4>().0 {
+                floats.push(f32::from_le_bytes(*chunk));
             }
             for frame in floats.chunks(channels) {
                 let sum: f32 = frame.iter().sum();
@@ -36,8 +36,8 @@ pub fn bytes_to_mono_i16_into(
         PcmSampleFormat::Int16 => {
             out.reserve(bytes.len() / (2 * channels));
             let mut samples = Vec::with_capacity(bytes.len() / 2);
-            for chunk in bytes.chunks_exact(2) {
-                samples.push(i16::from_le_bytes([chunk[0], chunk[1]]));
+            for chunk in bytes.as_chunks::<2>().0 {
+                samples.push(i16::from_le_bytes(*chunk));
             }
             for frame in samples.chunks(channels) {
                 let sum: i32 = frame.iter().map(|s| *s as i32).sum();
@@ -116,7 +116,7 @@ pub fn float_buffer_to_mono_f32_into(data: &[f32], channels: usize, out: &mut Ve
     match channels {
         1 => out.extend_from_slice(data),
         2 => {
-            for chunk in data.chunks_exact(2) {
+            for chunk in data.as_chunks::<2>().0 {
                 out.push((chunk[0] + chunk[1]) * 0.5);
             }
             if data.len() % 2 == 1 {
@@ -200,7 +200,7 @@ pub fn float_buffer_to_mono_i16_into(data: &[f32], channels: usize, out: &mut Ve
             }
         }
         2 => {
-            for chunk in data.chunks_exact(2) {
+            for chunk in data.as_chunks::<2>().0 {
                 let avg = (chunk[0] + chunk[1]) * 0.5;
                 out.push((avg.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
             }

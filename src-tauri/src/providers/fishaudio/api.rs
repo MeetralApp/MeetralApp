@@ -180,8 +180,10 @@ pub async fn preview_voice(
         return Err("Preview returned invalid audio".into());
     }
     let pcm: Vec<i16> = bytes
-        .chunks_exact(2)
-        .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|chunk| i16::from_le_bytes(*chunk))
         .collect();
     let pcm_48k = crate::audio::resampler::upsample_24k_to_48k(&pcm)
         .map_err(|e| format!("Preview resample failed: {e}"))?;

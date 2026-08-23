@@ -87,7 +87,7 @@ impl PcmCrossfadeMixer {
             && chunk.boundary == PcmChunkBoundary::Continuation
             && !self.prev_segment_end
         {
-            let mut out: Vec<i16> = self.hold_tail.drain(..).collect();
+            let mut out: Vec<i16> = std::mem::take(&mut self.hold_tail);
             out.extend(chunk.samples);
             self.last_emit_at = Some(Instant::now());
             return out;
