@@ -138,6 +138,6 @@ Details: [docs/README.md](docs/README.md). Do not put implementation contracts i
 | Echo | Use headphones |
 | Missing API key | Settings → enter key → **Save** |
 | High latency | Often ~300ms–1s depending on provider |
-| Debug log (Windows) | `%APPDATA%\com.meetral.app\logs\app.log` |
-| Debug log (macOS) | `~/Library/Application Support/com.meetral.app/logs/app.log` |
+| Debug log (Windows) | `%APPDATA%\com.meetral.desktop\logs\app.log` |
+| Debug log (macOS) | `~/Library/Application Support/com.meetral.desktop/logs/app.log` |
 | macOS mic permission | System Settings → Privacy → Microphone; grant when prompted |

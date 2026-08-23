@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Meetral",
   "version": "4.8.5",
-  "identifier": "com.meetral.app",
+  "identifier": "com.meetral.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

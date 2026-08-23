@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 
 #[cfg(target_os = "macos")]
-const KEYCHAIN_SERVICE: &str = "com.meetral.app";
+const KEYCHAIN_SERVICE: &str = "com.meetral.desktop";
 
 #[cfg(windows)]
 pub fn encrypt(plaintext: &str) -> Result<Vec<u8>> {

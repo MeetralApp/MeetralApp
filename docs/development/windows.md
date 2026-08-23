@@ -2,7 +2,7 @@
 
 Sparse MSIX identity (taskbar grouping / notifications) vs unpackaged `cargo run`. Read this before treating os **15700** as an app bug.
 
-**App id:** `com.meetral.app`. Sparse package **Name** in the Appx manifest is `Meetral`.
+**App id:** `com.meetral.desktop`. Sparse package **Name** in the Appx manifest is `Meetral`.
 
 ## `The process has no package identity` (os error 15700)
 

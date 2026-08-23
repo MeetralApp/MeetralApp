@@ -2,7 +2,7 @@
 
 Production builds target **Apple Silicon (arm64)** on **macOS 13+**.
 
-App identity: **Meetral** (`com.meetral.app`) · Dock/menu name from `Info.plist` + `bundle.macOS.bundleName`.
+App identity: **Meetral** (`com.meetral.desktop`) · Dock/menu name from `Info.plist` + `bundle.macOS.bundleName`.
 
 ## Requirements
 
@@ -84,8 +84,8 @@ Unsigned builds are fine for local testing only.
 
 | Path | Purpose |
 |------|---------|
-| `~/Library/Application Support/com.meetral.app/config.json` | Settings |
-| `~/Library/Application Support/com.meetral.app/logs/app.log` | App log |
+| `~/Library/Application Support/com.meetral.desktop/config.json` | Settings |
+| `~/Library/Application Support/com.meetral.desktop/logs/app.log` | App log |
 
 ## Troubleshooting
 
