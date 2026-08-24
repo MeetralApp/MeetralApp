@@ -310,3 +310,110 @@ pub async fn test_elevenlabs_api_key(
         Err(format!("ElevenLabs API error: {body}"))
     }
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestFishAudioApiKeyRequest {
+    pub api_key: String,
+}
+
+fn resolve_fishaudio_api_key(stored: &str, request: &str) -> Result<String, String> {
+    let api_key = if request.trim().is_empty() {
+        stored.to_string()
+    } else {
+        request.to_string()
+    };
+    if api_key.trim().is_empty() {
+        return Err("Fish Audio API key is empty".into());
+    }
+    Ok(api_key)
+}
+
+#[tauri::command]
+pub async fn test_fishaudio_api_key(
+    request: TestFishAudioApiKeyRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<(), String> {
+    let api_key = {
+        let guard = store.lock().await;
+        resolve_fishaudio_api_key(&guard.fishaudio.fishaudio_api_key, &request.api_key)?
+    };
+    crate::providers::fishaudio::test_api_key(&api_key).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListFishAudioVoicesRequest {
+    pub api_key: String,
+}
+
+#[tauri::command]
+pub async fn list_fishaudio_voices(
+    request: ListFishAudioVoicesRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<Vec<crate::providers::fishaudio::FishAudioVoiceOption>, String> {
+    let api_key = {
+        let guard = store.lock().await;
+        resolve_fishaudio_api_key(&guard.fishaudio.fishaudio_api_key, &request.api_key)?
+    };
+    crate::providers::fishaudio::list_voices(&api_key).await
+}
+
+#[tauri::command]
+pub fn list_fishaudio_models() -> Vec<crate::providers::fishaudio::FishAudioModelOption> {
+    crate::providers::fishaudio::list_models()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateFishAudioVoiceRequest {
+    pub api_key: String,
+    pub voice_id: String,
+}
+
+#[tauri::command]
+pub async fn validate_fishaudio_voice(
+    request: ValidateFishAudioVoiceRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<(), String> {
+    let (api_key, voice_id) = {
+        let guard = store.lock().await;
+        let api_key =
+            resolve_fishaudio_api_key(&guard.fishaudio.fishaudio_api_key, &request.api_key)?;
+        let voice_id = if request.voice_id.trim().is_empty() {
+            guard.fishaudio.fishaudio_voice_id.clone()
+        } else {
+            request.voice_id.clone()
+        };
+        (api_key, voice_id)
+    };
+    crate::providers::fishaudio::validate_voice(&api_key, &voice_id).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewFishAudioVoiceRequest {
+    pub api_key: String,
+    pub voice_id: String,
+}
+
+#[tauri::command]
+pub async fn preview_fishaudio_voice(
+    request: PreviewFishAudioVoiceRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<(), String> {
+    let (config, devices) = {
+        let guard = store.lock().await;
+        (
+            guard.clone(),
+            crate::audio::list_devices_async().await.unwrap_or_default(),
+        )
+    };
+    let api_key = resolve_fishaudio_api_key(&config.fishaudio.fishaudio_api_key, &request.api_key)?;
+    let voice_id = if request.voice_id.trim().is_empty() {
+        config.fishaudio.fishaudio_voice_id.clone()
+    } else {
+        request.voice_id.clone()
+    };
+    crate::providers::fishaudio::preview_voice(&api_key, &voice_id, &config, &devices).await
+}

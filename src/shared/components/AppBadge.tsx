@@ -26,7 +26,7 @@ const toneClass: Record<Tone, string> = {
 };
 
 function statusIcon(label: string, tone: Tone): LucideIcon {
-  if (label === "Ready" || label === "Clone ready") return CircleCheck;
+  if (label === "Ready" || label === "Custom voice ready") return CircleCheck;
   if (label === "Engine voice") return Mic;
   if (label === "Not saved") return Save;
   if (label === "Checking…") return Loader2;

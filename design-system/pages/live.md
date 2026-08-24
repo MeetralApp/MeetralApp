@@ -45,7 +45,7 @@
 Implementation: `ColumnPipelineToolbar.tsx`
 
 - One row: `@container flex` — mode cluster | `ml-auto` status icon (`size-6`) + mute (`size-8`) flush right
-- Status: **icon-only** (`ColumnHeaderStatus`) beside mute — warnings / reconnect / idle faults only. **No** starting/stopping spinner or clone-active chip (those already live in the Direct/Translate button group). Light border; mute stays the solid control
+- Status: **icon-only** (`ColumnHeaderStatus`) beside mute — warnings / reconnect / idle faults only. **No** starting/stopping spinner or custom-active chip (those already live in the Direct/Translate button group). Light border; mute stays the solid control
 - **No visible column title** on Live — `title` prop only for `aria-label` / status tips / toasts
 - Mode cluster: `inline-flex w-max max-w-[17rem]` path track (not full-bleed); elevation via `--pipeline-path-*` — see Pipeline mode control below
 - Meeting Detail History uses `ReadonlyTranscriptTimeline` (single column) — not Live column chrome
@@ -67,13 +67,13 @@ Implementation: `ColumnPipelineToolbar.tsx`
 **You** output menu (`pipelineLabels.ts`):
 
 - Translated voice
-- My cloned voice (disabled until ElevenLabs setup in Settings → Voice)
+- Custom voice (disabled until custom voice setup in Settings → Voice)
 - My voice (raw)
 - Captions only
 
-Hot-switch **Translated voice ↔ Clone** while outbound Translate is active is supported (brief silence OK).
+Hot-switch **Translated voice ↔ Custom** while outbound Translate is active is supported (brief silence OK).
 
-**Meeting** output menu: Translated audio · Meeting (raw) · Captions only.
+**Meeting** output menu: Translated audio · Custom voice · Meeting (raw) · Captions only.
 
 Do not add a third primary mode button on live view.
 
@@ -89,7 +89,7 @@ Do not add a third primary mode button on live view.
 | Audio device | `AudioDeviceBanner` → `LiveNotice.Rail` | “Reconnecting audio” + `n/5` (or “Audio restored”). After **5** failed audio reconnects → path **lost**; if a meeting is **live**, engine auto-ends it (persist + Direct), same as user End meeting |
 | Session drift | `SessionDriftHint` → `LiveNotice.Rail` | Neutral “Long session” + dismiss |
 | Column idle | `ColumnHeaderStatus` | Icon-only `size-6`. `ready`: hidden. When `SetupBanner` visible, hide `setup` / `api-key`. Keep icons for `audio-lost` / `error` / reconnect / checking — label in tooltip only |
-| Column active | `ColumnHeaderStatus` | Reconnect / clone-unavailable only. Starting/stopping + clone-active paint in the path button group — do not duplicate. **No** per-column WS elapsed timer |
+| Column active | `ColumnHeaderStatus` | Reconnect / custom-unavailable only. Starting/stopping + custom-active paint in the path button group — do not duplicate. **No** per-column WS elapsed timer |
 | Meeting elapsed | `SessionHeaderHub` + `useMeetingElapsed` | Live meeting only; left of language flags |
 | Column speech live | `LiveTranscriptColumn` | Live row `border-l-accent` while `buildLiveDisplayState.live` is non-null |
 

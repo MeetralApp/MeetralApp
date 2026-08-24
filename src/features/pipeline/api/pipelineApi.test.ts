@@ -53,17 +53,17 @@ describe("pipelineApi", () => {
     expect(invoke).toHaveBeenCalledWith("set_outbound_output_mode", {
       mode: "translated",
     });
-    await setOutboundVoiceOutput("elevenLabsClone");
+    await setOutboundVoiceOutput("custom");
     expect(invoke).toHaveBeenCalledWith("set_outbound_voice_output", {
-      voiceOutput: "elevenLabsClone",
+      voiceOutput: "custom",
     });
     await setInboundOutputMode("textOnly");
     expect(invoke).toHaveBeenCalledWith("set_inbound_output_mode", {
       mode: "textOnly",
     });
-    await setInboundVoiceOutput("elevenLabsClone");
+    await setInboundVoiceOutput("custom");
     expect(invoke).toHaveBeenCalledWith("set_inbound_voice_output", {
-      voiceOutput: "elevenLabsClone",
+      voiceOutput: "custom",
     });
     await setOutboundAudioMode("translate");
     expect(invoke).toHaveBeenCalledWith("set_outbound_audio_mode", {

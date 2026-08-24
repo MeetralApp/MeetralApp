@@ -1,7 +1,7 @@
 {
   "name": "meetral",
   "private": true,
-  "version": "4.8.4",
+  "version": "4.8.5",
   "license": "MIT",
   "author": "iamnhaan",
   "description": "Real-time voice translation for online meetings",
@@ -17,8 +17,11 @@
     "test:all": "vitest run && cd src-tauri && cargo test",
     "knip": "knip",
     "check:version": "node scripts/check-version-sync.mjs",
+    "check": "node scripts/check-ci.mjs",
+    "check:ci": "node scripts/check-ci.mjs",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev --config src-tauri/tauri.dev.conf.json"
   },
   "knip": {
     "entry": [

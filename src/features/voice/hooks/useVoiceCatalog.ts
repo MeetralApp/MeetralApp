@@ -13,5 +13,10 @@ export function useVoiceCatalog() {
     previewElevenLabsVoice: voiceApi.previewElevenLabsVoice,
     previewSonioxVoice: voiceApi.previewSonioxVoice,
     testElevenLabsApiKey: voiceApi.testElevenLabsApiKey,
+    testFishAudioApiKey: voiceApi.testFishAudioApiKey,
+    listFishAudioVoices: voiceApi.listFishAudioVoices,
+    listFishAudioModels: voiceApi.listFishAudioModels,
+    validateFishAudioVoice: voiceApi.validateFishAudioVoice,
+    previewFishAudioVoice: voiceApi.previewFishAudioVoice,
   };
 }

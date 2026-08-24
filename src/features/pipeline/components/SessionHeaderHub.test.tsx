@@ -166,7 +166,7 @@ describe("SessionHeaderHub", () => {
     expect(payload.meetingLanguage).toBe("en");
   });
 
-  it("restores Interpreter Clone mode when leaving Notes", async () => {
+  it("restores Interpreter Custom voice mode when leaving Notes", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
 
     renderHub(
@@ -192,7 +192,7 @@ describe("SessionHeaderHub", () => {
           interpreterMeetingLanguage: "en",
           interpreterOutboundMode: "translated",
           interpreterInboundMode: "translated",
-          interpreterOutboundVoiceOutput: "elevenLabsClone",
+          interpreterOutboundVoiceOutput: "custom",
           interpreterInboundVoiceOutput: "providerNative",
         }}
         onRename={vi.fn()}
@@ -224,9 +224,9 @@ describe("SessionHeaderHub", () => {
     expect(payload.myLanguage).toBe("vi");
     expect(payload.meetingLanguage).toBe("en");
     expect(payload.outboundMode).toBe("translated");
-    expect(payload.outboundVoiceOutput).toBe("elevenLabsClone");
+    expect(payload.outboundVoiceOutput).toBe("custom");
     expect(payload.interpreterOutboundMode).toBe("translated");
-    expect(payload.interpreterOutboundVoiceOutput).toBe("elevenLabsClone");
+    expect(payload.interpreterOutboundVoiceOutput).toBe("custom");
     expect(payload.notesLanguage).toBe("ja");
   });
 });

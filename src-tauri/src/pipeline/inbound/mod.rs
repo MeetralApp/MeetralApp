@@ -51,7 +51,7 @@ pub struct InboundProviderTts {
     pub tts_cmd_tx: Arc<StdMutex<mpsc::Sender<TtsTextCommand>>>,
     pub pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
     pub provider_session: Option<OutboundTtsSession>,
-    pub el_session: Option<OutboundTtsSession>,
+    pub custom_session: Option<OutboundTtsSession>,
     /// Parent of worker cancels; cancelled with the inbound pipeline.
     pub pipeline_cancel: CancellationToken,
     pub voice_engine: Arc<AtomicU8>,
@@ -61,7 +61,7 @@ pub struct InboundProviderTts {
     pub voice_switch_mutex: Arc<tokio::sync::Mutex<()>>,
     pub last_switch_at: Arc<StdMutex<Instant>>,
     pub provider_tts_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
-    pub clone_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
+    pub custom_pcm_tx: mpsc::Sender<PlaybackPcmChunk>,
     pub playback_generation: Arc<AtomicU8>,
     pub turn_latency: Arc<TurnLatencySlot>,
     pub pcm_drops: Arc<AtomicU64>,

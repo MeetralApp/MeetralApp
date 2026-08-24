@@ -13,7 +13,7 @@ Read this before editing Direct relay, `keep_direct_audio`, or standby CPU.
 |------|------|
 | **Direct** | Local passthrough (mic → Teams feed; meeting capture → headphones). **No** live API. |
 | **Translate** | Capture → Gemini **or** OpenAI **or** Soniox → TTS playback. Direct relay **stops** for the direction that is translating. |
-| **Original under translation** | Meeting → You Translated/Clone may mix a ducked floor under TTS inside `spawn_pipeline_audio` — **not** via `DirectRelay`. Use headphones; do not route Local Playback into Meeting Capture. |
+| **Original under translation** | Meeting → You Translated/Custom may mix a ducked floor under TTS inside `spawn_pipeline_audio` — **not** via `DirectRelay`. Use headphones; do not route Local Playback into Meeting Capture. |
 | **Config** | `keep_direct_audio` (default `true`) — Settings → Audio → Routing (Save) **or** tray “Keep Direct audio”. |
 | **Entry** | `ensure_direct_audio_shared` → `DirectRelay::start_outbound/inbound` |
 | **Types** | `PipelineState` in `runtime/engine/types.rs` (`Direct` \| `Active` \| `Off` \| …) |

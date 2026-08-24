@@ -2,7 +2,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct VoiceCloneLatencyEvent {
+pub struct VoiceCustomLatencyEvent {
     pub phrase_started_ms: u64,
     pub first_translated_text_ms: u64,
     pub first_tts_audio_ms: u64,

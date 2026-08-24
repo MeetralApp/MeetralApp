@@ -89,6 +89,10 @@ pub struct ConfigView {
     #[serde(default)]
     pub inbound_voice_output: InboundVoiceOutput,
     #[serde(default)]
+    pub outbound_custom_voice_vendor: crate::config::CustomVoiceVendor,
+    #[serde(default)]
+    pub inbound_custom_voice_vendor: crate::config::CustomVoiceVendor,
+    #[serde(default)]
     pub soniox_api_key_configured: bool,
     /// Soniox runtime/TTS settings — flat camelCase on the wire via flatten.
     #[serde(flatten)]
@@ -97,9 +101,14 @@ pub struct ConfigView {
     #[serde(default)]
     pub summary_fallback_available: bool,
     pub elevenlabs_api_key_configured: bool,
+    #[serde(default)]
+    pub fishaudio_api_key_configured: bool,
     /// ElevenLabs public settings — flat camelCase on the wire via flatten.
     #[serde(flatten)]
     pub elevenlabs: ElevenLabsPublicSettings,
+    /// Fish Audio public settings — flat camelCase on the wire via flatten.
+    #[serde(flatten)]
+    pub fishaudio: super::fishaudio_public::FishAudioPublicSettings,
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
     #[serde(default)]
@@ -161,11 +170,15 @@ impl From<&AppConfig> for ConfigView {
             overlay: config.overlay.clone(),
             outbound_voice_output: config.outbound_voice_output,
             inbound_voice_output: config.inbound_voice_output,
+            outbound_custom_voice_vendor: config.outbound_custom_voice_vendor,
+            inbound_custom_voice_vendor: config.inbound_custom_voice_vendor,
             soniox_api_key_configured: config.is_soniox_api_key_configured(),
             soniox: config.soniox.clone(),
             summary_fallback_available: config.summary_fallback_available(),
             elevenlabs_api_key_configured: config.is_elevenlabs_api_key_configured(),
+            fishaudio_api_key_configured: config.is_fishaudio_api_key_configured(),
             elevenlabs: ElevenLabsPublicSettings::from(&config.elevenlabs),
+            fishaudio: super::fishaudio_public::FishAudioPublicSettings::from(&config.fishaudio),
             artifacts_enabled: config.artifacts_enabled,
             answer_language: config.answer_language.clone(),
             meeting_context: config.meeting_context.clone(),
@@ -230,8 +243,11 @@ impl ConfigView {
             overlay: self.overlay.clone(),
             outbound_voice_output: self.outbound_voice_output,
             inbound_voice_output: self.inbound_voice_output,
+            outbound_custom_voice_vendor: self.outbound_custom_voice_vendor,
+            inbound_custom_voice_vendor: self.inbound_custom_voice_vendor,
             soniox: self.soniox.clone(),
             elevenlabs: self.elevenlabs.merge_into(&existing.elevenlabs),
+            fishaudio: self.fishaudio.merge_into(&existing.fishaudio),
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language.clone(),
             meeting_context: self.meeting_context.clone(),

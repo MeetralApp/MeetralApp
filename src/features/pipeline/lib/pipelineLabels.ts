@@ -3,6 +3,7 @@ import type {
   ConfigView,
   PipelineOutputMode,
 } from "@/shared/lib/types/pipeline";
+import { isCustomVoiceOutput } from "@/shared/lib/types/pipeline";
 import { isDirectionTranslating } from "./pipelineStatus";
 import { formatDirectionAudioLabel } from "@/features/audio/lib/audioSetup";
 
@@ -14,10 +15,10 @@ export interface PipelineModeOption {
   disabled?: boolean;
 }
 
-/** Outbound Translate dropdown — includes clone as a peer of provider translated voice. */
+/** Outbound Translate dropdown — includes custom voice as a peer of provider translated voice. */
 export type OutboundToolbarMode =
   | "translated"
-  | "translatedClone"
+  | "translatedCustom"
   | "originalAudio"
   | "textOnly";
 export type InboundToolbarMode = OutboundToolbarMode;
@@ -32,16 +33,30 @@ function rawModeTooltip(aiProvider: ConfigView["aiProvider"]): string {
   return `Still connected to ${engine} — uses API tokens. Use Direct for zero API usage.`;
 }
 
-const CLONE_SETUP_TOOLTIP =
-  "Add ElevenLabs API key and voice in Settings → Voice";
+const CUSTOM_VOICE_SETUP_TOOLTIP =
+  "Add a custom voice API key and voice in Settings → Voice";
 
-export function isOutboundCloneReady(config: ConfigView): boolean {
+export function isOutboundCustomVoiceReady(config: ConfigView): boolean {
+  const vendor = config.outboundCustomVoiceVendor ?? "elevenLabs";
+  if (vendor === "fishAudio") {
+    return (
+      Boolean(config.fishaudioApiKeyConfigured) &&
+      Boolean(config.fishaudioVoiceId?.trim())
+    );
+  }
   return (
     config.elevenlabsApiKeyConfigured && Boolean(config.elevenlabsVoiceId?.trim())
   );
 }
 
-export function isInboundCloneReady(config: ConfigView): boolean {
+export function isInboundCustomVoiceReady(config: ConfigView): boolean {
+  const vendor = config.inboundCustomVoiceVendor ?? "elevenLabs";
+  if (vendor === "fishAudio") {
+    return (
+      Boolean(config.fishaudioApiKeyConfigured) &&
+      Boolean(config.fishaudioInboundVoiceId?.trim())
+    );
+  }
   return (
     config.elevenlabsApiKeyConfigured &&
     Boolean(config.elevenlabsInboundVoiceId?.trim())
@@ -53,9 +68,9 @@ export function outboundToolbarModeFromConfig(
 ): OutboundToolbarMode {
   if (
     config.outboundMode === "translated" &&
-    config.outboundVoiceOutput === "elevenLabsClone"
+    isCustomVoiceOutput(config.outboundVoiceOutput)
   ) {
-    return "translatedClone";
+    return "translatedCustom";
   }
   if (config.outboundMode === "originalAudio") return "originalAudio";
   if (config.outboundMode === "textOnly") return "textOnly";
@@ -67,10 +82,10 @@ export function outboundToolbarPatch(
   config: ConfigView,
 ): Pick<ConfigView, "outboundMode" | "outboundVoiceOutput"> {
   switch (mode) {
-    case "translatedClone":
+    case "translatedCustom":
       return {
         outboundMode: "translated",
-        outboundVoiceOutput: "elevenLabsClone",
+        outboundVoiceOutput: "custom",
       };
     case "translated":
       return {
@@ -95,9 +110,9 @@ export function inboundToolbarModeFromConfig(
 ): InboundToolbarMode {
   if (
     config.inboundMode === "translated" &&
-    config.inboundVoiceOutput === "elevenLabsClone"
+    isCustomVoiceOutput(config.inboundVoiceOutput)
   ) {
-    return "translatedClone";
+    return "translatedCustom";
   }
   if (config.inboundMode === "originalAudio") return "originalAudio";
   if (config.inboundMode === "textOnly") return "textOnly";
@@ -109,10 +124,10 @@ export function inboundToolbarPatch(
   config: ConfigView,
 ): Pick<ConfigView, "inboundMode" | "inboundVoiceOutput"> {
   switch (mode) {
-    case "translatedClone":
+    case "translatedCustom":
       return {
         inboundMode: "translated",
-        inboundVoiceOutput: "elevenLabsClone",
+        inboundVoiceOutput: "custom",
       };
     case "translated":
       return {
@@ -145,7 +160,7 @@ export function getOutboundToolbarModeOptions(
       },
     ];
   }
-  const cloneReady = isOutboundCloneReady(config);
+  const customVoiceReady = isOutboundCustomVoiceReady(config);
   const translatedTitle =
     config.aiProvider === "soniox"
       ? "Soniox speech translation + Soniox TTS (same API key)"
@@ -158,13 +173,13 @@ export function getOutboundToolbarModeOptions(
       title: translatedTitle,
     },
     {
-      value: "translatedClone",
-      label: "My cloned voice",
-      shortLabel: "Clone",
-      title: cloneReady
-        ? "Your ElevenLabs clone — translated speech in your voice (You → Meeting)"
-        : CLONE_SETUP_TOOLTIP,
-      disabled: !cloneReady,
+      value: "translatedCustom",
+      label: "Custom voice",
+      shortLabel: "Custom",
+      title: customVoiceReady
+        ? "Custom voice — translated speech in your selected voice (You → Meeting)"
+        : CUSTOM_VOICE_SETUP_TOOLTIP,
+      disabled: !customVoiceReady,
     },
     {
       value: "originalAudio",
@@ -202,7 +217,7 @@ export function getInboundToolbarModeOptions(
       },
     ];
   }
-  const cloneReady = isInboundCloneReady(config);
+  const customVoiceReady = isInboundCustomVoiceReady(config);
   return [
     {
       value: "translated",
@@ -214,13 +229,13 @@ export function getInboundToolbarModeOptions(
           : "Hear translated meeting audio",
     },
     {
-      value: "translatedClone",
-      label: "Cloned voice",
-      shortLabel: "Clone",
-      title: cloneReady
-        ? "ElevenLabs clone for translated meeting speech (Meeting → You)"
-        : CLONE_SETUP_TOOLTIP,
-      disabled: !cloneReady,
+      value: "translatedCustom",
+      label: "Custom voice",
+      shortLabel: "Custom",
+      title: customVoiceReady
+        ? "Custom voice for translated meeting speech (Meeting → You)"
+        : CUSTOM_VOICE_SETUP_TOOLTIP,
+      disabled: !customVoiceReady,
     },
     {
       value: "originalAudio",
@@ -258,10 +273,10 @@ export function getPipelineModeOptions(
       title: "Hear translated meeting audio",
     },
     {
-      value: "translatedClone",
-      label: "Meeting cloned voice",
-      shortLabel: "Clone",
-      title: CLONE_SETUP_TOOLTIP,
+      value: "translatedCustom",
+      label: "Custom voice",
+      shortLabel: "Custom",
+      title: CUSTOM_VOICE_SETUP_TOOLTIP,
       disabled: true,
     },
     {

@@ -37,4 +37,4 @@ pub async fn list_soniox_voices(api_key: &str) -> Result<Vec<SonioxVoiceOption>,
 }
 pub use crate::providers::elevenlabs::spawn_outbound_transcript_fanout;
 pub use shared::tts_command::TtsTextCommand;
-pub use shared::types::{VoiceCloneLatencyEvent, VoiceTtsStatus, VoiceTtsStatusPayload};
+pub use shared::types::{VoiceCustomLatencyEvent, VoiceTtsStatus, VoiceTtsStatusPayload};

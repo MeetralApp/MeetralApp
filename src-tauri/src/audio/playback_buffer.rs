@@ -30,7 +30,7 @@ impl Default for PlaybackBufferConfig {
 }
 
 impl PlaybackBufferConfig {
-    /// ElevenLabs clone outbound — longer wait/hold for bursty WS sub-chunks.
+    /// Custom voice outbound — longer wait/hold for bursty WS sub-chunks.
     pub fn clone_outbound() -> Self {
         Self {
             jitter: Duration::from_millis(120),

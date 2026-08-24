@@ -62,12 +62,12 @@ describe("voiceSectionStatus", () => {
     });
   });
 
-  it("warns when clone setup incomplete", () => {
+  it("warns when custom voice setup incomplete", () => {
     expect(
       voiceSectionStatus(
         {
           ...baseConfig,
-          outboundVoiceOutput: "elevenLabsClone",
+          outboundVoiceOutput: "custom",
           elevenlabsApiKeyConfigured: false,
           elevenlabsVoiceId: "",
         },
@@ -76,20 +76,20 @@ describe("voiceSectionStatus", () => {
     ).toEqual({ tone: "warn", label: "Setup needed" });
   });
 
-  it("checks inbound clone readiness independently", () => {
-    const inboundClone = {
+  it("checks inbound custom voice readiness independently", () => {
+    const inboundCustom = {
       ...baseConfig,
-      inboundVoiceOutput: "elevenLabsClone" as const,
+      inboundVoiceOutput: "custom" as const,
       elevenlabsApiKeyConfigured: true,
       elevenlabsInboundVoiceId: "inbound-v1",
     };
-    expect(voiceSectionStatus(inboundClone, false)).toEqual({
+    expect(voiceSectionStatus(inboundCustom, false)).toEqual({
       tone: "ok",
-      label: "Clone ready",
+      label: "Custom voice ready",
     });
     expect(
       voiceSectionStatus(
-        { ...inboundClone, elevenlabsInboundVoiceId: "" },
+        { ...inboundCustom, elevenlabsInboundVoiceId: "" },
         false,
       ),
     ).toEqual({ tone: "warn", label: "Setup needed" });
@@ -132,7 +132,7 @@ describe("tab warn dots", () => {
       voiceTabWarn(
         {
           ...baseConfig,
-          outboundVoiceOutput: "elevenLabsClone",
+          outboundVoiceOutput: "custom",
           elevenlabsApiKeyConfigured: true,
           elevenlabsVoiceId: "v1",
         },
@@ -143,7 +143,7 @@ describe("tab warn dots", () => {
       voiceTabWarn(
         {
           ...baseConfig,
-          inboundVoiceOutput: "elevenLabsClone",
+          inboundVoiceOutput: "custom",
           elevenlabsApiKeyConfigured: true,
           elevenlabsInboundVoiceId: "inbound-v1",
         },
@@ -154,7 +154,7 @@ describe("tab warn dots", () => {
       voiceTabWarn(
         {
           ...baseConfig,
-          inboundVoiceOutput: "elevenLabsClone",
+          inboundVoiceOutput: "custom",
           elevenlabsApiKeyConfigured: true,
           elevenlabsInboundVoiceId: "",
         },

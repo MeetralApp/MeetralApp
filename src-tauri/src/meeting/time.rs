@@ -4,7 +4,7 @@
 //! - `meeting_record.started_at_ms` / `ended_at_ms` — **wall** (Unix ms) for library + header timer.
 //! - `transcript_segment.started_at_ms` / `ended_at_ms` — **meeting-relative** ms (0 = meeting start).
 //! - Live writes use a process **mono anchor** derived from wall elapsed so relative stays
-//! continuous across app restart while still immune to NTP jitter during the session.
+//!   continuous across app restart while still immune to NTP jitter during the session.
 
 use crate::audio::monotonic_ms;
 

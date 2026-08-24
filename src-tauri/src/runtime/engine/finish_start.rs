@@ -37,13 +37,8 @@ pub async fn run_finish_start_outbound(engine: SharedEngine, config: AppConfig, 
         super::lock_scope::join_optional_capture(handle).await;
     }
 
-    if config.needs_elevenlabs_for_outbound() {
-        if let Err(e) = crate::voice::validate_elevenlabs_voice(
-            &config.elevenlabs.elevenlabs_api_key,
-            &config.elevenlabs.elevenlabs_voice_id,
-        )
-        .await
-        {
+    if config.needs_custom_tts_for_outbound() {
+        if let Err(e) = crate::runtime::factories::validate_outbound_custom_voice(&config).await {
             prepare.cancel.cancel();
             let mut guard = engine.lock().await;
             guard

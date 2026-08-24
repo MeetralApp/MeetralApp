@@ -36,10 +36,10 @@ function warningMessage(
   >,
 ): string {
   if (!model.cloneStreamSupported && model.requiresAlphaAccess) {
-    return "This model may not work with real-time voice clone (WebSocket) and may require alpha access. Use Eleven Flash v2.5 or Turbo v2.5 for live translation.";
+    return "This model may not work with real-time custom voice (WebSocket) and may require alpha access. Use Eleven Flash v2.5 or Turbo v2.5 for live translation.";
   }
   if (!model.cloneStreamSupported) {
-    return "This model may not work with real-time voice clone (WebSocket stream-input). Use Eleven Flash v2.5 or Turbo v2.5 for live translation.";
+    return "This model may not work with real-time custom voice (WebSocket stream-input). Use Eleven Flash v2.5 or Turbo v2.5 for live translation.";
   }
   return "This model may require alpha access on your ElevenLabs account.";
 }

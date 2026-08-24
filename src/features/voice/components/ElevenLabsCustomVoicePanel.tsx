@@ -48,13 +48,13 @@ function SelectOptionWithHint({
   );
 }
 
-export interface ElevenLabsCloneSettingsPanelProps {
+export interface ElevenLabsCustomVoicePanelProps {
   config: ConfigView;
   direction: "outbound" | "inbound";
   locked: boolean;
   apiKeyLocked?: boolean;
   showApiKey?: boolean;
-  cloneSectionRef: RefObject<HTMLDivElement | null>;
+  customVoiceSectionRef: RefObject<HTMLDivElement | null>;
   voicesNonce: number;
   ttsModel: string;
   setTtsModel: (v: string) => void;
@@ -64,8 +64,8 @@ export interface ElevenLabsCloneSettingsPanelProps {
   setSimilarityBoost: (v: number) => void;
   synthesisMode: TtsSynthesisMode;
   setSynthesisMode: (v: TtsSynthesisMode) => void;
-  cloneSettingsDirty: boolean;
-  cloneSettingsSaving: boolean;
+  customVoiceSettingsDirty: boolean;
+  customVoiceSettingsSaving: boolean;
   onSave: (payload: SaveConfigPayload) => Promise<SaveConfigResult | void>;
   onTestElevenLabs: (apiKey: string) => Promise<void>;
   onListElevenLabsVoices: (apiKey?: string) => Promise<ElevenLabsVoiceOption[]>;
@@ -78,17 +78,17 @@ export interface ElevenLabsCloneSettingsPanelProps {
   onKeySaved: () => void;
   persistElevenLabsVoices: (list: ElevenLabsVoiceOption[]) => Promise<void>;
   persistElevenLabsModels: (list: ElevenLabsModelOption[]) => Promise<void>;
-  resetCloneSettings: () => void;
-  persistCloneSettings: () => void;
+  resetCustomVoiceSettings: () => void;
+  persistCustomVoiceSettings: () => void;
 }
 
-export default function ElevenLabsCloneSettingsPanel({
+export default function ElevenLabsCustomVoicePanel({
   config,
   direction,
   locked,
   apiKeyLocked = locked,
   showApiKey = true,
-  cloneSectionRef,
+  customVoiceSectionRef,
   voicesNonce,
   ttsModel,
   setTtsModel,
@@ -98,8 +98,8 @@ export default function ElevenLabsCloneSettingsPanel({
   setSimilarityBoost,
   synthesisMode,
   setSynthesisMode,
-  cloneSettingsDirty,
-  cloneSettingsSaving,
+  customVoiceSettingsDirty,
+  customVoiceSettingsSaving,
   onSave,
   onTestElevenLabs,
   onListElevenLabsVoices,
@@ -112,9 +112,9 @@ export default function ElevenLabsCloneSettingsPanel({
   onKeySaved,
   persistElevenLabsVoices,
   persistElevenLabsModels,
-  resetCloneSettings,
-  persistCloneSettings,
-}: ElevenLabsCloneSettingsPanelProps) {
+  resetCustomVoiceSettings,
+  persistCustomVoiceSettings,
+}: ElevenLabsCustomVoicePanelProps) {
   const speakingStyleAvailable = config.aiProvider !== "soniox";
   const idPrefix = `${direction}-el`;
   const keyConfigured = config.elevenlabsApiKeyConfigured;
@@ -151,7 +151,7 @@ export default function ElevenLabsCloneSettingsPanel({
     : { tone: "ok" as const, label: "Ready" };
 
   return (
-    <div ref={cloneSectionRef} className="flex flex-col gap-4">
+    <div ref={customVoiceSectionRef} className="flex flex-col gap-4">
       <SettingsGroup
         title="ElevenLabs"
         headerEnd={
@@ -203,22 +203,22 @@ export default function ElevenLabsCloneSettingsPanel({
       </SettingsGroup>
 
       <Collapsible className="group flex flex-col gap-3">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span className="inline-flex items-center gap-1.5">
+        <div className="flex w-full items-center gap-1.5">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <SectionHeading as="h4">Advanced</SectionHeading>
-              <SettingInfoHint label="About advanced voice settings">
-                {speakingStyleAvailable
-                  ? "Speaking style, TTS model, stability, and similarity. Defaults work for most meetings — open only if clone quality needs tuning."
-                  : "TTS model, stability, and similarity. Speaking style is managed by the Soniox live pipeline. Defaults work for most meetings."}
-              </SettingInfoHint>
-            </span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-          </button>
-        </CollapsibleTrigger>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <SettingInfoHint label="About advanced voice settings">
+            {speakingStyleAvailable
+              ? "Speaking style, TTS model, stability, and similarity. Defaults work for most meetings — open only if custom voice quality needs tuning."
+              : "TTS model, stability, and similarity. Speaking style is managed by the Soniox live pipeline. Defaults work for most meetings."}
+          </SettingInfoHint>
+        </div>
         <CollapsibleContent className="flex flex-col gap-4">
           {speakingStyleAvailable ? (
             <div className="space-y-2">
@@ -308,7 +308,7 @@ export default function ElevenLabsCloneSettingsPanel({
                 Similarity boost ({similarityBoost.toFixed(2)})
               </Label>
               <SettingInfoHint label="About similarity boost">
-                Higher = closer to your clone sample; lower = more model
+                Higher = closer to your voice sample; lower = more model
                 interpretation.
               </SettingInfoHint>
             </span>
@@ -329,24 +329,24 @@ export default function ElevenLabsCloneSettingsPanel({
         </CollapsibleContent>
       </Collapsible>
 
-      {cloneSettingsDirty ? (
+      {customVoiceSettingsDirty ? (
         <div className="flex items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={locked || cloneSettingsSaving}
-            onClick={resetCloneSettings}
+            disabled={locked || customVoiceSettingsSaving}
+            onClick={resetCustomVoiceSettings}
           >
             Cancel
           </Button>
           <Button
             type="button"
             size="sm"
-            disabled={locked || cloneSettingsSaving}
-            onClick={persistCloneSettings}
+            disabled={locked || customVoiceSettingsSaving}
+            onClick={persistCustomVoiceSettings}
           >
-            {cloneSettingsSaving ? "Saving…" : "Save voice settings"}
+            {customVoiceSettingsSaving ? "Saving…" : "Save voice settings"}
           </Button>
         </div>
       ) : null}

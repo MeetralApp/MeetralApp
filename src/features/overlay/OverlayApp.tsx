@@ -283,7 +283,7 @@ export default function OverlayApp() {
     inboundMode,
     outboundModeOptions,
     inboundModeOptions,
-    cloneActive,
+    customActive,
     toggleMicMuted,
     toggleSpeakerMuted,
     setOutboundPath,
@@ -302,7 +302,7 @@ export default function OverlayApp() {
       inboundMode,
       outboundModeOptions,
       inboundModeOptions,
-      cloneActive,
+      customActive,
       sessionMode: runtime.config?.sessionMode,
       onMicToggle: () => {
         void toggleMicMuted();
@@ -331,7 +331,7 @@ export default function OverlayApp() {
       inboundMode,
       outboundModeOptions,
       inboundModeOptions,
-      cloneActive,
+      customActive,
       runtime.config?.sessionMode,
       toggleMicMuted,
       toggleSpeakerMuted,

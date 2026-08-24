@@ -1,5 +1,8 @@
 import type {
+  CustomVoiceVendor,
   ConfigView,
+  FishAudioLatency,
+  FishAudioModelOption,
   InboundVoiceOutput,
   OutboundVoiceOutput,
   SonioxVoiceOption,
@@ -11,7 +14,41 @@ export const OUTPUT_OPTIONS: {
   label: string;
 }[] = [
   { value: "providerNative", label: "Engine voice" },
-  { value: "elevenLabsClone", label: "ElevenLabs voice" },
+  { value: "custom", label: "Custom voice" },
+];
+
+export const CUSTOM_VOICE_VENDOR_OPTIONS: { value: CustomVoiceVendor; label: string }[] = [
+  { value: "elevenLabs", label: "ElevenLabs" },
+  { value: "fishAudio", label: "Fish Audio" },
+];
+
+export const FISH_LATENCY_OPTIONS: {
+  value: FishAudioLatency;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "low",
+    label: "Low",
+    hint: "Fastest first audio. Slightly less stable prosody.",
+  },
+  {
+    value: "balanced",
+    label: "Balanced",
+    hint: "Recommended default for live meetings.",
+  },
+  {
+    value: "normal",
+    label: "Normal",
+    hint: "Highest quality, extra latency.",
+  },
+];
+
+export const FALLBACK_FISH_MODELS: FishAudioModelOption[] = [
+  { modelId: "s2.1-pro", name: "S2.1 Pro" },
+  { modelId: "s2.1-pro-free", name: "S2.1 Pro (free, no latency SLA)" },
+  { modelId: "s2-pro", name: "S2 Pro" },
+  { modelId: "s1", name: "S1" },
 ];
 
 export function engineVoiceHint(aiProvider: ConfigView["aiProvider"]): string {
@@ -23,9 +60,9 @@ export function engineVoiceHint(aiProvider: ConfigView["aiProvider"]): string {
 
 export function inboundVoiceNote(aiProvider: ConfigView["aiProvider"]): string {
   if (aiProvider === "soniox") {
-    return "Engine voice uses Soniox TTS, or pick an ElevenLabs voice.";
+    return "Engine voice uses Soniox TTS, or pick a custom voice.";
   }
-  return "Built-in live session voice, or an ElevenLabs voice.";
+  return "Built-in live session voice, or a custom voice.";
 }
 
 export const FALLBACK_SONIOX_VOICES: SonioxVoiceOption[] = [

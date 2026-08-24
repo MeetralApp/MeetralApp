@@ -24,7 +24,7 @@ pub const BRIDGE_STATUS_CHANNEL_DEPTH: usize = 8;
 pub const AUDIO_FAULT_CHANNEL_DEPTH: usize = 32;
 /// Live transcript fanout to the UI; the FE coalesces at 80ms cadence.
 pub const TRANSCRIPT_FANOUT_CHANNEL_DEPTH: usize = 256;
-/// Voice clone latency events (low rate).
+/// Custom voice latency events (low rate).
 pub const VOICE_LATENCY_CHANNEL_DEPTH: usize = 32;
 
 static DROPS: AtomicU64 = AtomicU64::new(0);

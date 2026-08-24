@@ -17,7 +17,7 @@ export type SettingsFocus =
   | "languages"
   | "provider"
   | "sonioxContext"
-  | "clone"
+  | "customVoice"
   | "summaries"
   | "summary"
   | "overlay";
@@ -27,7 +27,7 @@ export function resolveSettingsTab(
 ): SettingsTab {
   switch (focus) {
     case "voice":
-    case "clone":
+    case "customVoice":
       return "voice";
     case "audio":
       return "audio";

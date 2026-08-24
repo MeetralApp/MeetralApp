@@ -67,6 +67,32 @@ impl AppConfig {
         }
     }
 
+    pub fn fishaudio_outbound_init_settings(
+        &self,
+    ) -> crate::providers::fishaudio::protocol::FishAudioInitSettings {
+        crate::providers::fishaudio::protocol::FishAudioInitSettings {
+            reference_id: self.fishaudio.fishaudio_voice_id.clone(),
+            model_id: self.fishaudio.fishaudio_tts_model.clone(),
+            latency: self.fishaudio.fishaudio_latency,
+            temperature: self.fishaudio.fishaudio_temperature,
+            top_p: self.fishaudio.fishaudio_top_p,
+            speed: self.fishaudio.fishaudio_speed,
+        }
+    }
+
+    pub fn fishaudio_inbound_init_settings(
+        &self,
+    ) -> crate::providers::fishaudio::protocol::FishAudioInitSettings {
+        crate::providers::fishaudio::protocol::FishAudioInitSettings {
+            reference_id: self.fishaudio.fishaudio_inbound_voice_id.clone(),
+            model_id: self.fishaudio.fishaudio_inbound_tts_model.clone(),
+            latency: self.fishaudio.fishaudio_inbound_latency,
+            temperature: self.fishaudio.fishaudio_inbound_temperature,
+            top_p: self.fishaudio.fishaudio_top_p,
+            speed: self.fishaudio.fishaudio_speed,
+        }
+    }
+
     /// Provider-native voice uses a separate TTS WebSocket (capability, not vendor name).
     pub fn uses_provider_tts_for_outbound(&self) -> bool {
         crate::capabilities::uses_provider_tts_for_outbound(self)

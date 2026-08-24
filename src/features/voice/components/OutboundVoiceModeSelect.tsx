@@ -14,11 +14,12 @@ import {
   OUTPUT_OPTIONS,
 } from "@/features/voice/lib/voiceSettings";
 import type { ConfigView, OutboundVoiceOutput } from "@/shared/lib/types/pipeline";
+import { normalizeVoiceOutput } from "@/shared/lib/types/pipeline";
 
 interface Props {
   config: ConfigView;
   outputMode: OutboundVoiceOutput;
-  cloneEnabled: boolean;
+  customVoiceEnabled: boolean;
   outboundLocked: boolean;
   modeSaving: boolean;
   onPersistMode: (mode: OutboundVoiceOutput) => void;
@@ -27,7 +28,7 @@ interface Props {
 export default function OutboundVoiceModeSelect({
   config,
   outputMode,
-  cloneEnabled,
+  customVoiceEnabled,
   outboundLocked,
   modeSaving,
   onPersistMode,
@@ -41,13 +42,13 @@ export default function OutboundVoiceModeSelect({
           </Label>
           <SettingInfoHint label="About You → Meeting voice">
             {engineVoiceHint(config.aiProvider)}
-            {cloneEnabled ? " ElevenLabs uses the voice selected below." : ""}
+            {customVoiceEnabled ? " Custom voice uses the voice selected below." : ""}
           </SettingInfoHint>
         </span>
       }
     >
       <Select
-        value={outputMode}
+        value={normalizeVoiceOutput(outputMode)}
         onValueChange={(value) =>
           onPersistMode(value as OutboundVoiceOutput)
         }
@@ -64,7 +65,7 @@ export default function OutboundVoiceModeSelect({
           ))}
         </SelectContent>
       </Select>
-      {cloneEnabled ? (
+      {customVoiceEnabled ? (
         <p className="text-muted-foreground text-xs leading-relaxed">
           Train a Professional Voice Clone (mixed EN+VI for vi→en).
           {config.aiProvider === "gemini" ? (

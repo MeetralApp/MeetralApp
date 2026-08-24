@@ -13,17 +13,31 @@ import { useVoiceCatalog } from "@/features/voice/hooks/useVoiceCatalog";
 import { listSonioxTtsModels } from "@/features/ai/lib/aiApi";
 import type { SonioxTtsModelOption } from "@/features/ai/lib/aiTypes";
 import { withLanguageFlags } from "@/shared/lib/languageFlags";
-import type { ConfigView, ElevenLabsModelOption, ElevenLabsVoiceOption, InboundVoiceOutput, OutboundVoiceOutput, SonioxVoiceOption, TtsSynthesisMode, SaveConfigPayload, SaveConfigResult } from "@/shared/lib/types/pipeline";
+import type { CustomVoiceVendor, ConfigView, ElevenLabsModelOption, ElevenLabsVoiceOption, FishAudioLatency, FishAudioModelOption, FishAudioVoiceOption, InboundVoiceOutput, OutboundVoiceOutput, SonioxVoiceOption, TtsSynthesisMode, SaveConfigPayload, SaveConfigResult } from "@/shared/lib/types/pipeline";
+import { isCustomVoiceOutput, normalizeCustomVoiceVendor, normalizeVoiceOutput } from "@/shared/lib/types/pipeline";
 import { toSavePayload } from "@/features/pipeline/lib/toSavePayload";
 
-import ElevenLabsCloneSettingsPanel from "./ElevenLabsCloneSettingsPanel";
+import CustomVoiceVendorSelect from "./CustomVoiceVendorSelect";
+import ElevenLabsCustomVoicePanel from "./ElevenLabsCustomVoicePanel";
+import FishAudioCustomVoicePanel from "./FishAudioCustomVoicePanel";
 import InboundVoiceModeSelect from "./InboundVoiceModeSelect";
 import OutboundVoiceModeSelect from "./OutboundVoiceModeSelect";
 import SonioxEngineVoiceSettings from "./SonioxEngineVoiceSettings";
 import SonioxInboundVoiceSettings from "./SonioxInboundVoiceSettings";
+
 export interface VoiceSettingsState {
   dirty: boolean;
 }
+
+type VoiceSession = {
+  inboundOutputMode: InboundVoiceOutput;
+  outputMode: OutboundVoiceOutput;
+  inboundCustomVoiceVendor: CustomVoiceVendor;
+  outboundCustomVoiceVendor: CustomVoiceVendor;
+  sonioxTtsModel: string;
+};
+
+type VoiceSavePatch = Parameters<typeof toSavePayload>[1];
 
 interface Props {
   config: ConfigView;
@@ -32,8 +46,8 @@ interface Props {
   status?: SettingsSectionStatus;
   focusKey?: SettingsFocus;
   activeFocus?: SettingsFocus | null;
-  /** Deep-link into clone / ElevenLabs block when Settings opens with focus `clone`. */
-  focusTarget?: "clone";
+  /** Deep-link into custom voice / vendor block when Settings opens with focus `customVoice`. */
+  focusTarget?: "customVoice";
   onSave: (payload: SaveConfigPayload) => Promise<SaveConfigResult | void>;
   onToast: (type: ToastType, text: string) => void;
   onStateChange?: (state: VoiceSettingsState) => void;
@@ -59,14 +73,27 @@ export default function VoiceSettings({
     previewElevenLabsVoice,
     previewSonioxVoice,
     testElevenLabsApiKey,
+    testFishAudioApiKey,
+    listFishAudioVoices,
+    listFishAudioModels,
+    validateFishAudioVoice,
+    previewFishAudioVoice,
   } = useVoiceCatalog();
   const [inboundOutputMode, setInboundOutputMode] =
     useState<InboundVoiceOutput>(
-      config.inboundVoiceOutput ?? "providerNative",
+      normalizeVoiceOutput(config.inboundVoiceOutput),
     );
   const [outputMode, setOutputMode] = useState<OutboundVoiceOutput>(
-    config.outboundVoiceOutput ?? "providerNative",
+    normalizeVoiceOutput(config.outboundVoiceOutput),
   );
+  const [inboundCustomVoiceVendor, setInboundCustomVoiceVendor] = useState<CustomVoiceVendor>(
+    normalizeCustomVoiceVendor(config.inboundCustomVoiceVendor),
+  );
+  const [outboundCustomVoiceVendor, setOutboundCustomVoiceVendor] = useState<CustomVoiceVendor>(
+    normalizeCustomVoiceVendor(config.outboundCustomVoiceVendor),
+  );
+  const [inboundVendorSaving, setInboundVendorSaving] = useState(false);
+  const [outboundVendorSaving, setOutboundVendorSaving] = useState(false);
   const [keyDirty, setKeyDirty] = useState(false);
   const [voiceDirty, setVoiceDirty] = useState(false);
   const [inboundModeSaving, setInboundModeSaving] = useState(false);
@@ -109,21 +136,54 @@ export default function VoiceSettings({
     useState<TtsSynthesisMode>(
       config.elevenlabsInboundTtsSynthesisMode ?? "streaming",
     );
-  const [inboundCloneSettingsSaving, setInboundCloneSettingsSaving] =
+  const [inboundCustomVoiceSettingsSaving, setInboundCustomVoiceSettingsSaving] =
     useState(false);
-  const [cloneSettingsSaving, setCloneSettingsSaving] = useState(false);
-  const inboundCloneSectionRef = useRef<HTMLDivElement>(null);
-  const outboundCloneSectionRef = useRef<HTMLDivElement>(null);
+  const [customVoiceSettingsSaving, setCustomVoiceSettingsSaving] = useState(false);
+  const [fishTtsModel, setFishTtsModel] = useState(
+    config.fishaudioTtsModel ?? "s2.1-pro",
+  );
+  const [fishLatency, setFishLatency] = useState<FishAudioLatency>(
+    config.fishaudioLatency ?? "balanced",
+  );
+  const [fishTemperature, setFishTemperature] = useState(
+    config.fishaudioTemperature ?? 0.7,
+  );
+  const [fishSpeed, setFishSpeed] = useState(config.fishaudioSpeed ?? 1.0);
+  const [fishTopP, setFishTopP] = useState(config.fishaudioTopP ?? 0.7);
+  const [inboundFishTtsModel, setInboundFishTtsModel] = useState(
+    config.fishaudioInboundTtsModel ?? "s2.1-pro",
+  );
+  const [inboundFishLatency, setInboundFishLatency] = useState<FishAudioLatency>(
+    config.fishaudioInboundLatency ?? "balanced",
+  );
+  const [inboundFishTemperature, setInboundFishTemperature] = useState(
+    config.fishaudioInboundTemperature ?? 0.7,
+  );
+  const inboundCustomVoiceSectionRef = useRef<HTMLDivElement>(null);
+  const outboundCustomVoiceSectionRef = useRef<HTMLDivElement>(null);
+  const configRef = useRef(config);
+  configRef.current = config;
+  const sessionRef = useRef<VoiceSession>({
+    inboundOutputMode,
+    outputMode,
+    inboundCustomVoiceVendor,
+    outboundCustomVoiceVendor,
+    sonioxTtsModel: config.sonioxTtsModel ?? "tts-rt-v1",
+  });
+  sessionRef.current.inboundOutputMode = inboundOutputMode;
+  sessionRef.current.outputMode = outputMode;
+  sessionRef.current.inboundCustomVoiceVendor = inboundCustomVoiceVendor;
+  sessionRef.current.outboundCustomVoiceVendor = outboundCustomVoiceVendor;
 
   const speakingStyleAvailable = config.aiProvider !== "soniox";
-  const cloneSettingsDirty =
+  const customVoiceSettingsDirty =
     ttsModel !== (config.elevenlabsTtsModel ?? "eleven_flash_v2_5") ||
     stability !== (config.elevenlabsStability ?? 0.5) ||
     similarityBoost !== (config.elevenlabsSimilarityBoost ?? 0.75) ||
     (speakingStyleAvailable &&
       synthesisMode !== (config.elevenlabsTtsSynthesisMode ?? "streaming"));
 
-  const inboundCloneSettingsDirty =
+  const inboundCustomVoiceSettingsDirty =
     inboundTtsModel !==
       (config.elevenlabsInboundTtsModel ?? "eleven_flash_v2_5") ||
     inboundStability !== (config.elevenlabsInboundStability ?? 0.5) ||
@@ -133,13 +193,31 @@ export default function VoiceSettings({
       inboundSynthesisMode !==
         (config.elevenlabsInboundTtsSynthesisMode ?? "streaming"));
 
-  const inboundCloneEnabled = inboundOutputMode === "elevenLabsClone";
-  const cloneEnabled = outputMode === "elevenLabsClone";
+  const inboundCustomVoiceEnabled = isCustomVoiceOutput(inboundOutputMode);
+  const customVoiceEnabled = isCustomVoiceOutput(outputMode);
+  const inboundUsesEl = inboundCustomVoiceEnabled && inboundCustomVoiceVendor === "elevenLabs";
+  const outboundUsesEl = customVoiceEnabled && outboundCustomVoiceVendor === "elevenLabs";
+  const inboundUsesFish = inboundCustomVoiceEnabled && inboundCustomVoiceVendor === "fishAudio";
+  const outboundUsesFish = customVoiceEnabled && outboundCustomVoiceVendor === "fishAudio";
+  const fishCustomVoiceSettingsDirty =
+    fishTtsModel !== (config.fishaudioTtsModel ?? "s2.1-pro") ||
+    fishLatency !== (config.fishaudioLatency ?? "balanced") ||
+    fishTemperature !== (config.fishaudioTemperature ?? 0.7) ||
+    fishSpeed !== (config.fishaudioSpeed ?? 1.0) ||
+    fishTopP !== (config.fishaudioTopP ?? 0.7);
+  const inboundFishCustomVoiceSettingsDirty =
+    inboundFishTtsModel !== (config.fishaudioInboundTtsModel ?? "s2.1-pro") ||
+    inboundFishLatency !== (config.fishaudioInboundLatency ?? "balanced") ||
+    inboundFishTemperature !== (config.fishaudioInboundTemperature ?? 0.7) ||
+    fishSpeed !== (config.fishaudioSpeed ?? 1.0) ||
+    fishTopP !== (config.fishaudioTopP ?? 0.7);
   const dirty =
     keyDirty ||
     voiceDirty ||
-    (inboundCloneEnabled && inboundCloneSettingsDirty) ||
-    (cloneEnabled && cloneSettingsDirty);
+    (inboundUsesEl && inboundCustomVoiceSettingsDirty) ||
+    (outboundUsesEl && customVoiceSettingsDirty) ||
+    (inboundUsesFish && inboundFishCustomVoiceSettingsDirty) ||
+    (outboundUsesFish && fishCustomVoiceSettingsDirty);
 
   useEffect(() => {
     setTtsModel(config.elevenlabsTtsModel ?? "eleven_flash_v2_5");
@@ -172,39 +250,136 @@ export default function VoiceSettings({
   ]);
 
   useEffect(() => {
-    setInboundOutputMode(
-      config.inboundVoiceOutput ?? "providerNative",
-    );
+    setInboundOutputMode(normalizeVoiceOutput(config.inboundVoiceOutput));
   }, [config.inboundVoiceOutput]);
 
   useEffect(() => {
-    setOutputMode(config.outboundVoiceOutput ?? "providerNative");
+    setOutputMode(normalizeVoiceOutput(config.outboundVoiceOutput));
   }, [config.outboundVoiceOutput]);
+
+  useEffect(() => {
+    setInboundCustomVoiceVendor(normalizeCustomVoiceVendor(config.inboundCustomVoiceVendor));
+  }, [config.inboundCustomVoiceVendor]);
+
+  useEffect(() => {
+    setOutboundCustomVoiceVendor(normalizeCustomVoiceVendor(config.outboundCustomVoiceVendor));
+  }, [config.outboundCustomVoiceVendor]);
+
+  useEffect(() => {
+    sessionRef.current.sonioxTtsModel = config.sonioxTtsModel ?? "tts-rt-v1";
+  }, [config.sonioxTtsModel]);
+
+  useEffect(() => {
+    setFishTtsModel(config.fishaudioTtsModel ?? "s2.1-pro");
+    setFishLatency(config.fishaudioLatency ?? "balanced");
+    setFishTemperature(config.fishaudioTemperature ?? 0.7);
+    setFishSpeed(config.fishaudioSpeed ?? 1.0);
+    setFishTopP(config.fishaudioTopP ?? 0.7);
+  }, [
+    config.fishaudioTtsModel,
+    config.fishaudioLatency,
+    config.fishaudioTemperature,
+    config.fishaudioSpeed,
+    config.fishaudioTopP,
+  ]);
+
+  useEffect(() => {
+    setInboundFishTtsModel(config.fishaudioInboundTtsModel ?? "s2.1-pro");
+    setInboundFishLatency(config.fishaudioInboundLatency ?? "balanced");
+    setInboundFishTemperature(config.fishaudioInboundTemperature ?? 0.7);
+  }, [
+    config.fishaudioInboundTtsModel,
+    config.fishaudioInboundLatency,
+    config.fishaudioInboundTemperature,
+  ]);
+
+  const buildVoiceSave = useCallback((patch: VoiceSavePatch = {}) => {
+    const session = sessionRef.current;
+    return toSavePayload(configRef.current, {
+      inboundVoiceOutput: session.inboundOutputMode,
+      outboundVoiceOutput: session.outputMode,
+      inboundCustomVoiceVendor: session.inboundCustomVoiceVendor,
+      outboundCustomVoiceVendor: session.outboundCustomVoiceVendor,
+      sonioxTtsModel: session.sonioxTtsModel,
+      ...patch,
+    });
+  }, []);
+
+  const saveVoicePatch = useCallback(
+    (patch: VoiceSavePatch = {}) => {
+      if (patch.sonioxTtsModel) {
+        sessionRef.current.sonioxTtsModel = patch.sonioxTtsModel;
+      }
+      return onSave(buildVoiceSave(patch));
+    },
+    [buildVoiceSave, onSave],
+  );
+
+  const saveKeepingCloneSession = useCallback(
+    (payload: SaveConfigPayload) => {
+      const session = sessionRef.current;
+      const notesMode =
+        (configRef.current.sessionMode ?? "interpreter") === "notes";
+      return onSave({
+        ...payload,
+        inboundVoiceOutput: session.inboundOutputMode,
+        outboundVoiceOutput: session.outputMode,
+        inboundCustomVoiceVendor: session.inboundCustomVoiceVendor,
+        outboundCustomVoiceVendor: session.outboundCustomVoiceVendor,
+        sonioxTtsModel:
+          payload.sonioxTtsModel === undefined
+            ? undefined
+            : session.sonioxTtsModel,
+        ...(notesMode
+          ? {}
+          : {
+              interpreterInboundVoiceOutput: session.inboundOutputMode,
+              interpreterOutboundVoiceOutput: session.outputMode,
+            }),
+      });
+    },
+    [onSave],
+  );
 
   const persistElevenLabsVoices = useCallback(
     async (list: ElevenLabsVoiceOption[]) => {
-      await onSave(toSavePayload(config, { elevenlabsVoices: list }));
+      await onSave(buildVoiceSave({ elevenlabsVoices: list }));
     },
-    [config, onSave],
+    [buildVoiceSave, onSave],
   );
 
   const persistElevenLabsModels = useCallback(
     async (list: ElevenLabsModelOption[]) => {
-      await onSave(toSavePayload(config, { elevenlabsModels: list }));
+      await onSave(buildVoiceSave({ elevenlabsModels: list }));
     },
-    [config, onSave],
+    [buildVoiceSave, onSave],
+  );
+
+  const persistFishAudioVoices = useCallback(
+    async (list: FishAudioVoiceOption[]) => {
+      await onSave(buildVoiceSave({ fishaudioVoices: list }));
+    },
+    [buildVoiceSave, onSave],
+  );
+
+  const persistFishAudioModels = useCallback(
+    async (list: FishAudioModelOption[]) => {
+      await onSave(buildVoiceSave({ fishaudioModels: list }));
+    },
+    [buildVoiceSave, onSave],
   );
 
   const refreshSonioxVoices = useCallback(
     async (opts?: { silent?: boolean }) => {
-      if (!config.sonioxApiKeyConfigured) {
+      const snapshot = configRef.current;
+      if (!snapshot.sonioxApiKeyConfigured) {
         setSonioxVoices(
-          (config.sonioxTtsVoices?.length ?? 0) > 0
-            ? (config.sonioxTtsVoices ?? FALLBACK_SONIOX_VOICES)
+          (snapshot.sonioxTtsVoices?.length ?? 0) > 0
+            ? (snapshot.sonioxTtsVoices ?? FALLBACK_SONIOX_VOICES)
             : FALLBACK_SONIOX_VOICES,
         );
         setSonioxTtsModels(
-          (config.sonioxTtsModels ?? []).map((model) => ({
+          (snapshot.sonioxTtsModels ?? []).map((model) => ({
             ...model,
             languages: withLanguageFlags(model.languages ?? []),
           })),
@@ -213,7 +388,7 @@ export default function VoiceSettings({
       }
       setSonioxVoicesLoading(true);
       try {
-        const preferred = config.sonioxTtsModel ?? "tts-rt-v1";
+        const preferred = sessionRef.current.sonioxTtsModel || "tts-rt-v1";
         const [rawModels, voices] = await Promise.all([
           listSonioxTtsModels(),
           listSonioxVoices(undefined, preferred),
@@ -230,9 +405,10 @@ export default function VoiceSettings({
           if (!opts?.silent) onToast("error", "No Soniox TTS voices returned");
         }
         await onSave(
-          toSavePayload(config, {
+          buildVoiceSave({
             sonioxTtsModels: models.length > 0 ? models : undefined,
             sonioxTtsVoices: voices.length > 0 ? voices : undefined,
+            skipSonioxTtsModel: true,
           }),
         );
         if (!opts?.silent && (models.length > 0 || voices.length > 0)) {
@@ -240,12 +416,12 @@ export default function VoiceSettings({
         }
       } catch (e) {
         setSonioxVoices(
-          (config.sonioxTtsVoices?.length ?? 0) > 0
-            ? (config.sonioxTtsVoices ?? FALLBACK_SONIOX_VOICES)
+          (snapshot.sonioxTtsVoices?.length ?? 0) > 0
+            ? (snapshot.sonioxTtsVoices ?? FALLBACK_SONIOX_VOICES)
             : FALLBACK_SONIOX_VOICES,
         );
         setSonioxTtsModels(
-          (config.sonioxTtsModels ?? []).map((model) => ({
+          (snapshot.sonioxTtsModels ?? []).map((model) => ({
             ...model,
             languages: withLanguageFlags(model.languages ?? []),
           })),
@@ -255,7 +431,7 @@ export default function VoiceSettings({
         setSonioxVoicesLoading(false);
       }
     },
-    [config, listSonioxVoices, onSave, onToast],
+    [buildVoiceSave, listSonioxVoices, onSave, onToast],
   );
 
   useEffect(() => {
@@ -283,23 +459,23 @@ export default function VoiceSettings({
   }, [dirty, onStateChange]);
 
   useEffect(() => {
-    if (focusTarget !== "clone") return;
+    if (focusTarget !== "customVoice") return;
     (
-      inboundCloneSectionRef.current ?? outboundCloneSectionRef.current
+      inboundCustomVoiceSectionRef.current ?? outboundCustomVoiceSectionRef.current
     )?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
     });
   }, [focusTarget]);
 
-  const resetCloneSettings = useCallback(() => {
+  const resetCustomVoiceSettings = useCallback(() => {
     setTtsModel(config.elevenlabsTtsModel ?? "eleven_flash_v2_5");
     setStability(config.elevenlabsStability ?? 0.5);
     setSimilarityBoost(config.elevenlabsSimilarityBoost ?? 0.75);
     setSynthesisMode(config.elevenlabsTtsSynthesisMode ?? "streaming");
   }, [config]);
 
-  const resetInboundCloneSettings = useCallback(() => {
+  const resetInboundCustomVoiceSettings = useCallback(() => {
     setInboundTtsModel(
       config.elevenlabsInboundTtsModel ?? "eleven_flash_v2_5",
     );
@@ -314,58 +490,108 @@ export default function VoiceSettings({
 
   const persistMode = useCallback(
     async (nextMode: OutboundVoiceOutput) => {
-      if (nextMode === (config.outboundVoiceOutput ?? "providerNative")) return;
-      setOutputMode(nextMode);
+      const normalized = normalizeVoiceOutput(nextMode);
+      if (normalized === normalizeVoiceOutput(config.outboundVoiceOutput)) return;
+      setOutputMode(normalized);
+      sessionRef.current.outputMode = normalized;
       setModeSaving(true);
       try {
-        await onSave(
-          toSavePayload(config, { outboundVoiceOutput: nextMode }),
-        );
+        await onSave(buildVoiceSave({ outboundVoiceOutput: normalized }));
         onToast("success", "Voice output mode saved");
       } catch (e) {
-        setOutputMode(config.outboundVoiceOutput ?? "providerNative");
+        const reverted = normalizeVoiceOutput(config.outboundVoiceOutput);
+        setOutputMode(reverted);
+        sessionRef.current.outputMode = reverted;
         onToast("error", e instanceof Error ? e.message : "Failed to save");
       } finally {
         setModeSaving(false);
       }
     },
-    [config, onSave, onToast],
+    [buildVoiceSave, config.outboundVoiceOutput, onSave, onToast],
   );
 
   const persistInboundMode = useCallback(
     async (nextMode: InboundVoiceOutput) => {
-      if (nextMode === (config.inboundVoiceOutput ?? "providerNative")) return;
-      setInboundOutputMode(nextMode);
+      const normalized = normalizeVoiceOutput(nextMode);
+      if (normalized === normalizeVoiceOutput(config.inboundVoiceOutput)) return;
+      setInboundOutputMode(normalized);
+      sessionRef.current.inboundOutputMode = normalized;
       setInboundModeSaving(true);
       try {
-        await onSave(
-          toSavePayload(config, { inboundVoiceOutput: nextMode }),
-        );
+        await onSave(buildVoiceSave({ inboundVoiceOutput: normalized }));
         onToast("success", "Meeting voice output mode saved");
       } catch (e) {
-        setInboundOutputMode(
-          config.inboundVoiceOutput ?? "providerNative",
-        );
+        const reverted = normalizeVoiceOutput(config.inboundVoiceOutput);
+        setInboundOutputMode(reverted);
+        sessionRef.current.inboundOutputMode = reverted;
         onToast("error", e instanceof Error ? e.message : "Failed to save");
       } finally {
         setInboundModeSaving(false);
       }
     },
-    [config, onSave, onToast],
+    [buildVoiceSave, config.inboundVoiceOutput, onSave, onToast],
+  );
+
+  const persistOutboundVendor = useCallback(
+    async (vendor: CustomVoiceVendor) => {
+      const normalized = normalizeCustomVoiceVendor(vendor);
+      if (normalized === normalizeCustomVoiceVendor(config.outboundCustomVoiceVendor)) {
+        return;
+      }
+      setOutboundCustomVoiceVendor(normalized);
+      sessionRef.current.outboundCustomVoiceVendor = normalized;
+      setOutboundVendorSaving(true);
+      try {
+        await onSave(buildVoiceSave({ outboundCustomVoiceVendor: normalized }));
+        onToast("success", "Custom voice engine saved");
+      } catch (e) {
+        const reverted = normalizeCustomVoiceVendor(config.outboundCustomVoiceVendor);
+        setOutboundCustomVoiceVendor(reverted);
+        sessionRef.current.outboundCustomVoiceVendor = reverted;
+        onToast("error", e instanceof Error ? e.message : "Failed to save");
+      } finally {
+        setOutboundVendorSaving(false);
+      }
+    },
+    [buildVoiceSave, config.outboundCustomVoiceVendor, onSave, onToast],
+  );
+
+  const persistInboundVendor = useCallback(
+    async (vendor: CustomVoiceVendor) => {
+      const normalized = normalizeCustomVoiceVendor(vendor);
+      if (normalized === normalizeCustomVoiceVendor(config.inboundCustomVoiceVendor)) {
+        return;
+      }
+      setInboundCustomVoiceVendor(normalized);
+      sessionRef.current.inboundCustomVoiceVendor = normalized;
+      setInboundVendorSaving(true);
+      try {
+        await onSave(buildVoiceSave({ inboundCustomVoiceVendor: normalized }));
+        onToast("success", "Custom voice engine saved");
+      } catch (e) {
+        const reverted = normalizeCustomVoiceVendor(config.inboundCustomVoiceVendor);
+        setInboundCustomVoiceVendor(reverted);
+        sessionRef.current.inboundCustomVoiceVendor = reverted;
+        onToast("error", e instanceof Error ? e.message : "Failed to save");
+      } finally {
+        setInboundVendorSaving(false);
+      }
+    },
+    [buildVoiceSave, config.inboundCustomVoiceVendor, onSave, onToast],
   );
 
   const handleKeySaved = useCallback(() => {
     setVoicesNonce((n) => n + 1);
   }, []);
 
-  const persistCloneSettings = useCallback(async () => {
-    setCloneSettingsSaving(true);
+  const persistCustomVoiceSettings = useCallback(async () => {
+    setCustomVoiceSettingsSaving(true);
     const needsOutboundRestart =
       speakingStyleAvailable &&
       synthesisMode !== (config.elevenlabsTtsSynthesisMode ?? "streaming");
     try {
       await onSave(
-        toSavePayload(config, {
+        buildVoiceSave({
           elevenlabsTtsModel: ttsModel,
           elevenlabsStability: stability,
           elevenlabsSimilarityBoost: similarityBoost,
@@ -375,7 +601,7 @@ export default function VoiceSettings({
         }),
       );
       onToast("success", "Voice settings saved");
-      if (needsOutboundRestart && cloneEnabled) {
+      if (needsOutboundRestart && customVoiceEnabled) {
         onToast(
           "info",
           "Stop and Start outbound translation to apply Speaking style changes.",
@@ -384,11 +610,12 @@ export default function VoiceSettings({
     } catch (e) {
       onToast("error", e instanceof Error ? e.message : "Failed to save");
     } finally {
-      setCloneSettingsSaving(false);
+      setCustomVoiceSettingsSaving(false);
     }
   }, [
-    cloneEnabled,
-    config,
+    buildVoiceSave,
+    customVoiceEnabled,
+    config.elevenlabsTtsSynthesisMode,
     onSave,
     onToast,
     similarityBoost,
@@ -398,15 +625,15 @@ export default function VoiceSettings({
     ttsModel,
   ]);
 
-  const persistInboundCloneSettings = useCallback(async () => {
-    setInboundCloneSettingsSaving(true);
+  const persistInboundCustomVoiceSettings = useCallback(async () => {
+    setInboundCustomVoiceSettingsSaving(true);
     const needsInboundRestart =
       speakingStyleAvailable &&
       inboundSynthesisMode !==
         (config.elevenlabsInboundTtsSynthesisMode ?? "streaming");
     try {
       await onSave(
-        toSavePayload(config, {
+        buildVoiceSave({
           elevenlabsInboundTtsModel: inboundTtsModel,
           elevenlabsInboundStability: inboundStability,
           elevenlabsInboundSimilarityBoost: inboundSimilarityBoost,
@@ -416,7 +643,7 @@ export default function VoiceSettings({
         }),
       );
       onToast("success", "Meeting voice settings saved");
-      if (needsInboundRestart && inboundCloneEnabled) {
+      if (needsInboundRestart && inboundCustomVoiceEnabled) {
         onToast(
           "info",
           "Stop and Start inbound translation to apply Speaking style changes.",
@@ -425,11 +652,12 @@ export default function VoiceSettings({
     } catch (e) {
       onToast("error", e instanceof Error ? e.message : "Failed to save");
     } finally {
-      setInboundCloneSettingsSaving(false);
+      setInboundCustomVoiceSettingsSaving(false);
     }
   }, [
-    config,
-    inboundCloneEnabled,
+    buildVoiceSave,
+    config.elevenlabsInboundTtsSynthesisMode,
+    inboundCustomVoiceEnabled,
     inboundSimilarityBoost,
     inboundStability,
     inboundSynthesisMode,
@@ -437,6 +665,80 @@ export default function VoiceSettings({
     onSave,
     onToast,
     speakingStyleAvailable,
+  ]);
+
+  const resetFishCustomVoiceSettings = useCallback(() => {
+    setFishTtsModel(config.fishaudioTtsModel ?? "s2.1-pro");
+    setFishLatency(config.fishaudioLatency ?? "balanced");
+    setFishTemperature(config.fishaudioTemperature ?? 0.7);
+    setFishSpeed(config.fishaudioSpeed ?? 1.0);
+    setFishTopP(config.fishaudioTopP ?? 0.7);
+  }, [config]);
+
+  const resetInboundFishCustomVoiceSettings = useCallback(() => {
+    setInboundFishTtsModel(config.fishaudioInboundTtsModel ?? "s2.1-pro");
+    setInboundFishLatency(config.fishaudioInboundLatency ?? "balanced");
+    setInboundFishTemperature(config.fishaudioInboundTemperature ?? 0.7);
+    setFishSpeed(config.fishaudioSpeed ?? 1.0);
+    setFishTopP(config.fishaudioTopP ?? 0.7);
+  }, [config]);
+
+  const persistFishCustomVoiceSettings = useCallback(async () => {
+    setCustomVoiceSettingsSaving(true);
+    try {
+      await onSave(
+        buildVoiceSave({
+          fishaudioTtsModel: fishTtsModel,
+          fishaudioLatency: fishLatency,
+          fishaudioTemperature: fishTemperature,
+          fishaudioSpeed: fishSpeed,
+          fishaudioTopP: fishTopP,
+        }),
+      );
+      onToast("success", "Voice settings saved");
+    } catch (e) {
+      onToast("error", e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setCustomVoiceSettingsSaving(false);
+    }
+  }, [
+    buildVoiceSave,
+    fishLatency,
+    fishSpeed,
+    fishTemperature,
+    fishTopP,
+    fishTtsModel,
+    onSave,
+    onToast,
+  ]);
+
+  const persistInboundFishCustomVoiceSettings = useCallback(async () => {
+    setInboundCustomVoiceSettingsSaving(true);
+    try {
+      await onSave(
+        buildVoiceSave({
+          fishaudioInboundTtsModel: inboundFishTtsModel,
+          fishaudioInboundLatency: inboundFishLatency,
+          fishaudioInboundTemperature: inboundFishTemperature,
+          fishaudioSpeed: fishSpeed,
+          fishaudioTopP: fishTopP,
+        }),
+      );
+      onToast("success", "Meeting voice settings saved");
+    } catch (e) {
+      onToast("error", e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setInboundCustomVoiceSettingsSaving(false);
+    }
+  }, [
+    buildVoiceSave,
+    fishSpeed,
+    fishTopP,
+    inboundFishLatency,
+    inboundFishTemperature,
+    inboundFishTtsModel,
+    onSave,
+    onToast,
   ]);
 
   return (
@@ -468,7 +770,7 @@ export default function VoiceSettings({
             showSharedModel
             onRefreshCatalog={() => void refreshSonioxVoices()}
             onPreviewVoice={previewSonioxVoice}
-            onSave={onSave}
+            onSave={saveVoicePatch}
             onToast={onToast}
           />
         ) : config.aiProvider !== "soniox" &&
@@ -477,40 +779,87 @@ export default function VoiceSettings({
             From live session — no separate voice picker for this engine.
           </p>
         ) : null}
-        {inboundCloneEnabled ? (
-          <ElevenLabsCloneSettingsPanel
-            config={config}
-            direction="inbound"
-            locked={inboundLocked}
-            apiKeyLocked={inboundLocked || outboundLocked}
-            showApiKey
-            cloneSectionRef={inboundCloneSectionRef}
-            voicesNonce={voicesNonce}
-            ttsModel={inboundTtsModel}
-            setTtsModel={setInboundTtsModel}
-            stability={inboundStability}
-            setStability={setInboundStability}
-            similarityBoost={inboundSimilarityBoost}
-            setSimilarityBoost={setInboundSimilarityBoost}
-            synthesisMode={inboundSynthesisMode}
-            setSynthesisMode={setInboundSynthesisMode}
-            cloneSettingsDirty={inboundCloneSettingsDirty}
-            cloneSettingsSaving={inboundCloneSettingsSaving}
-            onSave={onSave}
-            onTestElevenLabs={testElevenLabsApiKey}
-            onListElevenLabsVoices={listElevenLabsVoices}
-            onListElevenLabsModels={listElevenLabsModels}
-            onValidateElevenLabsVoice={validateElevenLabsVoice}
-            onPreviewElevenLabsVoice={previewElevenLabsVoice}
-            onToast={onToast}
-            onKeyDirty={setKeyDirty}
-            onVoiceDirty={setVoiceDirty}
-            onKeySaved={handleKeySaved}
-            persistElevenLabsVoices={persistElevenLabsVoices}
-            persistElevenLabsModels={persistElevenLabsModels}
-            resetCloneSettings={resetInboundCloneSettings}
-            persistCloneSettings={() => void persistInboundCloneSettings()}
-          />
+        {inboundCustomVoiceEnabled ? (
+          <>
+            <CustomVoiceVendorSelect
+              id="inbound-custom-voice-vendor"
+              vendor={inboundCustomVoiceVendor}
+              locked={inboundLocked}
+              saving={inboundVendorSaving}
+              onPersist={(vendor) => void persistInboundVendor(vendor)}
+            />
+            {inboundUsesEl ? (
+              <ElevenLabsCustomVoicePanel
+                config={config}
+                direction="inbound"
+                locked={inboundLocked}
+                apiKeyLocked={inboundLocked || outboundLocked}
+                showApiKey
+                customVoiceSectionRef={inboundCustomVoiceSectionRef}
+                voicesNonce={voicesNonce}
+                ttsModel={inboundTtsModel}
+                setTtsModel={setInboundTtsModel}
+                stability={inboundStability}
+                setStability={setInboundStability}
+                similarityBoost={inboundSimilarityBoost}
+                setSimilarityBoost={setInboundSimilarityBoost}
+                synthesisMode={inboundSynthesisMode}
+                setSynthesisMode={setInboundSynthesisMode}
+                customVoiceSettingsDirty={inboundCustomVoiceSettingsDirty}
+                customVoiceSettingsSaving={inboundCustomVoiceSettingsSaving}
+                onSave={saveKeepingCloneSession}
+                onTestElevenLabs={testElevenLabsApiKey}
+                onListElevenLabsVoices={listElevenLabsVoices}
+                onListElevenLabsModels={listElevenLabsModels}
+                onValidateElevenLabsVoice={validateElevenLabsVoice}
+                onPreviewElevenLabsVoice={previewElevenLabsVoice}
+                onToast={onToast}
+                onKeyDirty={setKeyDirty}
+                onVoiceDirty={setVoiceDirty}
+                onKeySaved={handleKeySaved}
+                persistElevenLabsVoices={persistElevenLabsVoices}
+                persistElevenLabsModels={persistElevenLabsModels}
+                resetCustomVoiceSettings={resetInboundCustomVoiceSettings}
+                persistCustomVoiceSettings={() => void persistInboundCustomVoiceSettings()}
+              />
+            ) : (
+              <FishAudioCustomVoicePanel
+                config={config}
+                direction="inbound"
+                locked={inboundLocked}
+                apiKeyLocked={inboundLocked || outboundLocked}
+                showApiKey
+                customVoiceSectionRef={inboundCustomVoiceSectionRef}
+                voicesNonce={voicesNonce}
+                ttsModel={inboundFishTtsModel}
+                setTtsModel={setInboundFishTtsModel}
+                latency={inboundFishLatency}
+                setLatency={setInboundFishLatency}
+                temperature={inboundFishTemperature}
+                setTemperature={setInboundFishTemperature}
+                speed={fishSpeed}
+                setSpeed={setFishSpeed}
+                topP={fishTopP}
+                setTopP={setFishTopP}
+                customVoiceSettingsDirty={inboundFishCustomVoiceSettingsDirty}
+                customVoiceSettingsSaving={inboundCustomVoiceSettingsSaving}
+                onSave={saveKeepingCloneSession}
+                onTestFishAudio={testFishAudioApiKey}
+                onListFishAudioVoices={listFishAudioVoices}
+                onListFishAudioModels={listFishAudioModels}
+                onValidateFishAudioVoice={validateFishAudioVoice}
+                onPreviewFishAudioVoice={previewFishAudioVoice}
+                onToast={onToast}
+                onKeyDirty={setKeyDirty}
+                onVoiceDirty={setVoiceDirty}
+                onKeySaved={handleKeySaved}
+                persistFishAudioVoices={persistFishAudioVoices}
+                persistFishAudioModels={persistFishAudioModels}
+                resetCustomVoiceSettings={resetInboundFishCustomVoiceSettings}
+                persistCustomVoiceSettings={() => void persistInboundFishCustomVoiceSettings()}
+              />
+            )}
+          </>
         ) : null}
       </SettingsSection>
 
@@ -519,14 +868,14 @@ export default function VoiceSettings({
         title="You → Meeting"
       >
         <p className="m-0 text-xs leading-relaxed text-muted-foreground">
-          {cloneEnabled
-            ? "ElevenLabs voice for translated You → Meeting audio."
+          {customVoiceEnabled
+            ? "Custom voice for translated You → Meeting audio."
             : engineVoiceHint(config.aiProvider)}
         </p>
         <OutboundVoiceModeSelect
           config={config}
           outputMode={outputMode}
-          cloneEnabled={cloneEnabled}
+          customVoiceEnabled={customVoiceEnabled}
           outboundLocked={outboundLocked}
           modeSaving={modeSaving}
           onPersistMode={(mode) => void persistMode(mode)}
@@ -540,10 +889,10 @@ export default function VoiceSettings({
             ttsModels={sonioxTtsModels}
             sonioxVoices={sonioxVoices}
             catalogLoading={sonioxVoicesLoading}
-            showSharedModel={inboundOutputMode !== "providerNative"}
+            showSharedModel
             onRefreshCatalog={() => void refreshSonioxVoices()}
             onPreviewVoice={previewSonioxVoice}
-            onSave={onSave}
+            onSave={saveVoicePatch}
             onToast={onToast}
           />
         ) : config.aiProvider !== "soniox" &&
@@ -552,40 +901,87 @@ export default function VoiceSettings({
             From live session — no separate voice picker for this engine.
           </p>
         ) : null}
-        {cloneEnabled ? (
-          <ElevenLabsCloneSettingsPanel
-            config={config}
-            direction="outbound"
-            locked={outboundLocked}
-            apiKeyLocked={inboundLocked || outboundLocked}
-            showApiKey={!inboundCloneEnabled}
-            cloneSectionRef={outboundCloneSectionRef}
-            voicesNonce={voicesNonce}
-            ttsModel={ttsModel}
-            setTtsModel={setTtsModel}
-            stability={stability}
-            setStability={setStability}
-            similarityBoost={similarityBoost}
-            setSimilarityBoost={setSimilarityBoost}
-            synthesisMode={synthesisMode}
-            setSynthesisMode={setSynthesisMode}
-            cloneSettingsDirty={cloneSettingsDirty}
-            cloneSettingsSaving={cloneSettingsSaving}
-            onSave={onSave}
-            onTestElevenLabs={testElevenLabsApiKey}
-            onListElevenLabsVoices={listElevenLabsVoices}
-            onListElevenLabsModels={listElevenLabsModels}
-            onValidateElevenLabsVoice={validateElevenLabsVoice}
-            onPreviewElevenLabsVoice={previewElevenLabsVoice}
-            onToast={onToast}
-            onKeyDirty={setKeyDirty}
-            onVoiceDirty={setVoiceDirty}
-            onKeySaved={handleKeySaved}
-            persistElevenLabsVoices={persistElevenLabsVoices}
-            persistElevenLabsModels={persistElevenLabsModels}
-            resetCloneSettings={resetCloneSettings}
-            persistCloneSettings={() => void persistCloneSettings()}
-          />
+        {customVoiceEnabled ? (
+          <>
+            <CustomVoiceVendorSelect
+              id="outbound-custom-voice-vendor"
+              vendor={outboundCustomVoiceVendor}
+              locked={outboundLocked}
+              saving={outboundVendorSaving}
+              onPersist={(vendor) => void persistOutboundVendor(vendor)}
+            />
+            {outboundUsesEl ? (
+              <ElevenLabsCustomVoicePanel
+                config={config}
+                direction="outbound"
+                locked={outboundLocked}
+                apiKeyLocked={inboundLocked || outboundLocked}
+                showApiKey={!inboundUsesEl}
+                customVoiceSectionRef={outboundCustomVoiceSectionRef}
+                voicesNonce={voicesNonce}
+                ttsModel={ttsModel}
+                setTtsModel={setTtsModel}
+                stability={stability}
+                setStability={setStability}
+                similarityBoost={similarityBoost}
+                setSimilarityBoost={setSimilarityBoost}
+                synthesisMode={synthesisMode}
+                setSynthesisMode={setSynthesisMode}
+                customVoiceSettingsDirty={customVoiceSettingsDirty}
+                customVoiceSettingsSaving={customVoiceSettingsSaving}
+                onSave={saveKeepingCloneSession}
+                onTestElevenLabs={testElevenLabsApiKey}
+                onListElevenLabsVoices={listElevenLabsVoices}
+                onListElevenLabsModels={listElevenLabsModels}
+                onValidateElevenLabsVoice={validateElevenLabsVoice}
+                onPreviewElevenLabsVoice={previewElevenLabsVoice}
+                onToast={onToast}
+                onKeyDirty={setKeyDirty}
+                onVoiceDirty={setVoiceDirty}
+                onKeySaved={handleKeySaved}
+                persistElevenLabsVoices={persistElevenLabsVoices}
+                persistElevenLabsModels={persistElevenLabsModels}
+                resetCustomVoiceSettings={resetCustomVoiceSettings}
+                persistCustomVoiceSettings={() => void persistCustomVoiceSettings()}
+              />
+            ) : (
+              <FishAudioCustomVoicePanel
+                config={config}
+                direction="outbound"
+                locked={outboundLocked}
+                apiKeyLocked={inboundLocked || outboundLocked}
+                showApiKey={!inboundUsesFish}
+                customVoiceSectionRef={outboundCustomVoiceSectionRef}
+                voicesNonce={voicesNonce}
+                ttsModel={fishTtsModel}
+                setTtsModel={setFishTtsModel}
+                latency={fishLatency}
+                setLatency={setFishLatency}
+                temperature={fishTemperature}
+                setTemperature={setFishTemperature}
+                speed={fishSpeed}
+                setSpeed={setFishSpeed}
+                topP={fishTopP}
+                setTopP={setFishTopP}
+                customVoiceSettingsDirty={fishCustomVoiceSettingsDirty}
+                customVoiceSettingsSaving={customVoiceSettingsSaving}
+                onSave={saveKeepingCloneSession}
+                onTestFishAudio={testFishAudioApiKey}
+                onListFishAudioVoices={listFishAudioVoices}
+                onListFishAudioModels={listFishAudioModels}
+                onValidateFishAudioVoice={validateFishAudioVoice}
+                onPreviewFishAudioVoice={previewFishAudioVoice}
+                onToast={onToast}
+                onKeyDirty={setKeyDirty}
+                onVoiceDirty={setVoiceDirty}
+                onKeySaved={handleKeySaved}
+                persistFishAudioVoices={persistFishAudioVoices}
+                persistFishAudioModels={persistFishAudioModels}
+                resetCustomVoiceSettings={resetFishCustomVoiceSettings}
+                persistCustomVoiceSettings={() => void persistFishCustomVoiceSettings()}
+              />
+            )}
+          </>
         ) : null}
       </SettingsSection>
     </>

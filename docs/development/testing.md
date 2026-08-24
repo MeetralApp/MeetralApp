@@ -77,13 +77,22 @@ Shared config/status fixtures: `@/test/fixtures/config` (`baseConfig`, `baseStat
 npm test                 # vitest run
 npm run test:coverage    # vitest + v8 coverage (pipeline + config gates)
 npm run test:all         # FE + cargo test
+npm run check            # full local CI PR gate (lint/knip/build/test/fmt/clippy)
 ```
 
 Coverage `include` in `vitest.config.ts` is scoped to pipeline/config **lib, hooks, and api** (not UI components) with low thresholds (lines/statements ~40%). Raise gradually; do not chase 100%.
 
 ## CI
 
-Keep CI on the existing combined suite:
+Before push / PR, prefer the full local gate (mirrors GitHub PR jobs; skips packaging + warn-only audit):
+
+```bash
+npm run check
+```
+
+Steps: version sync → eslint → knip → `tsc`+vite build → vitest → `cargo test` → `cargo fmt --check` → `cargo clippy --all-targets -D warnings`.
+
+Lighter combo when you only need unit tests:
 
 ```bash
 npm run test:all

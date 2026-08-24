@@ -10,7 +10,7 @@ Desktop app (Windows & macOS) for real-time speech translation in online meeting
 
 - Bidirectional live translate (**You** / **Meeting**): Direct passthrough or Translate
 - Multi-provider live engines (**Gemini**, **OpenAI**, **Soniox**)
-- Voice clone via **ElevenLabs** (You and Meeting columns)
+- Custom voice via **ElevenLabs** and/or **Fish Audio** (You and Meeting columns)
 - Meeting library: SQLite transcripts, FTS, AI summary, artifacts, history drawer
 - System tray (close-to-tray) and hot-plug audio resilience
 
@@ -31,7 +31,7 @@ git clone <repo-url>
 cd MeetralApp
 cp .env.example .env   # optional; keys are normally set in Settings
 npm install
-npm run tauri dev
+npm run tauri:dev
 ```
 
 Release build:
@@ -93,10 +93,11 @@ Closing the window hides to the **system tray** by default (relay keeps running)
 ## Development
 
 ```bash
-npm run tauri dev      # app
+npm run tauri:dev      # app (dev id → com.meetral.desktop.dev)
 npm test               # frontend (Vitest)
 cd src-tauri && cargo test --lib   # backend
 npm run test:all       # both
+npm run check          # full local CI gate before push
 ```
 
 Agent entrypoint: [AGENTS.md](AGENTS.md). Docs map: [docs/README.md](docs/README.md). Tests: [docs/development/testing.md](docs/development/testing.md).
@@ -132,12 +133,14 @@ Details: [docs/README.md](docs/README.md). Do not put implementation contracts i
 
 | Issue | Fix |
 |-------|-----|
-| `The process has no package identity` (os error 15700) on `tauri dev` / `cargo run` | See [docs/development/windows.md](docs/development/windows.md). Unregister leftover Meetral Appx, then retry. |
+| `The process has no package identity` (os error 15700) on `tauri:dev` / `cargo run` | See [docs/development/windows.md](docs/development/windows.md). Unregister leftover Meetral Appx, then retry. |
 | Missing audio role banner | Settings → Audio devices → assign → **Save** → **Refresh** |
 | Device not found / start fails | Confirm endpoints still exist in OS sound settings; **Refresh** |
 | Echo | Use headphones |
 | Missing API key | Settings → enter key → **Save** |
 | High latency | Often ~300ms–1s depending on provider |
-| Debug log (Windows) | `%APPDATA%\com.meetral.app\logs\app.log` |
-| Debug log (macOS) | `~/Library/Application Support/com.meetral.app/logs/app.log` |
+| Debug log (Windows, `tauri:dev`) | `%APPDATA%\com.meetral.desktop.dev\logs\app.log` |
+| Debug log (Windows, install) | Package redirect under `Local\Packages\Meetral_*\…\com.meetral.desktop\` (or `%APPDATA%\com.meetral.desktop` when unpackaged) |
+| Debug log (macOS, `tauri:dev`) | `~/Library/Application Support/com.meetral.desktop.dev/logs/app.log` |
+| Debug log (macOS, install) | `~/Library/Application Support/com.meetral.desktop/logs/app.log` |
 | macOS mic permission | System Settings → Privacy → Microphone; grant when prompted |

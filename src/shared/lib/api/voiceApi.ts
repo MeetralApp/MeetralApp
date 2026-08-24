@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   ElevenLabsModelOption,
   ElevenLabsVoiceOption,
+  FishAudioModelOption,
+  FishAudioVoiceOption,
   SonioxVoiceOption,
 } from "@/shared/lib/types/pipeline";
 
@@ -58,5 +60,39 @@ export async function previewSonioxVoice(
 ): Promise<void> {
   await invoke("preview_soniox_voice", {
     request: { apiKey, voice },
+  });
+}
+
+export async function testFishAudioApiKey(apiKey: string): Promise<void> {
+  await invoke("test_fishaudio_api_key", { request: { apiKey } });
+}
+
+export async function listFishAudioVoices(
+  apiKey = "",
+): Promise<FishAudioVoiceOption[]> {
+  return invoke<FishAudioVoiceOption[]>("list_fishaudio_voices", {
+    request: { apiKey },
+  });
+}
+
+export async function listFishAudioModels(): Promise<FishAudioModelOption[]> {
+  return invoke<FishAudioModelOption[]>("list_fishaudio_models");
+}
+
+export async function validateFishAudioVoice(
+  voiceId: string,
+  apiKey = "",
+): Promise<void> {
+  await invoke("validate_fishaudio_voice", {
+    request: { apiKey, voiceId },
+  });
+}
+
+export async function previewFishAudioVoice(
+  voiceId: string,
+  apiKey = "",
+): Promise<void> {
+  await invoke("preview_fishaudio_voice", {
+    request: { apiKey, voiceId },
   });
 }

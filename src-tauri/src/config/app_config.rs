@@ -6,9 +6,10 @@ use crate::ai::{
 
 use super::device::DeviceRef;
 use super::elevenlabs_settings::ElevenLabsSettings;
+use super::fishaudio_settings::FishAudioSettings;
 use super::modes::{
-    InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode, SessionMode, ThemePreference,
-    TranscriptLayout, VadSensitivity,
+    CustomVoiceVendor, InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode, SessionMode,
+    ThemePreference, TranscriptLayout, VadSensitivity,
 };
 use super::overlay_settings::OverlaySettings;
 use super::soniox_settings::SonioxSettings;
@@ -101,10 +102,16 @@ pub struct AppConfig {
     pub outbound_voice_output: OutboundVoiceOutput,
     #[serde(default)]
     pub inbound_voice_output: InboundVoiceOutput,
+    #[serde(default)]
+    pub outbound_custom_voice_vendor: CustomVoiceVendor,
+    #[serde(default)]
+    pub inbound_custom_voice_vendor: CustomVoiceVendor,
     #[serde(default, flatten)]
     pub soniox: SonioxSettings,
     #[serde(default, flatten)]
     pub elevenlabs: ElevenLabsSettings,
+    #[serde(default, flatten)]
+    pub fishaudio: FishAudioSettings,
     /// Meeting Intelligence: structured artifacts (decisions/action items/entities).
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
@@ -198,8 +205,11 @@ impl Default for AppConfig {
             overlay: OverlaySettings::default(),
             outbound_voice_output: OutboundVoiceOutput::ProviderNative,
             inbound_voice_output: InboundVoiceOutput::ProviderNative,
+            outbound_custom_voice_vendor: CustomVoiceVendor::ElevenLabs,
+            inbound_custom_voice_vendor: CustomVoiceVendor::ElevenLabs,
             soniox: SonioxSettings::default(),
             elevenlabs: ElevenLabsSettings::default(),
+            fishaudio: FishAudioSettings::default(),
             artifacts_enabled: true,
             answer_language: String::new(),
             meeting_context: super::meeting_context::MeetingContextPayload::default(),
@@ -489,6 +499,28 @@ impl AppConfig {
         !self.elevenlabs.elevenlabs_api_key.trim().is_empty()
     }
 
+    pub fn is_fishaudio_api_key_configured(&self) -> bool {
+        !self.fishaudio.fishaudio_api_key.trim().is_empty()
+    }
+
+    pub fn needs_custom_tts_for_outbound(&self) -> bool {
+        self.outbound_voice_output.uses_custom_tts()
+            && self.outbound_mode == PipelineOutputMode::Translated
+    }
+
+    pub fn needs_custom_tts_for_inbound(&self) -> bool {
+        self.inbound_voice_output.uses_custom_tts()
+            && self.inbound_mode == PipelineOutputMode::Translated
+    }
+
+    pub fn needs_elevenlabs_for_outbound(&self) -> bool {
+        self.needs_custom_tts_for_outbound()
+    }
+
+    pub fn needs_elevenlabs_for_inbound(&self) -> bool {
+        self.needs_custom_tts_for_inbound()
+    }
+
     /// True when any summary chat LLM (built-in or custom profile) is usable.
     pub fn summary_fallback_available(&self) -> bool {
         self.summary_llm_selection().is_some()
@@ -540,16 +572,6 @@ impl AppConfig {
     /// Look up a custom profile by id.
     pub fn custom_llm_profile(&self, id: &str) -> Option<&super::custom_llm::CustomLlmProfile> {
         self.custom_llm_profiles.iter().find(|p| p.id == id)
-    }
-
-    pub fn needs_elevenlabs_for_outbound(&self) -> bool {
-        self.outbound_voice_output.uses_elevenlabs()
-            && self.outbound_mode == PipelineOutputMode::Translated
-    }
-
-    pub fn needs_elevenlabs_for_inbound(&self) -> bool {
-        self.inbound_voice_output.uses_elevenlabs()
-            && self.inbound_mode == PipelineOutputMode::Translated
     }
 
     /// IPC guard: structured artifacts panel.

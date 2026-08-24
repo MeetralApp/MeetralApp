@@ -81,8 +81,10 @@ pub fn parse_audio_message(text: &str) -> Option<ParsedAudio> {
         return None;
     }
     let samples: Vec<i16> = bytes
-        .chunks_exact(2)
-        .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|chunk| i16::from_le_bytes(*chunk))
         .collect();
     Some(ParsedAudio { samples, is_final })
 }
@@ -121,9 +123,9 @@ pub fn user_message_for_elevenlabs_error(raw: &str) -> String {
         return "Voice settings rejected by ElevenLabs — try Speed between 0.7 and 1.19, or reset voice sliders to defaults.".into();
     }
     if lower.contains("1006") || lower.contains("abnormal") {
-        return "Voice clone connection lost — Stop and Start outbound to retry.".into();
+        return "Custom voice connection lost — Stop and Start outbound to retry.".into();
     }
-    format!("Voice clone error: {raw}")
+    format!("Custom voice error: {raw}")
 }
 
 pub fn is_non_retryable_elevenlabs_error(raw: &str) -> bool {

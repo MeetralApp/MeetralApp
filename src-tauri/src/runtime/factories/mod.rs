@@ -1,8 +1,10 @@
+pub mod custom;
 pub mod live;
 pub mod setup;
 pub mod summary;
 pub mod voice;
 
+pub use custom::{spawn_custom_tts_session, validate_outbound_custom_voice, CustomVoiceDirection};
 pub use live::{connect_live_bridge_for, test_live_api_key};
 pub use setup::{live_setup_for_provider, LiveConnectSetup, SonioxLiveSetup, StsLiveSetup};
 pub use summary::{

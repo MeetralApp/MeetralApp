@@ -13,7 +13,7 @@ use crate::audio::try_send_pcm_bounded;
 use crate::capabilities::PlaybackSource;
 use crate::config::PipelineOutputMode;
 use crate::pipeline::drain::drain_unbounded;
-use crate::runtime::voice_runtime::VOICE_ENGINE_CLONE;
+use crate::runtime::voice_runtime::VOICE_ENGINE_CUSTOM;
 
 async fn watch_mux_generation(gen: &AtomicU64, observed: u64) {
     loop {
@@ -33,7 +33,7 @@ pub fn spawn_outbound_playback_mux(
     uses_separate_tts: bool,
     mut bridge_pcm_rx: mpsc::Receiver<Vec<i16>>,
     mut provider_tts_pcm_rx: mpsc::Receiver<PlaybackPcmChunk>,
-    mut clone_pcm_rx: mpsc::Receiver<PlaybackPcmChunk>,
+    mut custom_pcm_rx: mpsc::Receiver<PlaybackPcmChunk>,
     playback_tx: mpsc::Sender<PlaybackPcmChunk>,
     pcm_drops: Arc<AtomicU64>,
 ) -> tokio::task::JoinHandle<()> {
@@ -42,13 +42,13 @@ pub fn spawn_outbound_playback_mux(
         // instead of exiting the whole mux (provider TTS / clone may still be live).
         let mut bridge_open = true;
         let mut provider_tts_open = true;
-        let mut clone_open = true;
+        let mut custom_open = true;
 
         loop {
             if cancel.is_cancelled() {
                 break;
             }
-            if !bridge_open && !provider_tts_open && !clone_open {
+            if !bridge_open && !provider_tts_open && !custom_open {
                 break;
             }
 
@@ -60,8 +60,8 @@ pub fn spawn_outbound_playback_mux(
                 if provider_tts_open {
                     drain_unbounded(&mut provider_tts_pcm_rx);
                 }
-                if clone_open {
-                    drain_unbounded(&mut clone_pcm_rx);
+                if custom_open {
+                    drain_unbounded(&mut custom_pcm_rx);
                 }
                 tokio::select! {
                     biased;
@@ -76,9 +76,9 @@ pub fn spawn_outbound_playback_mux(
                             provider_tts_open = false;
                         }
                     }
-                    msg = clone_pcm_rx.recv(), if clone_open => {
+                    msg = custom_pcm_rx.recv(), if custom_open => {
                         if msg.is_none() {
-                            clone_open = false;
+                            custom_open = false;
                         }
                     }
                 }
@@ -87,8 +87,8 @@ pub fn spawn_outbound_playback_mux(
 
             let gen = mux_generation.load(Ordering::SeqCst);
             let engine = voice_engine.load(Ordering::SeqCst);
-            let source = if engine == VOICE_ENGINE_CLONE {
-                PlaybackSource::CloneTts
+            let source = if engine == VOICE_ENGINE_CUSTOM {
+                PlaybackSource::CustomTts
             } else if uses_separate_tts {
                 PlaybackSource::ProviderTts
             } else {
@@ -128,15 +128,15 @@ pub fn spawn_outbound_playback_mux(
                         }
                     }
                 }
-                pcm = clone_pcm_rx.recv(), if clone_open => {
+                pcm = custom_pcm_rx.recv(), if custom_open => {
                     match pcm {
                         Some(chunk) => {
-                            if source == PlaybackSource::CloneTts {
+                            if source == PlaybackSource::CustomTts {
                                 let _ = try_send_pcm_bounded(&playback_tx, chunk, &pcm_drops);
                             }
                         }
                         None => {
-                            clone_open = false;
+                            custom_open = false;
                             info!("outbound mux: clone PCM channel closed");
                         }
                     }
@@ -152,16 +152,16 @@ pub fn spawn_outbound_playback_mux(
                     } else {
                         0
                     };
-                    let drained_clone = if clone_open {
-                        drain_unbounded(&mut clone_pcm_rx)
+                    let drained_custom = if custom_open {
+                        drain_unbounded(&mut custom_pcm_rx)
                     } else {
                         0
                     };
-                    if drained_bridge > 0 || drained_provider > 0 || drained_clone > 0 {
+                    if drained_bridge > 0 || drained_provider > 0 || drained_custom > 0 {
                         info!(
                             bridge_chunks = drained_bridge,
                             provider_tts_chunks = drained_provider,
-                            clone_chunks = drained_clone,
+                            clone_chunks = drained_custom,
                             "mux generation bump — drained PCM queues"
                         );
                     }
@@ -316,12 +316,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mux_routes_clone_tts() {
+    async fn mux_routes_custom_tts() {
         let cancel = CancellationToken::new();
         let audio_mode = Arc::new(AtomicU8::new(mode_to_atomic(
             PipelineOutputMode::Translated,
         )));
-        let voice_engine = Arc::new(AtomicU8::new(VOICE_ENGINE_CLONE));
+        let voice_engine = Arc::new(AtomicU8::new(VOICE_ENGINE_CUSTOM));
         let mux_generation = Arc::new(AtomicU64::new(0));
 
         let (_bridge_tx, bridge_rx) = mpsc::channel(PLAYBACK_PCM_CHANNEL_DEPTH);

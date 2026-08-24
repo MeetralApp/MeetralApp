@@ -11,7 +11,7 @@ use tracing::info;
 use crate::voice::shared::debug;
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 
 pub(crate) struct StreamState {
     last_translated: String,
@@ -108,7 +108,7 @@ pub(crate) fn ingest_stream_delta(
 pub(crate) fn flush_stream_turn(
     tts_cmd_tx: &Mutex<mpsc::Sender<TtsTextCommand>>,
     state: &mut StreamState,
-    latency_tx: &Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: &Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: &TurnLatencySlot,
 ) {
     if !state.has_unflushed {

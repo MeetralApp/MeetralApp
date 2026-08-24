@@ -17,7 +17,7 @@ use crate::providers::shared::live::TranscriptEvent;
 use crate::voice::config::TtsSynthesisMode;
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 use crate::voice::spawn_outbound_transcript_fanout;
 
 /// Generic alias for the provider-TTS (Soniox) transcript fanout.
@@ -36,7 +36,7 @@ pub struct FanoutSpawnParams {
     pub voice_engine: Arc<AtomicU8>,
     pub voice_switch_in_progress: Arc<AtomicBool>,
     pub relay_chars_while_provider: Arc<AtomicU64>,
-    pub latency_tx: Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    pub latency_tx: Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     pub turn_latency: Arc<TurnLatencySlot>,
     pub ai_provider: AiProvider,
     pub voice_output: OutboundVoiceOutput,
@@ -53,7 +53,7 @@ pub struct InboundFanoutSpawnParams {
     pub voice_engine: Arc<AtomicU8>,
     pub voice_switch_in_progress: Arc<AtomicBool>,
     pub relay_chars_while_provider: Arc<AtomicU64>,
-    pub latency_tx: Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    pub latency_tx: Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     pub turn_latency: Arc<TurnLatencySlot>,
     pub ai_provider: AiProvider,
     pub voice_output: InboundVoiceOutput,

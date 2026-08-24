@@ -8,7 +8,7 @@
 //! - [`publish_state`] — snapshot publish to the frontend
 //! - [`watchdog`] — health ticks, device scan, recovery scheduling
 //! - [`transcript_relay`] — transcript fan-out and DB writer wiring
-//! - [`inbound_voice_switch`] / [`outbound_voice_switch`] — Engine ↔ Clone hot-switch
+//! - [`inbound_voice_switch`] / [`outbound_voice_switch`] — Engine ↔ Custom voice hot-switch
 
 use std::sync::Arc;
 

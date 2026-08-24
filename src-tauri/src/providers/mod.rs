@@ -5,6 +5,7 @@
 
 pub mod compatible;
 pub mod elevenlabs;
+pub mod fishaudio;
 pub mod gemini;
 pub mod openai;
 pub mod shared;

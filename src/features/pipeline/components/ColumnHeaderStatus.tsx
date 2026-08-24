@@ -153,7 +153,7 @@ export default function ColumnHeaderStatus({
       return (
         <StatusIconChip
           tip={voiceCloneDegraded}
-          ariaLabel={`${title} voice clone unavailable`}
+          ariaLabel={`${title} custom voice unavailable`}
           tone="border-destructive/40 text-destructive"
         >
           <AlertTriangle className="size-3" aria-hidden strokeWidth={2} />
@@ -162,7 +162,7 @@ export default function ColumnHeaderStatus({
     }
 
     // Starting/stopping + active elapsed already paint inside the
-    // Direct/Translate button group — do not duplicate spinner / clone chips.
+    // Direct/Translate button group — do not duplicate spinner / custom-voice chips.
     if (
       timer.variant === "starting" ||
       timer.variant === "stopping" ||

@@ -11,6 +11,7 @@ import {
 import { settingsFieldLabelClass } from "@/features/config/lib/settingsTypography";
 import { OUTPUT_OPTIONS } from "@/features/voice/lib/voiceSettings";
 import type { InboundVoiceOutput } from "@/shared/lib/types/pipeline";
+import { normalizeVoiceOutput } from "@/shared/lib/types/pipeline";
 
 interface Props {
   outputMode: InboundVoiceOutput;
@@ -42,7 +43,7 @@ export default function InboundVoiceModeSelect({
       }
     >
       <Select
-        value={outputMode}
+        value={normalizeVoiceOutput(outputMode)}
         onValueChange={(value) =>
           onPersistMode(value as InboundVoiceOutput)
         }

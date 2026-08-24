@@ -219,7 +219,7 @@ Add via: `npx shadcn@latest add <name>` — config in `components.json` (aliases
 | `AppTooltip` | Surface tip matching popover/dropdown (`bg-popover`, `border-border`, fade only; open delay **500ms**, no skip between tips). Prefer over native `title`. |
 | `SettingsGroup` | Settings L2 sub-block (no border); title via `SectionHeading` |
 | `SecretApiKeyField` | Masked API key row: save, test, remove |
-| `ApiKeyChip` | Settings header chip when key Ready — expands manage UI (Translate Engine, Summaries, ElevenLabs) |
+| `ApiKeyChip` | Settings header chip when key Ready — expands manage UI (Translate Engine, Summaries, ElevenLabs, Fish Audio) |
 
 ### Domain components (do not duplicate patterns)
 

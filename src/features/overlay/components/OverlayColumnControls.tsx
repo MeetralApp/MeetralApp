@@ -56,14 +56,14 @@ type Props = {
   interactive: boolean;
   toolbarValue: string;
   modeOptions: PipelineModeOption[];
-  cloneActive?: boolean;
+  customActive?: boolean;
   sessionMode?: ConfigView["sessionMode"];
   onMuteToggle: () => void;
   onPathChange: (mode: AudioPathMode) => void | Promise<void>;
   onOutputModeChange: (value: string) => void | Promise<void>;
 };
 
-function useCloneDegraded(enabled: boolean): string | null {
+function useCustomVoiceDegraded(enabled: boolean): string | null {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -87,14 +87,14 @@ function StatusChip({
   status,
   direction,
   column,
-  cloneDegraded,
-  cloneActive,
+  customDegraded,
+  customActive,
 }: {
   status: AppStatus | null;
   direction: "outbound" | "inbound";
   column: OverlayColumnRuntime;
-  cloneDegraded: string | null;
-  cloneActive: boolean;
+  customDegraded: string | null;
+  customActive: boolean;
 }) {
   const timer = usePipelineSessionElapsed(status, direction, {
     tickWhenActive: true,
@@ -108,9 +108,9 @@ function StatusChip({
     chip = <AlertTriangle className="size-3.5" aria-hidden />;
     tip = column.idleTitle ?? column.idleLabel;
     tone = "text-destructive border-destructive/40 bg-destructive/10";
-  } else if (cloneDegraded) {
+  } else if (customDegraded) {
     chip = <AlertTriangle className="size-3.5" aria-hidden />;
-    tip = cloneDegraded;
+    tip = customDegraded;
     tone = "text-destructive border-destructive/40 bg-destructive/10";
   } else if (timer.variant === "starting") {
     chip = <Loader2 className="size-3.5 animate-spin" aria-hidden />;
@@ -124,9 +124,9 @@ function StatusChip({
     chip = <RefreshCw className="size-3.5 animate-spin" aria-hidden />;
     tip = timer.title ?? "Reconnecting…";
     tone = "text-warning border-warning/40 bg-warning/10";
-  } else if (timer.variant === "elapsed" && cloneActive) {
+  } else if (timer.variant === "elapsed" && customActive) {
     chip = <UserRound className="size-3.5" aria-hidden />;
-    tip = "Clone voice active";
+    tip = "Custom voice active";
     tone =
       "text-[var(--pipeline-translate-text)] border-[var(--pipeline-translate-text)]/30 bg-[var(--pipeline-translate-bg)]";
   } else if (column.idleLabel) {
@@ -186,7 +186,7 @@ const OverlayColumnControls = memo(function OverlayColumnControls({
   interactive,
   toolbarValue,
   modeOptions,
-  cloneActive = false,
+  customActive = false,
   sessionMode,
   onMuteToggle,
   onPathChange,
@@ -204,9 +204,9 @@ const OverlayColumnControls = memo(function OverlayColumnControls({
   const directActive =
     pathMode === "direct" &&
     (column.canDirect || column.column?.pipeline === "direct");
-  const cloneListening =
-    interactive && direction === "outbound" && cloneActive && translateActive;
-  const cloneDegraded = useCloneDegraded(cloneListening);
+  const customListening =
+    interactive && direction === "outbound" && customActive && translateActive;
+  const customDegraded = useCustomVoiceDegraded(customListening);
 
   const muteDisabled = !interactive || !column.muteEnabled;
   const directDisabled = !interactive || column.directDisabled;
@@ -464,8 +464,8 @@ const OverlayColumnControls = memo(function OverlayColumnControls({
           status={status}
           direction={direction}
           column={column}
-          cloneDegraded={cloneDegraded}
-          cloneActive={cloneActive && !cloneDegraded}
+          customDegraded={customDegraded}
+          customActive={customActive && !customDegraded}
         />
       </div>
     </div>

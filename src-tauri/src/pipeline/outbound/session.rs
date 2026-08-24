@@ -73,7 +73,7 @@ impl OutboundPipeline {
         let audio_mode =
             pre_audio_mode.unwrap_or_else(|| AudioModeHandle::new(config.outbound_mode));
         let (passthrough_tx, passthrough_rx) = mpsc::channel(PASSTHROUGH_DEPTH);
-        let bridge_ready = if voice_runtime.is_some() || config.needs_elevenlabs_for_outbound() {
+        let bridge_ready = if voice_runtime.is_some() || config.needs_custom_tts_for_outbound() {
             None
         } else {
             Some(bridge.ready_flag())

@@ -99,6 +99,10 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub inbound_voice_output: InboundVoiceOutput,
     #[serde(default)]
+    pub outbound_custom_voice_vendor: crate::config::CustomVoiceVendor,
+    #[serde(default)]
+    pub inbound_custom_voice_vendor: crate::config::CustomVoiceVendor,
+    #[serde(default)]
     pub soniox_always_on: Option<crate::providers::shared::live::SonioxContextPayload>,
     #[serde(default)]
     pub soniox_context_profiles: Option<Vec<crate::providers::shared::live::SonioxContextProfile>>,
@@ -168,6 +172,34 @@ pub struct SaveConfigRequest {
     pub elevenlabs_inbound_similarity_boost: Option<f32>,
     #[serde(default)]
     pub elevenlabs_inbound_tts_synthesis_mode: Option<crate::voice::config::TtsSynthesisMode>,
+    #[serde(default)]
+    pub fishaudio_api_key: String,
+    #[serde(default)]
+    pub clear_fishaudio_api_key: bool,
+    #[serde(default)]
+    pub fishaudio_voice_id: String,
+    #[serde(default)]
+    pub fishaudio_inbound_voice_id: String,
+    #[serde(default)]
+    pub fishaudio_voices: Option<Vec<crate::providers::fishaudio::FishAudioVoiceOption>>,
+    #[serde(default)]
+    pub fishaudio_models: Option<Vec<crate::providers::fishaudio::FishAudioModelOption>>,
+    #[serde(default)]
+    pub fishaudio_tts_model: String,
+    #[serde(default)]
+    pub fishaudio_inbound_tts_model: String,
+    #[serde(default)]
+    pub fishaudio_latency: Option<crate::config::FishAudioLatency>,
+    #[serde(default)]
+    pub fishaudio_inbound_latency: Option<crate::config::FishAudioLatency>,
+    #[serde(default)]
+    pub fishaudio_temperature: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_inbound_temperature: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_speed: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_top_p: Option<f32>,
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
     #[serde(default)]
@@ -230,6 +262,14 @@ impl SaveConfigRequest {
             existing.elevenlabs.elevenlabs_api_key.clone()
         } else {
             self.elevenlabs_api_key
+        };
+
+        let fishaudio_api_key = if self.clear_fishaudio_api_key {
+            String::new()
+        } else if self.fishaudio_api_key.trim().is_empty() {
+            existing.fishaudio.fishaudio_api_key.clone()
+        } else {
+            self.fishaudio_api_key
         };
 
         let mut config = AppConfig {
@@ -327,6 +367,8 @@ impl SaveConfigRequest {
             },
             outbound_voice_output: self.outbound_voice_output,
             inbound_voice_output: self.inbound_voice_output,
+            outbound_custom_voice_vendor: self.outbound_custom_voice_vendor,
+            inbound_custom_voice_vendor: self.inbound_custom_voice_vendor,
             soniox: crate::config::SonioxSettings {
                 soniox_always_on: self
                     .soniox_always_on
@@ -454,6 +496,59 @@ impl SaveConfigRequest {
                 elevenlabs_inbound_tts_synthesis_mode: self
                     .elevenlabs_inbound_tts_synthesis_mode
                     .unwrap_or(existing.elevenlabs.elevenlabs_inbound_tts_synthesis_mode),
+            },
+            fishaudio: crate::config::FishAudioSettings {
+                fishaudio_api_key,
+                fishaudio_voice_id: if self.fishaudio_voice_id.trim().is_empty() {
+                    existing.fishaudio.fishaudio_voice_id.clone()
+                } else {
+                    self.fishaudio_voice_id
+                },
+                fishaudio_inbound_voice_id: if self.fishaudio_inbound_voice_id.trim().is_empty() {
+                    existing.fishaudio.fishaudio_inbound_voice_id.clone()
+                } else {
+                    self.fishaudio_inbound_voice_id
+                },
+                fishaudio_voices: if self.clear_fishaudio_api_key {
+                    Vec::new()
+                } else {
+                    self.fishaudio_voices
+                        .unwrap_or_else(|| existing.fishaudio.fishaudio_voices.clone())
+                },
+                fishaudio_models: if self.clear_fishaudio_api_key {
+                    Vec::new()
+                } else {
+                    self.fishaudio_models
+                        .unwrap_or_else(|| existing.fishaudio.fishaudio_models.clone())
+                },
+                fishaudio_tts_model: if self.fishaudio_tts_model.trim().is_empty() {
+                    existing.fishaudio.fishaudio_tts_model.clone()
+                } else {
+                    self.fishaudio_tts_model
+                },
+                fishaudio_inbound_tts_model: if self.fishaudio_inbound_tts_model.trim().is_empty() {
+                    existing.fishaudio.fishaudio_inbound_tts_model.clone()
+                } else {
+                    self.fishaudio_inbound_tts_model
+                },
+                fishaudio_latency: self
+                    .fishaudio_latency
+                    .unwrap_or(existing.fishaudio.fishaudio_latency),
+                fishaudio_inbound_latency: self
+                    .fishaudio_inbound_latency
+                    .unwrap_or(existing.fishaudio.fishaudio_inbound_latency),
+                fishaudio_temperature: self
+                    .fishaudio_temperature
+                    .unwrap_or(existing.fishaudio.fishaudio_temperature),
+                fishaudio_inbound_temperature: self
+                    .fishaudio_inbound_temperature
+                    .unwrap_or(existing.fishaudio.fishaudio_inbound_temperature),
+                fishaudio_speed: self
+                    .fishaudio_speed
+                    .unwrap_or(existing.fishaudio.fishaudio_speed),
+                fishaudio_top_p: self
+                    .fishaudio_top_p
+                    .unwrap_or(existing.fishaudio.fishaudio_top_p),
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,

@@ -36,13 +36,13 @@ export type OverlayRuntime = {
   inbound: OverlayColumnRuntime;
   micMuted: boolean;
   speakerMuted: boolean;
-  /** Outbound toolbar value including translatedClone. */
+  /** Outbound toolbar value including translatedCustom. */
   outboundToolbarMode: OutboundToolbarMode;
-  /** Inbound toolbar value including translatedClone. */
+  /** Inbound toolbar value including translatedCustom. */
   inboundMode: InboundToolbarMode;
   outboundModeOptions: PipelineModeOption[];
   inboundModeOptions: PipelineModeOption[];
-  cloneActive: boolean;
+  customActive: boolean;
   toggleMicMuted: () => Promise<void>;
   toggleSpeakerMuted: () => Promise<void>;
   setOutboundPath: (mode: AudioPathMode) => Promise<void>;

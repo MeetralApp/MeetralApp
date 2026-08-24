@@ -1,7 +1,13 @@
 use anyhow::{Context, Result};
 
-#[cfg(target_os = "macos")]
-const KEYCHAIN_SERVICE: &str = "com.meetral.app";
+/// Must match the Tauri `identifier` for the running build:
+/// - `tauri:dev` / debug → `com.meetral.desktop.dev` (`tauri.dev.conf.json`)
+/// - release / install → `com.meetral.desktop` (`tauri.conf.json`)
+#[cfg(all(target_os = "macos", debug_assertions))]
+const KEYCHAIN_SERVICE: &str = "com.meetral.desktop.dev";
+
+#[cfg(all(target_os = "macos", not(debug_assertions)))]
+const KEYCHAIN_SERVICE: &str = "com.meetral.desktop";
 
 #[cfg(windows)]
 pub fn encrypt(plaintext: &str) -> Result<Vec<u8>> {

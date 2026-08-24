@@ -45,7 +45,7 @@ export type OverlayControlsProps = {
   inboundMode: string;
   outboundModeOptions: PipelineModeOption[];
   inboundModeOptions: PipelineModeOption[];
-  cloneActive: boolean;
+  customActive: boolean;
   sessionMode?: "interpreter" | "notes";
   onMicToggle: () => void;
   onSpeakerToggle: () => void;
@@ -143,7 +143,7 @@ const DirectionColumn = memo(function DirectionColumn({
               ? controls.outboundModeOptions
               : controls.inboundModeOptions
           }
-          cloneActive={direction === "outbound" ? controls.cloneActive : false}
+          customActive={direction === "outbound" ? controls.customActive : false}
           onMuteToggle={
             direction === "outbound"
               ? controls.onMicToggle

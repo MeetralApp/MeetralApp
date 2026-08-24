@@ -40,4 +40,53 @@ describe("toSavePayload mode stashes", () => {
     expect(payload.interpreterOutboundMode).toBe("textOnly");
     expect(payload.interpreterInboundMode).toBe("originalAudio");
   });
+
+  it("mirrors voice-output options into interpreter stash so Engine/Custom is not reverted", () => {
+    const payload = toSavePayload(
+      {
+        ...baseConfig,
+        sessionMode: "interpreter",
+        outboundVoiceOutput: "custom",
+        inboundVoiceOutput: "custom",
+        interpreterOutboundVoiceOutput: "custom",
+        interpreterInboundVoiceOutput: "custom",
+      },
+      {
+        outboundVoiceOutput: "providerNative",
+        inboundVoiceOutput: "providerNative",
+      },
+    );
+    expect(payload.outboundVoiceOutput).toBe("providerNative");
+    expect(payload.inboundVoiceOutput).toBe("providerNative");
+    expect(payload.interpreterOutboundVoiceOutput).toBe("providerNative");
+    expect(payload.interpreterInboundVoiceOutput).toBe("providerNative");
+  });
+
+  it("keeps interpreter voice stash while session is notes", () => {
+    const payload = toSavePayload(
+      {
+        ...baseConfig,
+        sessionMode: "notes",
+        outboundVoiceOutput: "providerNative",
+        inboundVoiceOutput: "providerNative",
+        interpreterOutboundVoiceOutput: "custom",
+        interpreterInboundVoiceOutput: "custom",
+      },
+      { outboundVoiceOutput: "providerNative" },
+    );
+    expect(payload.interpreterOutboundVoiceOutput).toBe("custom");
+    expect(payload.interpreterInboundVoiceOutput).toBe("custom");
+  });
+
+  it("omits selected Soniox TTS model when persisting catalogs only", () => {
+    const payload = toSavePayload(
+      { ...baseConfig, sonioxTtsModel: "tts-rt-v1" },
+      {
+        skipSonioxTtsModel: true,
+        sonioxTtsModels: [{ id: "tts-rt-v1", languages: [] }],
+      },
+    );
+    expect(payload.sonioxTtsModel).toBeUndefined();
+    expect(payload.sonioxTtsModels).toHaveLength(1);
+  });
 });

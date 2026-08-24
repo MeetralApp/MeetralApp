@@ -19,51 +19,93 @@ pub(crate) fn normalize_summary_provider(provider: AiProvider) -> AiProvider {
 }
 
 impl AppConfig {
-    pub fn validate_elevenlabs_outbound_setup(&self) -> Result<(), String> {
-        if !self.needs_elevenlabs_for_outbound() {
+    pub fn validate_custom_voice_outbound_setup(&self) -> Result<(), String> {
+        if !self.needs_custom_tts_for_outbound() {
             return Ok(());
         }
-        if !self.is_elevenlabs_api_key_configured() {
-            return Err(
-                "ElevenLabs API key is required for voice clone. Add it in Settings → Voice."
-                    .into(),
-            );
-        }
-        if self.elevenlabs.elevenlabs_voice_id.trim().is_empty() {
-            return Err(
-                "ElevenLabs voice ID is required for You → Meeting clone. Add your PVC voice ID in Settings → Voice.".into(),
-            );
+        match self.outbound_custom_voice_vendor {
+            crate::config::CustomVoiceVendor::ElevenLabs => {
+                if !self.is_elevenlabs_api_key_configured() {
+                    return Err(
+                        "ElevenLabs API key is required for custom voice. Add it in Settings → Voice."
+                            .into(),
+                    );
+                }
+                if self.elevenlabs.elevenlabs_voice_id.trim().is_empty() {
+                    return Err(
+                        "ElevenLabs voice ID is required for You → Meeting custom voice. Add your PVC voice ID in Settings → Voice.".into(),
+                    );
+                }
+            }
+            crate::config::CustomVoiceVendor::FishAudio => {
+                if !self.is_fishaudio_api_key_configured() {
+                    return Err(
+                        "Fish Audio API key is required for custom voice. Add it in Settings → Voice."
+                            .into(),
+                    );
+                }
+                if self.fishaudio.fishaudio_voice_id.trim().is_empty() {
+                    return Err(
+                        "Fish Audio voice ID is required for You → Meeting custom voice. Pick a voice in Settings → Voice.".into(),
+                    );
+                }
+            }
         }
         Ok(())
+    }
+
+    pub fn validate_custom_voice_inbound_setup(&self) -> Result<(), String> {
+        if !self.needs_custom_tts_for_inbound() {
+            return Ok(());
+        }
+        match self.inbound_custom_voice_vendor {
+            crate::config::CustomVoiceVendor::ElevenLabs => {
+                if !self.is_elevenlabs_api_key_configured() {
+                    return Err(
+                        "ElevenLabs API key is required for Meeting → You custom voice. Add it in Settings → Voice."
+                            .into(),
+                    );
+                }
+                if self
+                    .elevenlabs
+                    .elevenlabs_inbound_voice_id
+                    .trim()
+                    .is_empty()
+                {
+                    return Err(
+                        "ElevenLabs voice ID is required for Meeting → You custom voice. Add a voice in Settings → Voice.".into(),
+                    );
+                }
+            }
+            crate::config::CustomVoiceVendor::FishAudio => {
+                if !self.is_fishaudio_api_key_configured() {
+                    return Err(
+                        "Fish Audio API key is required for Meeting → You custom voice. Add it in Settings → Voice."
+                            .into(),
+                    );
+                }
+                if self.fishaudio.fishaudio_inbound_voice_id.trim().is_empty() {
+                    return Err(
+                        "Fish Audio voice ID is required for Meeting → You custom voice. Pick a voice in Settings → Voice.".into(),
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate_elevenlabs_outbound_setup(&self) -> Result<(), String> {
+        self.validate_custom_voice_outbound_setup()
     }
 
     pub fn validate_elevenlabs_inbound_setup(&self) -> Result<(), String> {
-        if !self.needs_elevenlabs_for_inbound() {
-            return Ok(());
-        }
-        if !self.is_elevenlabs_api_key_configured() {
-            return Err(
-                "ElevenLabs API key is required for Meeting → You clone. Add it in Settings → Voice."
-                    .into(),
-            );
-        }
-        if self
-            .elevenlabs
-            .elevenlabs_inbound_voice_id
-            .trim()
-            .is_empty()
-        {
-            return Err(
-                "ElevenLabs voice ID is required for Meeting → You clone. Add a voice in Settings → Voice.".into(),
-            );
-        }
-        Ok(())
+        self.validate_custom_voice_inbound_setup()
     }
 
-    /// Validates both directions when either needs ElevenLabs.
+    /// Validates both directions when either needs custom voice.
     pub fn validate_elevenlabs_setup(&self) -> Result<(), String> {
-        self.validate_elevenlabs_outbound_setup()?;
-        self.validate_elevenlabs_inbound_setup()
+        self.validate_custom_voice_outbound_setup()?;
+        self.validate_custom_voice_inbound_setup()
     }
 
     pub fn validate_for_start(&self) -> Result<(), String> {

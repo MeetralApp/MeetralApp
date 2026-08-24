@@ -20,7 +20,7 @@ use crate::providers::shared::live::TranscriptEvent;
 use crate::voice::shared::debug;
 use crate::voice::shared::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
-use crate::voice::shared::types::VoiceCloneLatencyEvent;
+use crate::voice::shared::types::VoiceCustomLatencyEvent;
 
 use super::stream::{flush_stream_turn, ingest_stream_delta, StreamState};
 
@@ -40,7 +40,7 @@ fn handle_event(
     audio_mode: &AtomicU8,
     voice_engine: &AtomicU8,
     voice_switch_in_progress: &AtomicBool,
-    latency_tx: &Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: &Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: &TurnLatencySlot,
     state: &mut StreamState,
 ) {
@@ -94,7 +94,7 @@ async fn drain_bridge_rx(
     audio_mode: &AtomicU8,
     voice_engine: &AtomicU8,
     voice_switch_in_progress: &AtomicBool,
-    latency_tx: &Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: &Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: &TurnLatencySlot,
     state: &mut StreamState,
 ) {
@@ -134,7 +134,7 @@ pub fn spawn_soniox_transcript_fanout(
     voice_engine: Arc<AtomicU8>,
     voice_switch_in_progress: Arc<AtomicBool>,
     _relay_chars_while_provider: Arc<AtomicU64>,
-    latency_tx: Option<mpsc::Sender<VoiceCloneLatencyEvent>>,
+    latency_tx: Option<mpsc::Sender<VoiceCustomLatencyEvent>>,
     turn_latency: Arc<TurnLatencySlot>,
     expected_direction: impl Into<String>,
 ) -> tokio::task::JoinHandle<()> {

@@ -425,7 +425,7 @@ mod tests {
     use crate::capabilities::tts_text_pipeline_active;
     use crate::config::PipelineOutputMode;
     use crate::providers::shared::live::TranscriptEvent;
-    use crate::voice::config::{TtsSynthesisMode, VOICE_ENGINE_CLONE, VOICE_ENGINE_PROVIDER};
+    use crate::voice::config::{TtsSynthesisMode, VOICE_ENGINE_CUSTOM, VOICE_ENGINE_PROVIDER};
     use crate::voice::shared::latency::TurnLatencySlot;
     use crate::voice::shared::tts_command::TtsTextCommand;
     use crate::voice::spawn_outbound_transcript_fanout;
@@ -434,7 +434,7 @@ mod tests {
     fn tts_only_when_translated_mode() {
         assert!(tts_text_pipeline_active(
             PipelineOutputMode::Translated,
-            VOICE_ENGINE_CLONE,
+            VOICE_ENGINE_CUSTOM,
             false,
             false,
         ));

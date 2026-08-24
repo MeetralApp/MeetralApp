@@ -1,6 +1,6 @@
 # Agents
 
-Meetral is a **live meeting interpreter** (Tauri 2 + React + Rust): bidirectional **You** / **Meeting** translation, meeting library, and summaries. Version **4.8.4**.
+Meetral is a **live meeting interpreter** (Tauri 2 + React + Rust): bidirectional **You** / **Meeting** translation, meeting library, and summaries. Version **4.8.5**.
 
 Shipped surface: [docs/features/catalog.md](docs/features/catalog.md). Do not start capabilities that are not in the catalog unless the user asks — there is no implementation plan for unlisted work.
 
@@ -40,7 +40,7 @@ src/                 React app — features/{pipeline,config,ai,voice,audio,meet
 src/shared/          UI primitives, layout, hooks, types
 src-tauri/src/       Rust crate (one crate — no workspace split)
   capabilities/      ProviderCapabilities + PlaybackSource + routing helpers
-  providers/         gemini, openai, soniox, elevenlabs, compatible, shared/live
+  providers/         gemini, openai, soniox, elevenlabs, fishaudio, compatible, shared/live
   runtime/           engine, factories, voice_runtime, playback_mux, direct_relay
   pipeline/          inbound / outbound session wiring
   meeting/           SQLite library, SegmentEngine, summary, prompts, recording
@@ -91,6 +91,7 @@ docs/                Project knowledge — see docs/README.md
 ## Testing
 
 ```bash
+npm run check            # full local CI PR gate (before push)
 npm test
 cd src-tauri && cargo test --lib
 cd src-tauri && cargo test --test meeting_lifecycle --test provider_protocol_ws
@@ -103,7 +104,7 @@ No real WebSocket, WASAPI, or network in unit tests. Details: [development/testi
 ## Definition of Done
 
 - Behavior matches the catalog row invariant and the Hard rules.
-- `npm test` and `cargo test --lib` (+ named integration tests when you touched meeting/provider protocol) pass.
+- `npm run check` (or at least `npm test` and `cargo test --lib` + named integration tests when you touched meeting/provider protocol) passes.
 - Grep gates are clean for the allow-list.
 - UI changes follow the matching `design-system/pages/` file.
 - Living docs updated if the contract or entry files changed.
