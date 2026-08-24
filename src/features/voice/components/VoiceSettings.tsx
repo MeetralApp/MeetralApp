@@ -13,13 +13,14 @@ import { useVoiceCatalog } from "@/features/voice/hooks/useVoiceCatalog";
 import { listSonioxTtsModels } from "@/features/ai/lib/aiApi";
 import type { SonioxTtsModelOption } from "@/features/ai/lib/aiTypes";
 import { withLanguageFlags } from "@/shared/lib/languageFlags";
-import type { CustomVoiceVendor, ConfigView, ElevenLabsModelOption, ElevenLabsVoiceOption, FishAudioLatency, FishAudioModelOption, FishAudioVoiceOption, InboundVoiceOutput, OutboundVoiceOutput, SonioxVoiceOption, TtsSynthesisMode, SaveConfigPayload, SaveConfigResult } from "@/shared/lib/types/pipeline";
+import type { CustomVoiceVendor, ConfigView, ElevenLabsModelOption, ElevenLabsVoiceOption, FishAudioLatency, FishAudioModelOption, FishAudioVoiceOption, InboundVoiceOutput, OutboundVoiceOutput, SonioxVoiceOption, TtsSynthesisMode, SaveConfigPayload, SaveConfigResult, XaiLatency, XaiVoiceOption } from "@/shared/lib/types/pipeline";
 import { isCustomVoiceOutput, normalizeCustomVoiceVendor, normalizeVoiceOutput } from "@/shared/lib/types/pipeline";
 import { toSavePayload } from "@/features/pipeline/lib/toSavePayload";
 
 import CustomVoiceVendorSelect from "./CustomVoiceVendorSelect";
 import ElevenLabsCustomVoicePanel from "./ElevenLabsCustomVoicePanel";
 import FishAudioCustomVoicePanel from "./FishAudioCustomVoicePanel";
+import XaiCustomVoicePanel from "./XaiCustomVoicePanel";
 import InboundVoiceModeSelect from "./InboundVoiceModeSelect";
 import OutboundVoiceModeSelect from "./OutboundVoiceModeSelect";
 import SonioxEngineVoiceSettings from "./SonioxEngineVoiceSettings";
@@ -78,6 +79,10 @@ export default function VoiceSettings({
     listFishAudioModels,
     validateFishAudioVoice,
     previewFishAudioVoice,
+    testXaiApiKey,
+    listXaiVoices,
+    validateXaiVoice,
+    previewXaiVoice,
   } = useVoiceCatalog();
   const [inboundOutputMode, setInboundOutputMode] =
     useState<InboundVoiceOutput>(
@@ -159,6 +164,13 @@ export default function VoiceSettings({
   const [inboundFishTemperature, setInboundFishTemperature] = useState(
     config.fishaudioInboundTemperature ?? 0.7,
   );
+  const [xaiLatency, setXaiLatency] = useState<XaiLatency>(
+    config.xaiLatency ?? "balanced",
+  );
+  const [xaiSpeed, setXaiSpeed] = useState(config.xaiSpeed ?? 1.0);
+  const [inboundXaiLatency, setInboundXaiLatency] = useState<XaiLatency>(
+    config.xaiInboundLatency ?? "balanced",
+  );
   const inboundCustomVoiceSectionRef = useRef<HTMLDivElement>(null);
   const outboundCustomVoiceSectionRef = useRef<HTMLDivElement>(null);
   const configRef = useRef(config);
@@ -199,6 +211,8 @@ export default function VoiceSettings({
   const outboundUsesEl = customVoiceEnabled && outboundCustomVoiceVendor === "elevenLabs";
   const inboundUsesFish = inboundCustomVoiceEnabled && inboundCustomVoiceVendor === "fishAudio";
   const outboundUsesFish = customVoiceEnabled && outboundCustomVoiceVendor === "fishAudio";
+  const inboundUsesXai = inboundCustomVoiceEnabled && inboundCustomVoiceVendor === "xai";
+  const outboundUsesXai = customVoiceEnabled && outboundCustomVoiceVendor === "xai";
   const fishCustomVoiceSettingsDirty =
     fishTtsModel !== (config.fishaudioTtsModel ?? "s2.1-pro") ||
     fishLatency !== (config.fishaudioLatency ?? "balanced") ||
@@ -211,13 +225,21 @@ export default function VoiceSettings({
     inboundFishTemperature !== (config.fishaudioInboundTemperature ?? 0.7) ||
     fishSpeed !== (config.fishaudioSpeed ?? 1.0) ||
     fishTopP !== (config.fishaudioTopP ?? 0.7);
+  const xaiCustomVoiceSettingsDirty =
+    xaiLatency !== (config.xaiLatency ?? "balanced") ||
+    xaiSpeed !== (config.xaiSpeed ?? 1.0);
+  const inboundXaiCustomVoiceSettingsDirty =
+    inboundXaiLatency !== (config.xaiInboundLatency ?? "balanced") ||
+    xaiSpeed !== (config.xaiSpeed ?? 1.0);
   const dirty =
     keyDirty ||
     voiceDirty ||
     (inboundUsesEl && inboundCustomVoiceSettingsDirty) ||
     (outboundUsesEl && customVoiceSettingsDirty) ||
     (inboundUsesFish && inboundFishCustomVoiceSettingsDirty) ||
-    (outboundUsesFish && fishCustomVoiceSettingsDirty);
+    (outboundUsesFish && fishCustomVoiceSettingsDirty) ||
+    (inboundUsesXai && inboundXaiCustomVoiceSettingsDirty) ||
+    (outboundUsesXai && xaiCustomVoiceSettingsDirty);
 
   useEffect(() => {
     setTtsModel(config.elevenlabsTtsModel ?? "eleven_flash_v2_5");
@@ -293,6 +315,15 @@ export default function VoiceSettings({
     config.fishaudioInboundTemperature,
   ]);
 
+  useEffect(() => {
+    setXaiLatency(config.xaiLatency ?? "balanced");
+    setXaiSpeed(config.xaiSpeed ?? 1.0);
+  }, [config.xaiLatency, config.xaiSpeed]);
+
+  useEffect(() => {
+    setInboundXaiLatency(config.xaiInboundLatency ?? "balanced");
+  }, [config.xaiInboundLatency]);
+
   const buildVoiceSave = useCallback((patch: VoiceSavePatch = {}) => {
     const session = sessionRef.current;
     return toSavePayload(configRef.current, {
@@ -365,6 +396,13 @@ export default function VoiceSettings({
   const persistFishAudioModels = useCallback(
     async (list: FishAudioModelOption[]) => {
       await onSave(buildVoiceSave({ fishaudioModels: list }));
+    },
+    [buildVoiceSave, onSave],
+  );
+
+  const persistXaiVoices = useCallback(
+    async (list: XaiVoiceOption[]) => {
+      await onSave(buildVoiceSave({ xaiVoices: list }));
     },
     [buildVoiceSave, onSave],
   );
@@ -741,6 +779,50 @@ export default function VoiceSettings({
     onToast,
   ]);
 
+  const resetXaiCustomVoiceSettings = useCallback(() => {
+    setXaiLatency(config.xaiLatency ?? "balanced");
+    setXaiSpeed(config.xaiSpeed ?? 1.0);
+  }, [config]);
+
+  const resetInboundXaiCustomVoiceSettings = useCallback(() => {
+    setInboundXaiLatency(config.xaiInboundLatency ?? "balanced");
+    setXaiSpeed(config.xaiSpeed ?? 1.0);
+  }, [config]);
+
+  const persistXaiCustomVoiceSettings = useCallback(async () => {
+    setCustomVoiceSettingsSaving(true);
+    try {
+      await onSave(
+        buildVoiceSave({
+          xaiLatency,
+          xaiSpeed,
+        }),
+      );
+      onToast("success", "Voice settings saved");
+    } catch (e) {
+      onToast("error", e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setCustomVoiceSettingsSaving(false);
+    }
+  }, [buildVoiceSave, onSave, onToast, xaiLatency, xaiSpeed]);
+
+  const persistInboundXaiCustomVoiceSettings = useCallback(async () => {
+    setInboundCustomVoiceSettingsSaving(true);
+    try {
+      await onSave(
+        buildVoiceSave({
+          xaiInboundLatency: inboundXaiLatency,
+          xaiSpeed,
+        }),
+      );
+      onToast("success", "Meeting voice settings saved");
+    } catch (e) {
+      onToast("error", e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setInboundCustomVoiceSettingsSaving(false);
+    }
+  }, [buildVoiceSave, inboundXaiLatency, onSave, onToast, xaiSpeed]);
+
   return (
     <>
       <SettingsSection
@@ -822,7 +904,7 @@ export default function VoiceSettings({
                 resetCustomVoiceSettings={resetInboundCustomVoiceSettings}
                 persistCustomVoiceSettings={() => void persistInboundCustomVoiceSettings()}
               />
-            ) : (
+            ) : inboundUsesFish ? (
               <FishAudioCustomVoicePanel
                 config={config}
                 direction="inbound"
@@ -858,7 +940,35 @@ export default function VoiceSettings({
                 resetCustomVoiceSettings={resetInboundFishCustomVoiceSettings}
                 persistCustomVoiceSettings={() => void persistInboundFishCustomVoiceSettings()}
               />
-            )}
+            ) : inboundUsesXai ? (
+              <XaiCustomVoicePanel
+                config={config}
+                direction="inbound"
+                locked={inboundLocked}
+                apiKeyLocked={inboundLocked || outboundLocked}
+                showApiKey
+                customVoiceSectionRef={inboundCustomVoiceSectionRef}
+                voicesNonce={voicesNonce}
+                latency={inboundXaiLatency}
+                setLatency={setInboundXaiLatency}
+                speed={xaiSpeed}
+                setSpeed={setXaiSpeed}
+                customVoiceSettingsDirty={inboundXaiCustomVoiceSettingsDirty}
+                customVoiceSettingsSaving={inboundCustomVoiceSettingsSaving}
+                onSave={saveKeepingCloneSession}
+                onTestXai={testXaiApiKey}
+                onListXaiVoices={listXaiVoices}
+                onValidateXaiVoice={validateXaiVoice}
+                onPreviewXaiVoice={previewXaiVoice}
+                onToast={onToast}
+                onKeyDirty={setKeyDirty}
+                onVoiceDirty={setVoiceDirty}
+                onKeySaved={handleKeySaved}
+                persistXaiVoices={persistXaiVoices}
+                resetCustomVoiceSettings={resetInboundXaiCustomVoiceSettings}
+                persistCustomVoiceSettings={() => void persistInboundXaiCustomVoiceSettings()}
+              />
+            ) : null}
           </>
         ) : null}
       </SettingsSection>
@@ -944,7 +1054,7 @@ export default function VoiceSettings({
                 resetCustomVoiceSettings={resetCustomVoiceSettings}
                 persistCustomVoiceSettings={() => void persistCustomVoiceSettings()}
               />
-            ) : (
+            ) : outboundUsesFish ? (
               <FishAudioCustomVoicePanel
                 config={config}
                 direction="outbound"
@@ -980,7 +1090,35 @@ export default function VoiceSettings({
                 resetCustomVoiceSettings={resetFishCustomVoiceSettings}
                 persistCustomVoiceSettings={() => void persistFishCustomVoiceSettings()}
               />
-            )}
+            ) : outboundUsesXai ? (
+              <XaiCustomVoicePanel
+                config={config}
+                direction="outbound"
+                locked={outboundLocked}
+                apiKeyLocked={inboundLocked || outboundLocked}
+                showApiKey={!inboundUsesXai}
+                customVoiceSectionRef={outboundCustomVoiceSectionRef}
+                voicesNonce={voicesNonce}
+                latency={xaiLatency}
+                setLatency={setXaiLatency}
+                speed={xaiSpeed}
+                setSpeed={setXaiSpeed}
+                customVoiceSettingsDirty={xaiCustomVoiceSettingsDirty}
+                customVoiceSettingsSaving={customVoiceSettingsSaving}
+                onSave={saveKeepingCloneSession}
+                onTestXai={testXaiApiKey}
+                onListXaiVoices={listXaiVoices}
+                onValidateXaiVoice={validateXaiVoice}
+                onPreviewXaiVoice={previewXaiVoice}
+                onToast={onToast}
+                onKeyDirty={setKeyDirty}
+                onVoiceDirty={setVoiceDirty}
+                onKeySaved={handleKeySaved}
+                persistXaiVoices={persistXaiVoices}
+                resetCustomVoiceSettings={resetXaiCustomVoiceSettings}
+                persistCustomVoiceSettings={() => void persistXaiCustomVoiceSettings()}
+              />
+            ) : null}
           </>
         ) : null}
       </SettingsSection>

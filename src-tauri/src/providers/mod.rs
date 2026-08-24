@@ -10,6 +10,7 @@ pub mod gemini;
 pub mod openai;
 pub mod shared;
 pub mod soniox;
+pub mod xai;
 
 use crate::ai::provider::AiProvider;
 

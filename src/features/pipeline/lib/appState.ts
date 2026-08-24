@@ -146,6 +146,13 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     fishaudioInboundTemperature: data.fishaudioInboundTemperature ?? 0.7,
     fishaudioSpeed: data.fishaudioSpeed ?? 1.0,
     fishaudioTopP: data.fishaudioTopP ?? 0.7,
+    xaiApiKeyConfigured: data.xaiApiKeyConfigured ?? false,
+    xaiVoiceId: data.xaiVoiceId ?? "eve",
+    xaiInboundVoiceId: data.xaiInboundVoiceId ?? "eve",
+    xaiVoices: data.xaiVoices ?? [],
+    xaiLatency: data.xaiLatency ?? "balanced",
+    xaiInboundLatency: data.xaiInboundLatency ?? "balanced",
+    xaiSpeed: data.xaiSpeed ?? 1.0,
     liveModel:
       data.liveModel ??
       (data.aiProvider === "openAi"

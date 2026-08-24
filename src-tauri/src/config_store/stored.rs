@@ -238,6 +238,22 @@ pub(crate) struct StoredConfig {
     pub(crate) fishaudio_speed: f32,
     #[serde(default = "default_fishaudio_top_p")]
     pub(crate) fishaudio_top_p: f32,
+    #[serde(default)]
+    pub(crate) encrypted_xai_api_key: Option<String>,
+    #[serde(default)]
+    pub(crate) xai_api_key: Option<String>,
+    #[serde(default = "default_xai_voice_id")]
+    pub(crate) xai_voice_id: String,
+    #[serde(default = "default_xai_voice_id")]
+    pub(crate) xai_inbound_voice_id: String,
+    #[serde(default)]
+    pub(crate) xai_voices: Vec<crate::providers::xai::XaiVoiceOption>,
+    #[serde(default)]
+    pub(crate) xai_latency: crate::config::XaiLatency,
+    #[serde(default)]
+    pub(crate) xai_inbound_latency: crate::config::XaiLatency,
+    #[serde(default = "default_xai_speed")]
+    pub(crate) xai_speed: f32,
 }
 
 pub(crate) fn stored_default_unified_outbound_topology() -> bool {
@@ -361,6 +377,14 @@ pub(crate) fn default_fishaudio_top_p() -> f32 {
     crate::config::fishaudio_settings::default_fishaudio_top_p()
 }
 
+pub(crate) fn default_xai_voice_id() -> String {
+    crate::config::xai_settings::default_xai_voice_id()
+}
+
+pub(crate) fn default_xai_speed() -> f32 {
+    crate::config::xai_settings::default_xai_speed()
+}
+
 fn read_elevenlabs_api_key(stored: &StoredConfig) -> Result<String> {
     if let Some(encoded) = stored.encrypted_elevenlabs_api_key.as_ref() {
         if encoded.is_empty() {
@@ -409,6 +433,31 @@ fn write_fishaudio_api_key(key: &str) -> Result<Option<String>> {
         crate::providers::fishaudio::config::FISHAUDIO_KEYCHAIN_ACCOUNT,
         key,
     )?;
+    Ok(Some(STANDARD.encode(encrypted)))
+}
+
+fn read_xai_api_key(stored: &StoredConfig) -> Result<String> {
+    if let Some(encoded) = stored.encrypted_xai_api_key.as_ref() {
+        if encoded.is_empty() {
+            return Ok(String::new());
+        }
+        let bytes = STANDARD
+            .decode(encoded)
+            .context("decode encrypted xAI API key")?;
+        return secret::decrypt_for_account(
+            crate::providers::xai::config::XAI_KEYCHAIN_ACCOUNT,
+            &bytes,
+        );
+    }
+    Ok(stored.xai_api_key.clone().unwrap_or_default())
+}
+
+fn write_xai_api_key(key: &str) -> Result<Option<String>> {
+    if key.trim().is_empty() {
+        return Ok(None);
+    }
+    let encrypted =
+        secret::encrypt_for_account(crate::providers::xai::config::XAI_KEYCHAIN_ACCOUNT, key)?;
     Ok(Some(STANDARD.encode(encrypted)))
 }
 
@@ -500,6 +549,7 @@ impl StoredConfig {
     pub(crate) fn into_app_config(self) -> Result<AppConfig> {
         let elevenlabs_api_key = read_elevenlabs_api_key(&self)?;
         let fishaudio_api_key = read_fishaudio_api_key(&self)?;
+        let xai_api_key = read_xai_api_key(&self)?;
         // Computed before the struct literal: `self` fields move during it,
         // so a later `&self` borrow would not compile.
         let custom_llm_api_keys = read_custom_llm_keys(&self)?;
@@ -614,6 +664,15 @@ impl StoredConfig {
                 fishaudio_inbound_temperature: self.fishaudio_inbound_temperature,
                 fishaudio_speed: self.fishaudio_speed,
                 fishaudio_top_p: self.fishaudio_top_p,
+            },
+            xai: crate::config::XaiSettings {
+                xai_api_key,
+                xai_voice_id: self.xai_voice_id,
+                xai_inbound_voice_id: self.xai_inbound_voice_id,
+                xai_voices: self.xai_voices,
+                xai_latency: self.xai_latency,
+                xai_inbound_latency: self.xai_inbound_latency,
+                xai_speed: self.xai_speed,
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,
@@ -753,6 +812,14 @@ impl StoredConfig {
             fishaudio_inbound_temperature: config.fishaudio.fishaudio_inbound_temperature,
             fishaudio_speed: config.fishaudio.fishaudio_speed,
             fishaudio_top_p: config.fishaudio.fishaudio_top_p,
+            encrypted_xai_api_key: write_xai_api_key(&config.xai.xai_api_key)?,
+            xai_api_key: None,
+            xai_voice_id: config.xai.xai_voice_id.clone(),
+            xai_inbound_voice_id: config.xai.xai_inbound_voice_id.clone(),
+            xai_voices: config.xai.xai_voices.clone(),
+            xai_latency: config.xai.xai_latency,
+            xai_inbound_latency: config.xai.xai_inbound_latency,
+            xai_speed: config.xai.xai_speed,
             artifacts_enabled: config.artifacts_enabled,
             answer_language: config.answer_language.clone(),
             meeting_context: config.meeting_context.clone(),

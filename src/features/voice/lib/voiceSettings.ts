@@ -7,6 +7,7 @@ import type {
   OutboundVoiceOutput,
   SonioxVoiceOption,
   TtsSynthesisMode,
+  XaiLatency,
 } from "@/shared/lib/types/pipeline";
 
 export const OUTPUT_OPTIONS: {
@@ -20,10 +21,33 @@ export const OUTPUT_OPTIONS: {
 export const CUSTOM_VOICE_VENDOR_OPTIONS: { value: CustomVoiceVendor; label: string }[] = [
   { value: "elevenLabs", label: "ElevenLabs" },
   { value: "fishAudio", label: "Fish Audio" },
+  { value: "xai", label: "xAI" },
 ];
 
 export const FISH_LATENCY_OPTIONS: {
   value: FishAudioLatency;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "low",
+    label: "Low",
+    hint: "Fastest first audio. Slightly less stable prosody.",
+  },
+  {
+    value: "balanced",
+    label: "Balanced",
+    hint: "Recommended default for live meetings.",
+  },
+  {
+    value: "normal",
+    label: "Normal",
+    hint: "Highest quality, extra latency.",
+  },
+];
+
+export const XAI_LATENCY_OPTIONS: {
+  value: XaiLatency;
   label: string;
   hint: string;
 }[] = [

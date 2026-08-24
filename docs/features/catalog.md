@@ -1,6 +1,6 @@
 # Product catalog
 
-Living feature map for Meetral `4.8.5`. Written from **code**. Not a backlog. Unlisted capabilities have no implementation plan — [current.md](current.md).
+Living feature map for Meetral `4.8.6`. Written from **code**. Not a backlog. Unlisted capabilities have no implementation plan — [current.md](current.md).
 
 How to read: pick the row you are changing, open the entry files, obey the invariant. UI tokens: `design-system/pages/` under **Read**.
 
@@ -10,7 +10,7 @@ How to read: pick the row you are changing, open the entry files, obey the invar
 | Direct passthrough | Mic → Teams feed; meeting → headphones; no live API | `runtime/direct_relay.rs`, `audio/backend/{windows,macos}/direct_passthrough.rs` | [direct-audio.md](../integrations/direct-audio.md) | Do not restore WASAPI busy-loop silence fill |
 | Transcript commit | Stabilized segments in UI + SQLite | `meeting/segment_engine.rs` | [pipeline.md](../architecture/pipeline.md) flush callers | Only persist owner. Two callers (`flush_live_transcript_segments` = stop-direction; `finalize_meeting_transcripts` = end-meeting), same `flush_direction`. Protocol layers do not persist |
 | Live vendors | Gemini, OpenAI, Soniox | `providers/{gemini,openai,soniox}`, `runtime/factories` | [providers.md](../integrations/providers.md), [capabilities.md](../architecture/capabilities.md) | New vendor = new folder + factory registration |
-| Custom voice | ElevenLabs and/or Fish Audio, **both** directions; per-direction vendor | `providers/{elevenlabs,fishaudio}`, `runtime/voice_runtime.rs`, `runtime/factories/custom.rs` | [capabilities.md](../architecture/capabilities.md) `PlaybackSource` table | Toolbar Engine ↔ Custom only. One API key per vendor. Mixed You/Meeting vendors in scope. No in-app Fish training |
+| Custom voice | ElevenLabs, Fish Audio, and/or xAI, **both** directions; per-direction vendor | `providers/{elevenlabs,fishaudio,xai}`, `runtime/voice_runtime.rs`, `runtime/factories/custom.rs` | [capabilities.md](../architecture/capabilities.md) `PlaybackSource` table | Toolbar Engine ↔ Custom only. One API key per vendor. Mixed You/Meeting vendors in scope. No in-app Fish/xAI training |
 | Overlay | Transcript window; hide-from-capture (Win) | `overlay/`, `src/features/overlay` | `design-system/pages/overlay.md` | Transcript only |
 | Tray / hotkeys | Close-to-tray; O/T | `src-tauri/src/tray.rs`, `lib.rs` | [README.md](../../README.md) Usage | — |
 | Notes session | Single-language capture UX | `SessionMode`, `NotesPipelineToolbar`, overlay Notes path | `design-system/pages/live.md` | Not a second commit engine. Notes STT: OpenAI + Soniox yes; Gemini no (`supports_notes_stt_only`) |

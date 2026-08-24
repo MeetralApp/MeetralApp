@@ -13,6 +13,8 @@ pub mod modes;
 pub mod overlay_settings;
 pub mod soniox_settings;
 pub mod view;
+pub mod xai_public;
+pub mod xai_settings;
 
 #[cfg(test)]
 mod tests;
@@ -24,6 +26,7 @@ pub use custom_llm::{
 pub use device::DeviceRef;
 pub use elevenlabs_settings::ElevenLabsSettings;
 pub use fishaudio_settings::{FishAudioLatency, FishAudioSettings};
+pub use xai_settings::{XaiLatency, XaiSettings};
 pub use meeting_context::{
     MeetingContextPair, MeetingContextPayload, MeetingContextTranslationTerm,
 };

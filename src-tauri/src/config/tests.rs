@@ -322,6 +322,30 @@ fn validate_custom_voice_mixed_vendors() {
 }
 
 #[test]
+fn validate_custom_voice_xai_mixed_with_fish() {
+    let mut config = AppConfig {
+        outbound_voice_output: OutboundVoiceOutput::Custom,
+        inbound_voice_output: InboundVoiceOutput::Custom,
+        outbound_mode: PipelineOutputMode::Translated,
+        inbound_mode: PipelineOutputMode::Translated,
+        outbound_custom_voice_vendor: crate::config::CustomVoiceVendor::Xai,
+        inbound_custom_voice_vendor: crate::config::CustomVoiceVendor::FishAudio,
+        ..AppConfig::default()
+    };
+    let outbound_err = config.validate_custom_voice_outbound_setup().unwrap_err();
+    assert!(outbound_err.contains("xAI"));
+    let inbound_err = config.validate_custom_voice_inbound_setup().unwrap_err();
+    assert!(inbound_err.contains("Fish Audio"));
+
+    config.xai.xai_api_key = "xai".into();
+    // defaults already set voice_id to "eve"
+    config.fishaudio.fishaudio_api_key = "fish".into();
+    config.fishaudio.fishaudio_inbound_voice_id = "fish-voice".into();
+    assert!(config.validate_custom_voice_outbound_setup().is_ok());
+    assert!(config.validate_custom_voice_inbound_setup().is_ok());
+}
+
+#[test]
 fn config_view_exposes_fallback_key_flags() {
     let config = AppConfig {
         gemini_api_key: "g".into(),

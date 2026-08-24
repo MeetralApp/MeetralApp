@@ -23,6 +23,10 @@ vi.mock("@/shared/lib/api/voiceApi", () => ({
   listFishAudioModels: vi.fn().mockResolvedValue([]),
   validateFishAudioVoice: vi.fn().mockResolvedValue(undefined),
   previewFishAudioVoice: vi.fn().mockResolvedValue(undefined),
+  testXaiApiKey: vi.fn().mockResolvedValue(undefined),
+  listXaiVoices: vi.fn().mockResolvedValue([]),
+  validateXaiVoice: vi.fn().mockResolvedValue(undefined),
+  previewXaiVoice: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/features/ai/lib/aiApi", () => ({
@@ -48,6 +52,7 @@ describe("VoiceSettings", () => {
   afterEach(() => {
     vi.mocked(voiceApi.listFishAudioVoices).mockResolvedValue([]);
     vi.mocked(voiceApi.listFishAudioModels).mockResolvedValue([]);
+    vi.mocked(voiceApi.listXaiVoices).mockResolvedValue([]);
     vi.mocked(voiceApi.listSonioxVoices).mockResolvedValue([]);
     vi.mocked(aiApi.listSonioxTtsModels).mockResolvedValue([]);
   });
@@ -91,6 +96,22 @@ describe("VoiceSettings", () => {
       fishaudioApiKeyConfigured: true,
     });
     expect(screen.getAllByText("Fish Audio").length).toBeGreaterThanOrEqual(2);
+    await waitFor(() => {
+      expect(screen.getAllByLabelText("Refresh voices").length).toBe(2);
+      expect(screen.getAllByLabelText("Preview voice").length).toBe(2);
+    });
+  });
+
+  it("renders custom voice + xAI without crashing", async () => {
+    renderVoice({
+      ...baseConfig,
+      inboundVoiceOutput: "custom",
+      outboundVoiceOutput: "custom",
+      inboundCustomVoiceVendor: "xai",
+      outboundCustomVoiceVendor: "xai",
+      xaiApiKeyConfigured: true,
+    });
+    expect(screen.getAllByText("xAI").length).toBeGreaterThanOrEqual(2);
     await waitFor(() => {
       expect(screen.getAllByLabelText("Refresh voices").length).toBe(2);
       expect(screen.getAllByLabelText("Preview voice").length).toBe(2);

@@ -7,6 +7,7 @@ use crate::ai::{
 use super::device::DeviceRef;
 use super::elevenlabs_settings::ElevenLabsSettings;
 use super::fishaudio_settings::FishAudioSettings;
+use super::xai_settings::XaiSettings;
 use super::modes::{
     CustomVoiceVendor, InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode, SessionMode,
     ThemePreference, TranscriptLayout, VadSensitivity,
@@ -112,6 +113,8 @@ pub struct AppConfig {
     pub elevenlabs: ElevenLabsSettings,
     #[serde(default, flatten)]
     pub fishaudio: FishAudioSettings,
+    #[serde(default, flatten)]
+    pub xai: XaiSettings,
     /// Meeting Intelligence: structured artifacts (decisions/action items/entities).
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
@@ -210,6 +213,7 @@ impl Default for AppConfig {
             soniox: SonioxSettings::default(),
             elevenlabs: ElevenLabsSettings::default(),
             fishaudio: FishAudioSettings::default(),
+            xai: XaiSettings::default(),
             artifacts_enabled: true,
             answer_language: String::new(),
             meeting_context: super::meeting_context::MeetingContextPayload::default(),
@@ -501,6 +505,10 @@ impl AppConfig {
 
     pub fn is_fishaudio_api_key_configured(&self) -> bool {
         !self.fishaudio.fishaudio_api_key.trim().is_empty()
+    }
+
+    pub fn is_xai_api_key_configured(&self) -> bool {
+        !self.xai.xai_api_key.trim().is_empty()
     }
 
     pub fn needs_custom_tts_for_outbound(&self) -> bool {

@@ -198,6 +198,14 @@ describe("isOutboundCustomVoiceReady", () => {
         elevenlabsVoiceId: "voice-1",
       }),
     ).toBe(true);
+    expect(
+      isOutboundCustomVoiceReady({
+        ...baseConfig,
+        outboundCustomVoiceVendor: "xai",
+        xaiApiKeyConfigured: true,
+        xaiVoiceId: "eve",
+      }),
+    ).toBe(true);
   });
 });
 
@@ -216,6 +224,14 @@ describe("isInboundCustomVoiceReady", () => {
         ...baseConfig,
         elevenlabsApiKeyConfigured: true,
         elevenlabsInboundVoiceId: "meeting-voice",
+      }),
+    ).toBe(true);
+    expect(
+      isInboundCustomVoiceReady({
+        ...baseConfig,
+        inboundCustomVoiceVendor: "xai",
+        xaiApiKeyConfigured: true,
+        xaiInboundVoiceId: "eve",
       }),
     ).toBe(true);
   });

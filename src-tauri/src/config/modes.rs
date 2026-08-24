@@ -84,6 +84,7 @@ pub enum CustomVoiceVendor {
     #[default]
     ElevenLabs,
     FishAudio,
+    Xai,
 }
 
 impl CustomVoiceVendor {
@@ -91,6 +92,7 @@ impl CustomVoiceVendor {
         match self {
             Self::ElevenLabs => "elevenlabs",
             Self::FishAudio => "fishaudio",
+            Self::Xai => "xai",
         }
     }
 }

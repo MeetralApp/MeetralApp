@@ -93,6 +93,26 @@ impl AppConfig {
         }
     }
 
+    pub fn xai_outbound_init_settings(
+        &self,
+    ) -> crate::providers::xai::protocol::XaiInitSettings {
+        crate::providers::xai::protocol::XaiInitSettings {
+            voice_id: self.xai.xai_voice_id.clone(),
+            language: crate::providers::xai::config::map_tts_language(&self.meeting_language),
+            speed: self.xai.xai_speed,
+            latency: self.xai.xai_latency,
+        }
+    }
+
+    pub fn xai_inbound_init_settings(&self) -> crate::providers::xai::protocol::XaiInitSettings {
+        crate::providers::xai::protocol::XaiInitSettings {
+            voice_id: self.xai.xai_inbound_voice_id.clone(),
+            language: crate::providers::xai::config::map_tts_language(&self.my_language),
+            speed: self.xai.xai_speed,
+            latency: self.xai.xai_inbound_latency,
+        }
+    }
+
     /// Provider-native voice uses a separate TTS WebSocket (capability, not vendor name).
     pub fn uses_provider_tts_for_outbound(&self) -> bool {
         crate::capabilities::uses_provider_tts_for_outbound(self)

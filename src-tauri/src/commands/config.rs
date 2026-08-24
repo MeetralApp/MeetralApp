@@ -200,6 +200,22 @@ pub struct SaveConfigRequest {
     pub fishaudio_speed: Option<f32>,
     #[serde(default)]
     pub fishaudio_top_p: Option<f32>,
+    #[serde(default)]
+    pub xai_api_key: String,
+    #[serde(default)]
+    pub clear_xai_api_key: bool,
+    #[serde(default)]
+    pub xai_voice_id: String,
+    #[serde(default)]
+    pub xai_inbound_voice_id: String,
+    #[serde(default)]
+    pub xai_voices: Option<Vec<crate::providers::xai::XaiVoiceOption>>,
+    #[serde(default)]
+    pub xai_latency: Option<crate::config::XaiLatency>,
+    #[serde(default)]
+    pub xai_inbound_latency: Option<crate::config::XaiLatency>,
+    #[serde(default)]
+    pub xai_speed: Option<f32>,
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
     #[serde(default)]
@@ -270,6 +286,14 @@ impl SaveConfigRequest {
             existing.fishaudio.fishaudio_api_key.clone()
         } else {
             self.fishaudio_api_key
+        };
+
+        let xai_api_key = if self.clear_xai_api_key {
+            String::new()
+        } else if self.xai_api_key.trim().is_empty() {
+            existing.xai.xai_api_key.clone()
+        } else {
+            self.xai_api_key
         };
 
         let mut config = AppConfig {
@@ -549,6 +573,30 @@ impl SaveConfigRequest {
                 fishaudio_top_p: self
                     .fishaudio_top_p
                     .unwrap_or(existing.fishaudio.fishaudio_top_p),
+            },
+            xai: crate::config::XaiSettings {
+                xai_api_key,
+                xai_voice_id: if self.xai_voice_id.trim().is_empty() {
+                    existing.xai.xai_voice_id.clone()
+                } else {
+                    self.xai_voice_id
+                },
+                xai_inbound_voice_id: if self.xai_inbound_voice_id.trim().is_empty() {
+                    existing.xai.xai_inbound_voice_id.clone()
+                } else {
+                    self.xai_inbound_voice_id
+                },
+                xai_voices: if self.clear_xai_api_key {
+                    Vec::new()
+                } else {
+                    self.xai_voices
+                        .unwrap_or_else(|| existing.xai.xai_voices.clone())
+                },
+                xai_latency: self.xai_latency.unwrap_or(existing.xai.xai_latency),
+                xai_inbound_latency: self
+                    .xai_inbound_latency
+                    .unwrap_or(existing.xai.xai_inbound_latency),
+                xai_speed: self.xai_speed.unwrap_or(existing.xai.xai_speed),
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,

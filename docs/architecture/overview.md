@@ -1,6 +1,6 @@
 # Architecture — module boundaries
 
-**Status:** Meetral `4.8.5` production baseline — live translation + meeting library + summaries.  
+**Status:** Meetral `4.8.6` production baseline — live translation + meeting library + summaries.  
 **Product:** [features/catalog.md](../features/catalog.md) · **Now:** [features/current.md](../features/current.md) · **Router:** [AGENTS.md](../../AGENTS.md)
 
 Read this before changing `src-tauri/src/**` or `src/features/**`.
@@ -28,6 +28,7 @@ src-tauri/src/
 │   ├── soniox/          # live (STT) + tts + context
 │   ├── elevenlabs/      # TTS custom voice (outbound + inbound)
 │   ├── fishaudio/       # TTS custom voice (outbound + inbound) — not a live AiProvider
+│   ├── xai/             # TTS custom voice (outbound + inbound) — not a live AiProvider
 │   └── shared/live/     # provider-neutral live bridge kernel
 ├── runtime/
 │   ├── engine/          # TranslationEngine orchestrator
@@ -49,7 +50,7 @@ src-tauri/src/
 
 | Concern | Path |
 |---------|------|
-| Live + TTS providers | `providers/{gemini,openai,soniox,elevenlabs,fishaudio}/` |
+| Live + TTS providers | `providers/{gemini,openai,soniox,elevenlabs,fishaudio,xai}/` |
 | Shared live bridge kernel | `providers/shared/live/` |
 | Caps / catalog / routing | `capabilities/{catalog,tts}.rs` |
 | Factories (`match AiProvider` / custom voice vendor) | `runtime/factories/{live,setup,voice,summary,custom}.rs` |
@@ -57,7 +58,7 @@ src-tauri/src/
 | Session wiring | `pipeline/{inbound,outbound}/` |
 | Engine orchestrator | `runtime/engine/` |
 | Overlay | `overlay/` + `src/features/overlay/` |
-| Config domain / persistence | `config/` + `config_store/` — vendor settings in `SonioxSettings` / `ElevenLabsSettings` / `FishAudioSettings` (flatten serde); `ConfigView` maps 1:1 camelCase |
+| Config domain / persistence | `config/` + `config_store/` — vendor settings in `SonioxSettings` / `ElevenLabsSettings` / `FishAudioSettings` / `XaiSettings` (flatten serde); `ConfigView` maps 1:1 camelCase |
 | Frontend features | `src/features/{pipeline,config,ai,voice,audio,meeting,overlay}/` |
 | Frontend shared | `src/shared/{ui,components,layout,hooks,context,lib}/` |
 | Pipeline IPC | `src/features/pipeline/api/pipelineApi.ts` |
@@ -138,7 +139,7 @@ Rust tests: `cargo test --lib` plus `--test meeting_lifecycle --test provider_pr
 - Gemini outbound Translated (STS audio)
 - OpenAI outbound Translated
 - Soniox outbound Provider TTS + inbound Provider TTS
-- ElevenLabs or Fish Audio Custom voice outbound **and** inbound hot-switch (mixed vendors allowed)
+- ElevenLabs, Fish Audio, or xAI Custom voice outbound **and** inbound hot-switch (mixed vendors allowed)
 - Direct passthrough idle CPU
 - Meeting summary fallback when live = Soniox
 - Overlay hide-from-capture (Win); Mac = best-effort

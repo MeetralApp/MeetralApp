@@ -11,8 +11,12 @@ import {
   previewSonioxVoice,
   testElevenLabsApiKey,
   testFishAudioApiKey,
+  testXaiApiKey,
+  listXaiVoices,
+  previewXaiVoice,
   validateElevenLabsVoice,
   validateFishAudioVoice,
+  validateXaiVoice,
 } from "./voiceApi";
 
 describe("voiceApi", () => {
@@ -80,6 +84,25 @@ describe("voiceApi", () => {
     await previewFishAudioVoice("v1", "k");
     expect(invoke).toHaveBeenCalledWith("preview_fishaudio_voice", {
       request: { apiKey: "k", voiceId: "v1" },
+    });
+  });
+
+  it("lists, validates, and previews xAI voices", async () => {
+    await testXaiApiKey("xai-key");
+    expect(invoke).toHaveBeenCalledWith("test_xai_api_key", {
+      request: { apiKey: "xai-key" },
+    });
+    await listXaiVoices("k");
+    expect(invoke).toHaveBeenCalledWith("list_xai_voices", {
+      request: { apiKey: "k" },
+    });
+    await validateXaiVoice("eve", "k");
+    expect(invoke).toHaveBeenCalledWith("validate_xai_voice", {
+      request: { apiKey: "k", voiceId: "eve" },
+    });
+    await previewXaiVoice("eve", "k");
+    expect(invoke).toHaveBeenCalledWith("preview_xai_voice", {
+      request: { apiKey: "k", voiceId: "eve" },
     });
   });
 });

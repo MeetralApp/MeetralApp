@@ -2,7 +2,7 @@
 
 Live speech vendors and the summary Chat LLM. Routing rules: [capabilities.md](../architecture/capabilities.md). Hard rules: [overview.md](../architecture/overview.md).
 
-`AiProvider` (`ai/provider.rs`) is **Gemini | OpenAi | Soniox** only. ElevenLabs and Fish Audio are voice engines, not `AiProvider`s. Compatible Chat LLM profiles are config data, not a fourth `AiProvider`.
+`AiProvider` (`ai/provider.rs`) is **Gemini | OpenAi | Soniox** only. ElevenLabs, Fish Audio, and xAI are voice engines, not `AiProvider`s. Compatible Chat LLM profiles are config data, not a fourth `AiProvider`.
 
 ---
 
@@ -40,6 +40,24 @@ Do not recreate a shared mega `tts_delivery`. Delivery stays inside the ElevenLa
 - Voices: `reference_id` from fish.audio — no in-app `POST /model` training
 
 Per-direction vendor (`outboundCustomVoiceVendor` / `inboundCustomVoiceVendor`). Mixed sessions (You = Fish, Meeting = ElevenLabs) are in scope. One custom voice WebSocket per direction.
+
+---
+
+## xAI (custom voice)
+
+`providers/xai/` + factory spawn in `runtime/factories/custom.rs`. Not a live `AiProvider`. Native API only:
+
+- Live: `wss://api.x.ai/v1/tts` (query: `language`, `voice`, `codec=pcm`, `sample_rate=24000`, `speed`, `optimize_streaming_latency`)
+- Client frames: JSON `text.delta` / `text.done` / `text.clear`
+- Server frames: JSON `audio.delta` (base64 PCM) / `audio.done` / `audio.clear` / `error`
+- REST: `POST https://api.x.ai/v1/tts`, `GET /v1/tts/voices`, `GET /v1/custom-voices`
+- Auth: `Authorization: Bearer`
+- PCM: `codec=pcm`, `sample_rate=24000` (s16le mono)
+- Default voice: `eve` — no model SKU
+- Voices: built-in catalog + console custom IDs — no in-app `POST /v1/custom-voices` upload
+- Language: derived from `meeting_language` / `my_language` (mapper + `auto` fallback); not a Settings picker
+
+Per-direction vendor (`outboundCustomVoiceVendor` / `inboundCustomVoiceVendor`). Mixed sessions (You = xAI, Meeting = Fish or ElevenLabs) are in scope. One custom voice WebSocket per direction.
 
 ---
 

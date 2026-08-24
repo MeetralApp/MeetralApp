@@ -38,9 +38,9 @@ export default function CustomVoiceVendorSelect({
             Custom voice engine
           </Label>
           <SettingInfoHint label="About custom voice engine">
-            ElevenLabs or Fish Audio for this column. Train or clone the voice
-            on the vendor site, then pick the voice id here. You and Meeting
-            may use different engines.
+            ElevenLabs, Fish Audio, or xAI for this column. Train or clone the
+            voice on the vendor site, then pick the voice id here. You and
+            Meeting may use different engines.
           </SettingInfoHint>
         </span>
       }

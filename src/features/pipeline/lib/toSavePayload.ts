@@ -17,6 +17,8 @@ import type {
   MeetingContextPayload,
   SonioxTtsModelOption,
   TtsSynthesisMode,
+  XaiLatency,
+  XaiVoiceOption,
 } from "@/shared/lib/types/pipeline";
 import { DEFAULT_OVERLAY_SETTINGS } from "@/shared/lib/types/pipeline";
 
@@ -87,6 +89,14 @@ export function toSavePayload(
     fishaudioInboundTemperature?: number;
     fishaudioSpeed?: number;
     fishaudioTopP?: number;
+    xaiApiKey?: string;
+    clearXaiApiKey?: boolean;
+    xaiVoiceId?: string;
+    xaiInboundVoiceId?: string;
+    xaiVoices?: XaiVoiceOption[];
+    xaiLatency?: XaiLatency;
+    xaiInboundLatency?: XaiLatency;
+    xaiSpeed?: number;
     artifactsEnabled?: boolean;
     answerLanguage?: string;
     meetingContext?: MeetingContextPayload;
@@ -285,6 +295,16 @@ export function toSavePayload(
       0.7,
     fishaudioSpeed: options.fishaudioSpeed ?? config.fishaudioSpeed ?? 1.0,
     fishaudioTopP: options.fishaudioTopP ?? config.fishaudioTopP ?? 0.7,
+    xaiApiKey: options.xaiApiKey ?? "",
+    clearXaiApiKey: options.clearXaiApiKey,
+    xaiVoiceId: options.xaiVoiceId ?? config.xaiVoiceId ?? "eve",
+    xaiInboundVoiceId:
+      options.xaiInboundVoiceId ?? config.xaiInboundVoiceId ?? "eve",
+    xaiVoices: options.xaiVoices ?? config.xaiVoices ?? [],
+    xaiLatency: options.xaiLatency ?? config.xaiLatency ?? "balanced",
+    xaiInboundLatency:
+      options.xaiInboundLatency ?? config.xaiInboundLatency ?? "balanced",
+    xaiSpeed: options.xaiSpeed ?? config.xaiSpeed ?? 1.0,
     artifactsEnabled:
       options.artifactsEnabled ?? config.artifactsEnabled ?? true,
     answerLanguage: options.answerLanguage ?? config.answerLanguage ?? "",

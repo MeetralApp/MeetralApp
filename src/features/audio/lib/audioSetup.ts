@@ -381,6 +381,13 @@ export function buildSetupIssues(
       if (!config.fishaudioVoiceId?.trim()) {
         issues.push("Select a Fish Audio voice in Settings → Voice");
       }
+    } else if (vendor === "xai") {
+      if (!config.xaiApiKeyConfigured) {
+        issues.push("Add your xAI API key in Settings → Voice for custom voice");
+      }
+      if (!config.xaiVoiceId?.trim()) {
+        issues.push("Select an xAI voice in Settings → Voice");
+      }
     } else {
       if (!config.elevenlabsApiKeyConfigured) {
         issues.push("Add your ElevenLabs API key in Settings → Voice for custom voice");
@@ -401,6 +408,15 @@ export function buildSetupIssues(
       }
       if (!config.fishaudioInboundVoiceId?.trim()) {
         issues.push("Select a Fish Audio voice for Meeting → You in Settings → Voice");
+      }
+    } else if (vendor === "xai") {
+      if (!config.xaiApiKeyConfigured) {
+        issues.push(
+          "Add your xAI API key in Settings → Voice for Meeting custom voice",
+        );
+      }
+      if (!config.xaiInboundVoiceId?.trim()) {
+        issues.push("Select an xAI voice for Meeting → You in Settings → Voice");
       }
     } else if (!config.elevenlabsApiKeyConfigured) {
       issues.push(

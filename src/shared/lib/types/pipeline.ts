@@ -42,8 +42,9 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   width: 420,
   height: 280,
 };
-export type CustomVoiceVendor = "elevenLabs" | "fishAudio";
+export type CustomVoiceVendor = "elevenLabs" | "fishAudio" | "xai";
 export type FishAudioLatency = "low" | "balanced" | "normal";
+export type XaiLatency = "low" | "balanced" | "normal";
 export type InboundVoiceOutput = "providerNative" | "custom";
 export type OutboundVoiceOutput = "providerNative" | "custom";
 
@@ -62,12 +63,21 @@ export function normalizeVoiceOutput<
 export function normalizeCustomVoiceVendor(
   value: CustomVoiceVendor | string | undefined,
 ): CustomVoiceVendor {
-  return value === "fishAudio" ? "fishAudio" : "elevenLabs";
+  if (value === "xai") return "xai";
+  if (value === "fishAudio") return "fishAudio";
+  return "elevenLabs";
 }
 
 export interface FishAudioVoiceOption {
   voiceId: string;
   name: string;
+}
+
+export interface XaiVoiceOption {
+  voiceId: string;
+  name: string;
+  /** `builtIn` or `custom` when known. */
+  kind?: string;
 }
 
 export interface FishAudioModelOption {
@@ -301,6 +311,7 @@ export interface ConfigView {
   summaryFallbackAvailable?: boolean;
   elevenlabsApiKeyConfigured: boolean;
   fishaudioApiKeyConfigured?: boolean;
+  xaiApiKeyConfigured?: boolean;
   elevenlabsInboundVoiceId?: string;
   elevenlabsInboundTtsModel?: string;
   elevenlabsInboundStability?: number;
@@ -335,6 +346,12 @@ export interface ConfigView {
   fishaudioInboundTemperature?: number;
   fishaudioSpeed?: number;
   fishaudioTopP?: number;
+  xaiVoiceId?: string;
+  xaiInboundVoiceId?: string;
+  xaiVoices?: XaiVoiceOption[];
+  xaiLatency?: XaiLatency;
+  xaiInboundLatency?: XaiLatency;
+  xaiSpeed?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   /** Preferred AI output language; "" = match the meeting's You language. */
@@ -472,6 +489,14 @@ export interface SaveConfigPayload {
   fishaudioInboundTemperature?: number;
   fishaudioSpeed?: number;
   fishaudioTopP?: number;
+  xaiApiKey?: string;
+  clearXaiApiKey?: boolean;
+  xaiVoiceId?: string;
+  xaiInboundVoiceId?: string;
+  xaiVoices?: XaiVoiceOption[];
+  xaiLatency?: XaiLatency;
+  xaiInboundLatency?: XaiLatency;
+  xaiSpeed?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   answerLanguage?: string;
