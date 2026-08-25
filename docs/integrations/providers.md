@@ -56,8 +56,9 @@ Per-direction vendor (`outboundCustomVoiceVendor` / `inboundCustomVoiceVendor`).
 - Default voice: `eve` — no model SKU
 - Voices: built-in catalog + console custom IDs — no in-app `POST /v1/custom-voices` upload
 - Language: derived from `meeting_language` / `my_language` (mapper + `auto` fallback); not a Settings picker
+- Utterance policy (not EL/Fish stream-input): Soniox fanout peels translated prefixes into `AppendDelta` as soon as translate text exists (UI sees the same events). xAI starts TTS on each `AppendDelta` (`text.delta` + `text.done`) — not on `Flush` / `turn_complete` / a new `SegmentEngine` segment. `Flush` only speaks leftover. Do not re-chunk by character count. Gemini / OpenAI unit boundaries stay in their fanout (later). Up to two WebSockets per direction pipeline delta N+1 while N is still generating (2 of 50 team sessions). Ordered PCM + ~200 ms jitter only before the first playout of a bout. One socket error degrades to a single socket. Do not delay `text.done` to fake an EL flush.
 
-Per-direction vendor (`outboundCustomVoiceVendor` / `inboundCustomVoiceVendor`). Mixed sessions (You = xAI, Meeting = Fish or ElevenLabs) are in scope. One custom voice WebSocket per direction.
+Per-direction vendor (`outboundCustomVoiceVendor` / `inboundCustomVoiceVendor`). Mixed sessions (You = xAI, Meeting = Fish or ElevenLabs) are in scope. ElevenLabs / Fish stay one WebSocket per direction; xAI may use two.
 
 ---
 

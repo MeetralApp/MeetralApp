@@ -2,7 +2,10 @@
 
 pub mod api;
 pub mod config;
+pub mod pack;
+pub mod playback;
 pub mod protocol;
+pub mod schedule;
 pub mod worker;
 
 pub use api::{list_voices, preview_voice, test_api_key, validate_voice, XaiVoiceOption};

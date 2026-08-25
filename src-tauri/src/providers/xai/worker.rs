@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::audio::pcm_crossfade::{PcmChunkBoundary, PlaybackPcmChunk};
+use crate::audio::pcm_crossfade::PlaybackPcmChunk;
 use crate::audio::try_send_pcm_bounded;
 use anyhow::{anyhow, Context, Result};
 use futures_util::{SinkExt, StreamExt};
@@ -17,15 +17,21 @@ use tokio_tungstenite::{
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
-use super::config::live_ws_url;
+use super::config::{live_ws_url, SOCKET_COUNT};
+use super::pack::{SpeakableUnit, UtteranceBuf};
+use super::playback::OrderedPlayback;
 use super::protocol::{
     is_non_retryable_xai_error, pack_text_clear, pack_text_delta, pack_text_done,
-    parse_server_message, user_message_for_xai_error, ParsedServer, XaiInitSettings, XaiTurnGate,
-    XaiWireAction,
+    parse_server_message, user_message_for_xai_error, ParsedServer, XaiInitSettings,
 };
+use super::schedule::{SlotAssigner, SlotFinish};
 use crate::voice::elevenlabs::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
 use crate::voice::shared::types::VoiceTtsStatus;
+
+type XaiWs = tokio_tungstenite::WebSocketStream<
+    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+>;
 
 #[derive(Debug, Clone)]
 pub struct XaiWorkerConfig {
@@ -143,289 +149,597 @@ async fn run_session(
     reconnected: bool,
 ) -> Result<SessionEnd> {
     let settings = &config.init_settings;
+    let mut latency = settings.optimize_streaming_latency();
     let mut url = live_ws_url(
         &settings.language,
         settings.voice_id.trim(),
         settings.clamped_speed(),
-        settings.optimize_streaming_latency(),
+        latency,
     );
-    let mut request = url
-        .as_str()
-        .into_client_request()
-        .context("xai ws request")?;
-    let auth = format!("Bearer {}", config.api_key.trim());
-    request.headers_mut().insert(
-        AUTHORIZATION,
-        HeaderValue::from_str(&auth).context("xai auth header")?,
-    );
-
-    let connect_result = tokio::time::timeout(Duration::from_secs(15), connect_async(request)).await;
-    let (ws, _) = match connect_result {
-        Ok(Ok(pair)) => pair,
-        Ok(Err(e)) => {
-            let msg = e.to_string();
-            // Docs: latency=2 may 400 on some schema revisions — retry once with 1.
-            if settings.optimize_streaming_latency() == 2
-                && (msg.contains("400") || msg.contains("optimize_streaming_latency"))
-            {
-                warn!("xai latency=2 rejected; falling back to 1");
-                url = live_ws_url(
-                    &settings.language,
-                    settings.voice_id.trim(),
-                    settings.clamped_speed(),
-                    1,
-                );
-                let mut request = url
-                    .as_str()
-                    .into_client_request()
-                    .context("xai ws request retry")?;
-                request.headers_mut().insert(
-                    AUTHORIZATION,
-                    HeaderValue::from_str(&auth).context("xai auth header")?,
-                );
-                tokio::time::timeout(Duration::from_secs(15), connect_async(request))
-                    .await
-                    .map_err(|_| anyhow!("xai connect timeout"))?
-                    .map_err(|e| anyhow!("xai connect failed: {e}"))?
-            } else {
-                return Err(anyhow!("xai connect failed: {msg}"));
-            }
+    let (ws0, ws1) = match connect_sockets(&config.api_key, &url, SOCKET_COUNT >= 2).await {
+        Ok(pair) => pair,
+        Err(err) if latency == 2 && looks_like_latency_reject(&err.to_string()) => {
+            warn!("xai latency=2 rejected; falling back to 1");
+            latency = 1;
+            url = live_ws_url(
+                &settings.language,
+                settings.voice_id.trim(),
+                settings.clamped_speed(),
+                latency,
+            );
+            connect_sockets(&config.api_key, &url, SOCKET_COUNT >= 2).await?
         }
-        Err(_) => return Err(anyhow!("xai connect timeout")),
+        Err(err) => return Err(err),
     };
 
-    let (mut write, mut read) = ws.split();
+    let slot_count = if ws1.is_some() { 2 } else { 1 };
+    let (mut w0, mut r0) = ws0.split();
+    let (mut w1, mut r1) = match ws1 {
+        Some(ws) => {
+            let (w, r) = ws.split();
+            (Some(w), Some(r))
+        }
+        None => (None, None),
+    };
+    let mut r0_live = true;
+    let mut r1_live = r1.is_some();
+
     crate::runtime::control_channel::try_send_control(
         status_tx,
         VoiceTtsStatus::Ready,
         "tts-status",
     );
     if reconnected {
-        debug!("xai tts websocket reconnected");
+        debug!(sockets = slot_count, "xai tts websocket reconnected");
     } else {
-        info!("xai tts websocket ready");
+        info!(sockets = slot_count, "xai tts websocket ready");
     }
 
-    let mut coalesce_buf: Vec<i16> = Vec::new();
-    let mut turn_gate = XaiTurnGate::new();
+    let mut utterance = UtteranceBuf::new();
+    let mut assigner = SlotAssigner::new(slot_count);
+    let mut playback = OrderedPlayback::new();
 
     loop {
         tokio::select! {
             biased;
             _ = cancel.cancelled() => {
-                let _ = flush_coalesce_buf(
-                    &mut coalesce_buf,
-                    PcmChunkBoundary::SegmentEnd,
+                let _ = emit_chunks(
+                    playback.reset(),
                     audio_tx,
                     pcm_drops,
                     status_tx,
+                    turn_latency,
+                    first_audio_ms,
                 );
-                let _ = write.close().await;
+                let _ = w0.close().await;
+                if let Some(w) = w1.as_mut() {
+                    let _ = w.close().await;
+                }
                 info!("xai tts websocket closed on cancel");
                 return Ok(SessionEnd::Done);
             }
             cmd = cmd_rx.recv() => {
                 match cmd {
                     Some(TtsTextCommand::AppendDelta { text, .. }) if !text.is_empty() => {
-                        send_wire_actions(&mut write, turn_gate.on_delta(text)).await?;
+                        dispatch_new(
+                            utterance.push_delta(&text),
+                            &mut assigner,
+                            &mut w0,
+                            &mut w1,
+                            &mut r0_live,
+                            &mut r1_live,
+                        )
+                        .await?;
                     }
                     Some(TtsTextCommand::Flush) => {
-                        send_wire_actions(&mut write, turn_gate.on_flush()).await?;
+                        dispatch_new(
+                            utterance.flush(),
+                            &mut assigner,
+                            &mut w0,
+                            &mut w1,
+                            &mut r0_live,
+                            &mut r1_live,
+                        )
+                        .await?;
                     }
                     Some(TtsTextCommand::Reset) => {
-                        let _ = flush_coalesce_buf(
-                            &mut coalesce_buf,
-                            PcmChunkBoundary::SegmentEnd,
+                        utterance.reset();
+                        assigner.begin_reset();
+                        if emit_chunks(
+                            playback.reset(),
                             audio_tx,
                             pcm_drops,
                             status_tx,
-                        );
+                            turn_latency,
+                            first_audio_ms,
+                        )
+                        .is_err()
+                        {
+                            return Ok(SessionEnd::Done);
+                        }
                         debug!("xai clear utterance (reset)");
-                        send_wire_actions(&mut write, turn_gate.on_reset()).await?;
-                        // Stay on the same socket; wait for audio.clear below.
+                        send_clear_all(&mut w0, &mut w1, r0_live, r1_live).await?;
                     }
                     None => {
-                        let _ = flush_coalesce_buf(
-                            &mut coalesce_buf,
-                            PcmChunkBoundary::SegmentEnd,
+                        let _ = emit_chunks(
+                            playback.reset(),
                             audio_tx,
                             pcm_drops,
                             status_tx,
+                            turn_latency,
+                            first_audio_ms,
                         );
-                        let _ = write.close().await;
+                        let _ = w0.close().await;
+                        if let Some(w) = w1.as_mut() {
+                            let _ = w.close().await;
+                        }
                         return Ok(SessionEnd::Done);
                     }
                     _ => {}
                 }
             }
-            msg = read.next() => {
-                match msg {
-                    Some(Ok(Message::Text(text))) => {
-                        match parse_server_message(&text) {
-                            Some(ParsedServer::Audio(parsed)) => {
-                                if deliver_pcm_samples(
-                                    &mut coalesce_buf,
-                                    parsed.samples,
-                                    false,
-                                    audio_tx,
-                                    pcm_drops,
-                                    status_tx,
-                                    turn_latency,
-                                    first_audio_ms,
-                                )
-                                .is_err()
-                                {
-                                    return Ok(SessionEnd::Done);
-                                }
-                            }
-                            Some(ParsedServer::AudioDone) => {
-                                if deliver_pcm_samples(
-                                    &mut coalesce_buf,
-                                    Vec::new(),
-                                    true,
-                                    audio_tx,
-                                    pcm_drops,
-                                    status_tx,
-                                    turn_latency,
-                                    first_audio_ms,
-                                )
-                                .is_err()
-                                {
-                                    return Ok(SessionEnd::Done);
-                                }
-                                send_wire_actions(&mut write, turn_gate.on_audio_done()).await?;
-                            }
-                            Some(ParsedServer::AudioClear) => {
-                                coalesce_buf.clear();
-                                turn_gate.on_audio_clear();
-                                debug!("xai audio.clear received");
-                            }
-                            Some(ParsedServer::Error(err)) => {
-                                warn!("xai server error: {err}");
-                                return Err(anyhow!("xai server error: {err}"));
-                            }
-                            Some(ParsedServer::Ignored) | None => {}
-                        }
-                    }
-                    Some(Ok(Message::Binary(_))) => {}
-                    Some(Ok(Message::Ping(data))) => {
-                        write.send(Message::Pong(data)).await.context("xai pong")?;
-                    }
-                    Some(Ok(Message::Pong(_))) | Some(Ok(Message::Frame(_))) => {}
-                    Some(Ok(Message::Close(frame))) => {
-                        return Err(anyhow!(
-                            "xai closed connection: {}",
-                            frame.map(|f| f.reason.to_string()).unwrap_or_default()
-                        ));
-                    }
-                    None => return Err(anyhow!("xai websocket stream ended")),
-                    Some(Err(e)) => return Err(anyhow!("xai read error: {e}")),
+            msg = r0.next(), if r0_live => {
+                match on_socket_message(
+                    0,
+                    msg,
+                    &mut assigner,
+                    &mut playback,
+                    &mut w0,
+                    &mut w1,
+                    &mut r0_live,
+                    &mut r1_live,
+                    audio_tx,
+                    pcm_drops,
+                    status_tx,
+                    turn_latency,
+                    first_audio_ms,
+                )
+                .await?
+                {
+                    ReadOutcome::Continue => {}
+                    ReadOutcome::Done => return Ok(SessionEnd::Done),
+                }
+            }
+            msg = r1.as_mut().unwrap().next(), if r1_live => {
+                match on_socket_message(
+                    1,
+                    msg,
+                    &mut assigner,
+                    &mut playback,
+                    &mut w0,
+                    &mut w1,
+                    &mut r0_live,
+                    &mut r1_live,
+                    audio_tx,
+                    pcm_drops,
+                    status_tx,
+                    turn_latency,
+                    first_audio_ms,
+                )
+                .await?
+                {
+                    ReadOutcome::Continue => {}
+                    ReadOutcome::Done => return Ok(SessionEnd::Done),
                 }
             }
         }
     }
 }
 
-async fn send_wire_actions<S>(write: &mut S, actions: Vec<XaiWireAction>) -> Result<()>
-where
-    S: SinkExt<Message> + Unpin,
-    <S as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    for action in actions {
-        let payload = match action {
-            XaiWireAction::TextDelta(text) => pack_text_delta(&text)?,
-            XaiWireAction::TextDone => pack_text_done()?,
-            XaiWireAction::TextClear => pack_text_clear()?,
-        };
-        write
-            .send(Message::Text(payload.into()))
-            .await
-            .context("xai ws send")?;
-    }
-    Ok(())
+enum ReadOutcome {
+    Continue,
+    Done,
 }
 
-fn flush_coalesce_buf(
-    buf: &mut Vec<i16>,
-    boundary: PcmChunkBoundary,
+async fn on_socket_message<W0, W1>(
+    slot: usize,
+    msg: Option<Result<Message, tokio_tungstenite::tungstenite::Error>>,
+    assigner: &mut SlotAssigner,
+    playback: &mut OrderedPlayback,
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    r0_live: &mut bool,
+    r1_live: &mut bool,
     audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
     pcm_drops: &AtomicU64,
     status_tx: &mpsc::Sender<VoiceTtsStatus>,
-) -> Result<()> {
-    if buf.is_empty() {
-        if boundary == PcmChunkBoundary::SegmentEnd {
-            let chunk = PlaybackPcmChunk {
-                samples: Vec::new(),
-                boundary: PcmChunkBoundary::SegmentEnd,
-            };
-            if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
-                warn!("xai audio playback channel closed");
-                crate::runtime::control_channel::try_send_control(
+    turn_latency: &TurnLatencySlot,
+    first_audio_ms: &Arc<AtomicU64>,
+) -> Result<ReadOutcome>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    match msg {
+        Some(Ok(Message::Text(text))) => match parse_server_message(&text) {
+            Some(ParsedServer::Audio(parsed)) => {
+                if let Some(seq) = assigner.slot_seq(slot) {
+                    if emit_chunks(
+                        playback.push_samples(seq, parsed.samples),
+                        audio_tx,
+                        pcm_drops,
+                        status_tx,
+                        turn_latency,
+                        first_audio_ms,
+                    )
+                    .is_err()
+                    {
+                        return Ok(ReadOutcome::Done);
+                    }
+                }
+                Ok(ReadOutcome::Continue)
+            }
+            Some(ParsedServer::AudioDone) => {
+                let finish = assigner.on_audio_done(slot);
+                apply_slot_finish(
+                    finish,
+                    assigner,
+                    playback,
+                    w0,
+                    w1,
+                    r0_live,
+                    r1_live,
+                    audio_tx,
+                    pcm_drops,
                     status_tx,
-                    VoiceTtsStatus::Degraded {
-                        message: "Custom voice playback unavailable — Stop and Start to retry."
-                            .into(),
-                    },
-                    "tts-status",
-                );
-                return Err(anyhow!("playback channel closed"));
+                    turn_latency,
+                    first_audio_ms,
+                )
+                .await
+            }
+            Some(ParsedServer::AudioClear) => {
+                debug!(slot, "xai audio.clear received");
+                let finish = assigner.on_audio_clear(slot);
+                apply_slot_finish(
+                    finish,
+                    assigner,
+                    playback,
+                    w0,
+                    w1,
+                    r0_live,
+                    r1_live,
+                    audio_tx,
+                    pcm_drops,
+                    status_tx,
+                    turn_latency,
+                    first_audio_ms,
+                )
+                .await
+            }
+            Some(ParsedServer::Error(err)) => {
+                warn!("xai server error: {err}");
+                Err(anyhow!("xai server error: {err}"))
+            }
+            Some(ParsedServer::Ignored) | None => Ok(ReadOutcome::Continue),
+        },
+        Some(Ok(Message::Binary(_))) => Ok(ReadOutcome::Continue),
+        Some(Ok(Message::Ping(data))) => {
+            match slot {
+                0 => w0.send(Message::Pong(data)).await.context("xai pong")?,
+                1 => {
+                    w1.as_mut()
+                        .ok_or_else(|| anyhow!("xai slot 1 missing"))?
+                        .send(Message::Pong(data))
+                        .await
+                        .context("xai pong")?;
+                }
+                _ => {}
+            }
+            Ok(ReadOutcome::Continue)
+        }
+        Some(Ok(Message::Pong(_))) | Some(Ok(Message::Frame(_))) => Ok(ReadOutcome::Continue),
+        Some(Ok(Message::Close(frame))) => {
+            let reason = frame.map(|f| f.reason.to_string()).unwrap_or_default();
+            drop_and_failover(
+                slot,
+                anyhow!("xai closed connection: {reason}"),
+                assigner,
+                w0,
+                w1,
+                r0_live,
+                r1_live,
+            )
+            .await
+        }
+        None => drop_and_failover(
+            slot,
+            anyhow!("xai websocket stream ended"),
+            assigner,
+            w0,
+            w1,
+            r0_live,
+            r1_live,
+        )
+        .await,
+        Some(Err(e)) => {
+            drop_and_failover(
+                slot,
+                anyhow!("xai read error: {e}"),
+                assigner,
+                w0,
+                w1,
+                r0_live,
+                r1_live,
+            )
+            .await
+        }
+    }
+}
+
+async fn apply_slot_finish<W0, W1>(
+    finish: SlotFinish,
+    assigner: &mut SlotAssigner,
+    playback: &mut OrderedPlayback,
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    r0_live: &mut bool,
+    r1_live: &mut bool,
+    audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
+    pcm_drops: &AtomicU64,
+    status_tx: &mpsc::Sender<VoiceTtsStatus>,
+    turn_latency: &TurnLatencySlot,
+    first_audio_ms: &Arc<AtomicU64>,
+) -> Result<ReadOutcome>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    let next = match finish {
+        SlotFinish::Completed { seq, next } => {
+            if emit_chunks(
+                playback.mark_done(seq),
+                audio_tx,
+                pcm_drops,
+                status_tx,
+                turn_latency,
+                first_audio_ms,
+            )
+            .is_err()
+            {
+                return Ok(ReadOutcome::Done);
+            }
+            next
+        }
+        SlotFinish::Cancelled { next } => next,
+        SlotFinish::Ignored => return Ok(ReadOutcome::Continue),
+    };
+    if let Some(pair) = next {
+        send_assigned(vec![pair], assigner, w0, w1, r0_live, r1_live).await?;
+    }
+    Ok(ReadOutcome::Continue)
+}
+
+async fn drop_and_failover<W0, W1>(
+    slot: usize,
+    err: anyhow::Error,
+    assigner: &mut SlotAssigner,
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    r0_live: &mut bool,
+    r1_live: &mut bool,
+) -> Result<ReadOutcome>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    warn!(slot, "{err:#}");
+    drop_slot(slot, w1, r0_live, r1_live);
+    let assigned = assigner.on_socket_dead(slot);
+    if assigner.all_dead() {
+        return Err(err);
+    }
+    send_assigned(assigned, assigner, w0, w1, r0_live, r1_live).await?;
+    Ok(ReadOutcome::Continue)
+}
+
+async fn dispatch_new<W0, W1>(
+    units: Vec<SpeakableUnit>,
+    assigner: &mut SlotAssigner,
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    r0_live: &mut bool,
+    r1_live: &mut bool,
+) -> Result<()>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    let assigned = assigner.push_units(units);
+    send_assigned(assigned, assigner, w0, w1, r0_live, r1_live).await
+}
+
+async fn send_assigned<W0, W1>(
+    mut assigned: Vec<(usize, SpeakableUnit)>,
+    assigner: &mut SlotAssigner,
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    r0_live: &mut bool,
+    r1_live: &mut bool,
+) -> Result<()>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    while !assigned.is_empty() {
+        let mut retry = Vec::new();
+        for (slot, unit) in assigned {
+            debug!(
+                slot,
+                seq = unit.seq,
+                chars = unit.text.chars().count(),
+                "xai start utterance"
+            );
+            if let Err(err) = send_utterance(w0, w1, slot, &unit.text).await {
+                warn!(slot, "xai utterance send failed: {err:#}");
+                drop_slot(slot, w1, r0_live, r1_live);
+                retry.extend(assigner.on_socket_dead(slot));
+                if assigner.all_dead() {
+                    return Err(err);
+                }
             }
         }
-        return Ok(());
-    }
-    let chunk = PlaybackPcmChunk {
-        samples: std::mem::take(buf),
-        boundary,
-    };
-    if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
-        warn!("xai audio playback channel closed");
-        crate::runtime::control_channel::try_send_control(
-            status_tx,
-            VoiceTtsStatus::Degraded {
-                message: "Custom voice playback unavailable — Stop and Start to retry.".into(),
-            },
-            "tts-status",
-        );
-        return Err(anyhow!("playback channel closed"));
+        assigned = retry;
     }
     Ok(())
 }
 
-fn deliver_pcm_samples(
-    coalesce_buf: &mut Vec<i16>,
-    samples: Vec<i16>,
-    is_final: bool,
+async fn send_utterance<W0, W1>(
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    slot: usize,
+    text: &str,
+) -> Result<()>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    let delta = pack_text_delta(text)?;
+    let done = pack_text_done()?;
+    send_text(w0, w1, slot, delta).await?;
+    send_text(w0, w1, slot, done).await
+}
+
+async fn send_clear_all<W0, W1>(
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    r0_live: bool,
+    r1_live: bool,
+) -> Result<()>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    let payload = pack_text_clear()?;
+    if r0_live {
+        send_text(w0, w1, 0, payload.clone()).await?;
+    }
+    if r1_live {
+        send_text(w0, w1, 1, payload).await?;
+    }
+    Ok(())
+}
+
+async fn send_text<W0, W1>(
+    w0: &mut W0,
+    w1: &mut Option<W1>,
+    slot: usize,
+    payload: String,
+) -> Result<()>
+where
+    W0: SinkExt<Message> + Unpin,
+    W1: SinkExt<Message> + Unpin,
+    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    match slot {
+        0 => {
+            w0.send(Message::Text(payload.into()))
+                .await
+                .context("xai ws send")?;
+        }
+        1 => {
+            w1.as_mut()
+                .ok_or_else(|| anyhow!("xai slot 1 missing"))?
+                .send(Message::Text(payload.into()))
+                .await
+                .context("xai ws send")?;
+        }
+        _ => return Err(anyhow!("xai slot {slot} out of range")),
+    }
+    Ok(())
+}
+
+fn drop_slot<W1>(slot: usize, w1: &mut Option<W1>, r0_live: &mut bool, r1_live: &mut bool) {
+    match slot {
+        0 => *r0_live = false,
+        1 => {
+            *r1_live = false;
+            *w1 = None;
+        }
+        _ => {}
+    }
+}
+
+fn emit_chunks(
+    chunks: Vec<PlaybackPcmChunk>,
     audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
     pcm_drops: &AtomicU64,
     status_tx: &mpsc::Sender<VoiceTtsStatus>,
     turn_latency: &TurnLatencySlot,
     first_audio_ms: &Arc<AtomicU64>,
 ) -> Result<()> {
-    let boundary = if is_final {
-        PcmChunkBoundary::SegmentEnd
-    } else {
-        PcmChunkBoundary::Continuation
-    };
-    if !samples.is_empty() {
-        debug!(samples = samples.len(), "xai received audio");
-        if first_audio_ms.load(Ordering::Relaxed) == 0 {
+    for chunk in chunks {
+        if !chunk.samples.is_empty() && first_audio_ms.load(Ordering::Relaxed) == 0 {
             let now = crate::audio::monotonic_ms();
             first_audio_ms.store(now, Ordering::Relaxed);
             turn_latency.record_first_audio();
         }
-        coalesce_buf.extend(samples);
-    }
-    if is_final {
-        return flush_coalesce_buf(coalesce_buf, boundary, audio_tx, pcm_drops, status_tx);
-    }
-    if coalesce_buf.len() >= crate::voice::config::EL_PCM_COALESCE_MIN_SAMPLES {
-        return flush_coalesce_buf(
-            coalesce_buf,
-            PcmChunkBoundary::Continuation,
-            audio_tx,
-            pcm_drops,
-            status_tx,
-        );
+        if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
+            warn!("xai audio playback channel closed");
+            crate::runtime::control_channel::try_send_control(
+                status_tx,
+                VoiceTtsStatus::Degraded {
+                    message: "Custom voice playback unavailable — Stop and Start to retry."
+                        .into(),
+                },
+                "tts-status",
+            );
+            return Err(anyhow!("playback channel closed"));
+        }
     }
     Ok(())
+}
+
+async fn connect_sockets(api_key: &str, url: &str, want_two: bool) -> Result<(XaiWs, Option<XaiWs>)> {
+    if !want_two {
+        return Ok((connect_one(api_key, url).await?, None));
+    }
+    let (a, b) = tokio::join!(connect_one(api_key, url), connect_one(api_key, url));
+    match (a, b) {
+        (Ok(first), Ok(second)) => Ok((first, Some(second))),
+        (Ok(first), Err(err)) => {
+            warn!("xai second socket failed, staying single-socket: {err:#}");
+            Ok((first, None))
+        }
+        (Err(err), Ok(second)) => {
+            warn!("xai first socket failed, using second: {err:#}");
+            Ok((second, None))
+        }
+        (Err(first), Err(second)) => Err(first.context(format!("both xAI sockets failed ({second:#})"))),
+    }
+}
+
+async fn connect_one(api_key: &str, url: &str) -> Result<XaiWs> {
+    let mut request = url
+        .into_client_request()
+        .context("xai ws request")?;
+    let auth = format!("Bearer {}", api_key.trim());
+    request.headers_mut().insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&auth).context("xai auth header")?,
+    );
+    let connect_result = tokio::time::timeout(Duration::from_secs(15), connect_async(request)).await;
+    match connect_result {
+        Ok(Ok((ws, _))) => Ok(ws),
+        Ok(Err(e)) => Err(anyhow!("xai connect failed: {e}")),
+        Err(_) => Err(anyhow!("xai connect timeout")),
+    }
+}
+
+fn looks_like_latency_reject(msg: &str) -> bool {
+    msg.contains("400") || msg.contains("optimize_streaming_latency")
 }
