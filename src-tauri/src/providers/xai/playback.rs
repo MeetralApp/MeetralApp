@@ -1,126 +1,51 @@
-//! Ordered PCM from two xAI sockets. Play seq 0, then 1, … with a short jitter
-//! hold before the first playout so a pipelined socket can overlap TTFA.
-
-use std::collections::HashMap;
+//! Coalesce xAI `audio.delta` PCM before sending to the mux.
+//!
+//! Concatenate until ~80 ms, then pass samples through unmodified.
 
 use crate::audio::pcm_crossfade::{PcmChunkBoundary, PlaybackPcmChunk};
 
-use super::config::{playout_jitter_samples, PCM_COALESCE_MIN_SAMPLES};
+use super::config::PCM_COALESCE_MIN_SAMPLES;
 
-struct UnitBuf {
-    samples: Vec<i16>,
-    done: bool,
+pub struct PcmCoalesce {
+    buf: Vec<i16>,
+    min: usize,
 }
 
-pub struct OrderedPlayback {
-    next_seq: u64,
-    units: HashMap<u64, UnitBuf>,
-    started: bool,
-    jitter_samples: usize,
-    coalesce_min: usize,
-}
-
-impl OrderedPlayback {
+impl PcmCoalesce {
     pub fn new() -> Self {
         Self {
-            next_seq: 0,
-            units: HashMap::new(),
-            started: false,
-            jitter_samples: playout_jitter_samples(),
-            coalesce_min: PCM_COALESCE_MIN_SAMPLES,
+            buf: Vec::new(),
+            min: PCM_COALESCE_MIN_SAMPLES,
         }
     }
 
-    pub fn push_samples(&mut self, seq: u64, samples: Vec<i16>) -> Vec<PlaybackPcmChunk> {
+    pub fn push(&mut self, samples: Vec<i16>) -> Vec<PlaybackPcmChunk> {
         if samples.is_empty() {
             return Vec::new();
         }
-        self.units.entry(seq).or_insert_with(|| UnitBuf {
-            samples: Vec::new(),
-            done: false,
-        });
-        if let Some(buf) = self.units.get_mut(&seq) {
-            if buf.done {
-                return Vec::new();
-            }
-            buf.samples.extend(samples);
+        self.buf.extend(samples);
+        if self.buf.len() < self.min {
+            return Vec::new();
         }
-        self.drain()
+        vec![PlaybackPcmChunk {
+            samples: std::mem::take(&mut self.buf),
+            boundary: PcmChunkBoundary::Continuation,
+        }]
     }
 
-    pub fn mark_done(&mut self, seq: u64) -> Vec<PlaybackPcmChunk> {
-        self.units
-            .entry(seq)
-            .or_insert_with(|| UnitBuf {
-                samples: Vec::new(),
-                done: false,
-            })
-            .done = true;
-        self.drain()
+    pub fn finish_segment(&mut self) -> Vec<PlaybackPcmChunk> {
+        vec![PlaybackPcmChunk {
+            samples: std::mem::take(&mut self.buf),
+            boundary: PcmChunkBoundary::SegmentEnd,
+        }]
     }
 
     pub fn reset(&mut self) -> Vec<PlaybackPcmChunk> {
-        let mut out = Vec::new();
-        if let Some(buf) = self.units.remove(&self.next_seq) {
-            if !buf.samples.is_empty() {
-                out.push(PlaybackPcmChunk {
-                    samples: buf.samples,
-                    boundary: PcmChunkBoundary::SegmentEnd,
-                });
-            }
-        }
-        self.units.clear();
-        self.next_seq = 0;
-        self.started = false;
-        if out.is_empty() {
-            out.push(PlaybackPcmChunk {
-                samples: Vec::new(),
-                boundary: PcmChunkBoundary::SegmentEnd,
-            });
-        }
-        out
-    }
-
-    fn drain(&mut self) -> Vec<PlaybackPcmChunk> {
-        let mut out = Vec::new();
-        loop {
-            let Some(buf) = self.units.get_mut(&self.next_seq) else {
-                break;
-            };
-
-            if !self.started {
-                if buf.samples.len() < self.jitter_samples && !buf.done {
-                    break;
-                }
-                self.started = true;
-            }
-
-            if !buf.done && buf.samples.len() < self.coalesce_min {
-                break;
-            }
-
-            if buf.done {
-                let samples = std::mem::take(&mut buf.samples);
-                out.push(PlaybackPcmChunk {
-                    samples,
-                    boundary: PcmChunkBoundary::SegmentEnd,
-                });
-                self.units.remove(&self.next_seq);
-                self.next_seq += 1;
-                continue;
-            }
-
-            let samples = std::mem::take(&mut buf.samples);
-            out.push(PlaybackPcmChunk {
-                samples,
-                boundary: PcmChunkBoundary::Continuation,
-            });
-        }
-        out
+        self.finish_segment()
     }
 }
 
-impl Default for OrderedPlayback {
+impl Default for PcmCoalesce {
     fn default() -> Self {
         Self::new()
     }
@@ -130,46 +55,84 @@ impl Default for OrderedPlayback {
 mod tests {
     use super::*;
 
+    fn flatten(chunks: Vec<PlaybackPcmChunk>) -> Vec<i16> {
+        chunks.into_iter().flat_map(|c| c.samples).collect()
+    }
+
+    fn max_adjacent_jump(samples: &[i16]) -> i32 {
+        samples
+            .windows(2)
+            .map(|w| (w[1] as i32 - w[0] as i32).abs())
+            .max()
+            .unwrap_or(0)
+    }
+
+    fn smooth_chunk(len: usize, start: i16, end: i16) -> Vec<i16> {
+        (0..len)
+            .map(|i| {
+                let t = i as f32 / ((len - 1).max(1) as f32);
+                (start as f32 + (end as f32 - start as f32) * t).round() as i16
+            })
+            .collect()
+    }
+
     #[test]
-    fn holds_first_unit_until_jitter_or_done() {
-        let mut p = OrderedPlayback::new();
-        p.jitter_samples = 8;
-        p.coalesce_min = 4;
-        let out = p.push_samples(0, vec![1, 2, 3]);
-        assert!(out.is_empty(), "below jitter and not done");
-        let out = p.mark_done(0);
+    fn holds_until_coalesce_or_done() {
+        let mut p = PcmCoalesce::new();
+        p.min = 4;
+        assert!(p.push(vec![1, 2, 3]).is_empty());
+        let out = p.finish_segment();
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].boundary, PcmChunkBoundary::SegmentEnd);
         assert_eq!(out[0].samples, vec![1, 2, 3]);
     }
 
     #[test]
-    fn does_not_play_seq1_before_seq0() {
-        let mut p = OrderedPlayback::new();
-        p.jitter_samples = 1;
-        p.coalesce_min = 1;
-        let mut heard = Vec::new();
-        heard.extend(p.push_samples(1, vec![9, 9]));
-        assert!(heard.is_empty());
-        heard.extend(p.push_samples(0, vec![1, 2]));
-        assert_eq!(heard[0].samples, vec![1, 2]);
-        assert_eq!(heard[0].boundary, PcmChunkBoundary::Continuation);
-        heard.extend(p.mark_done(0));
-        heard.extend(p.mark_done(1));
-        let samples: Vec<i16> = heard.iter().flat_map(|c| c.samples.iter().copied()).collect();
-        assert_eq!(samples, vec![1, 2, 9, 9]);
-        assert!(heard.iter().any(|c| c.boundary == PcmChunkBoundary::SegmentEnd));
+    fn emits_continuation_once_coalesced() {
+        let mut p = PcmCoalesce::new();
+        p.min = 4;
+        let out = p.push(vec![1, 2, 3, 4, 5]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].boundary, PcmChunkBoundary::Continuation);
+        assert_eq!(out[0].samples, vec![1, 2, 3, 4, 5]);
+        let rest = p.finish_segment();
+        assert!(rest[0].samples.is_empty());
+        assert_eq!(rest[0].boundary, PcmChunkBoundary::SegmentEnd);
     }
 
     #[test]
-    fn reset_drops_queued_and_restarts_seq() {
-        let mut p = OrderedPlayback::new();
-        p.jitter_samples = 100;
-        let _ = p.push_samples(0, vec![1, 2, 3]);
-        let _ = p.reset();
-        p.jitter_samples = 1;
-        p.coalesce_min = 1;
-        let out = p.push_samples(0, vec![7]);
+    fn passthrough_does_not_rewrite_samples() {
+        let mut p = PcmCoalesce::new();
+        p.min = 1;
+        let src = vec![30i16, 39, 8_000, -2_166, 0];
+        let mut got = flatten(p.push(src.clone()));
+        got.extend(flatten(p.finish_segment()));
+        assert_eq!(got, src);
+    }
+
+    #[test]
+    fn reset_drops_held_samples() {
+        let mut p = PcmCoalesce::new();
+        p.min = 100;
+        let _ = p.push(vec![1, 2, 3]);
+        let flushed = flatten(p.reset());
+        assert_eq!(flushed, vec![1, 2, 3]);
+        p.min = 1;
+        let out = p.push(vec![7]);
         assert_eq!(out[0].samples, vec![7]);
+    }
+
+    #[test]
+    fn coalesce_of_continuous_pcm_does_not_invent_clicks() {
+        let mut p = PcmCoalesce::new();
+        p.min = 64;
+        let continuous = smooth_chunk(500, -2_000, 7_000);
+        let mut heard = Vec::new();
+        for piece in continuous.chunks(40) {
+            heard.extend(flatten(p.push(piece.to_vec())));
+        }
+        heard.extend(flatten(p.finish_segment()));
+        assert_eq!(heard, continuous);
+        assert_eq!(max_adjacent_jump(&heard), max_adjacent_jump(&continuous));
     }
 }

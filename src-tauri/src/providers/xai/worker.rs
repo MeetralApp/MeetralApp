@@ -17,14 +17,14 @@ use tokio_tungstenite::{
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
-use super::config::{live_ws_url, SOCKET_COUNT};
+use super::config::live_ws_url;
 use super::pack::{SpeakableUnit, UtteranceBuf};
-use super::playback::OrderedPlayback;
+use super::playback::PcmCoalesce;
 use super::protocol::{
     is_non_retryable_xai_error, pack_text_clear, pack_text_delta, pack_text_done,
     parse_server_message, user_message_for_xai_error, ParsedServer, XaiInitSettings,
 };
-use super::schedule::{SlotAssigner, SlotFinish};
+use super::schedule::SocketQueue;
 use crate::voice::elevenlabs::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
 use crate::voice::shared::types::VoiceTtsStatus;
@@ -156,8 +156,8 @@ async fn run_session(
         settings.clamped_speed(),
         latency,
     );
-    let (ws0, ws1) = match connect_sockets(&config.api_key, &url, SOCKET_COUNT >= 2).await {
-        Ok(pair) => pair,
+    let ws = match connect_ws(&config.api_key, &url).await {
+        Ok(ws) => ws,
         Err(err) if latency == 2 && looks_like_latency_reject(&err.to_string()) => {
             warn!("xai latency=2 rejected; falling back to 1");
             latency = 1;
@@ -167,22 +167,11 @@ async fn run_session(
                 settings.clamped_speed(),
                 latency,
             );
-            connect_sockets(&config.api_key, &url, SOCKET_COUNT >= 2).await?
+            connect_ws(&config.api_key, &url).await?
         }
         Err(err) => return Err(err),
     };
-
-    let slot_count = if ws1.is_some() { 2 } else { 1 };
-    let (mut w0, mut r0) = ws0.split();
-    let (mut w1, mut r1) = match ws1 {
-        Some(ws) => {
-            let (w, r) = ws.split();
-            (Some(w), Some(r))
-        }
-        None => (None, None),
-    };
-    let mut r0_live = true;
-    let mut r1_live = r1.is_some();
+    let (mut write, mut read) = ws.split();
 
     crate::runtime::control_channel::try_send_control(
         status_tx,
@@ -190,63 +179,51 @@ async fn run_session(
         "tts-status",
     );
     if reconnected {
-        debug!(sockets = slot_count, "xai tts websocket reconnected");
+        debug!("xai tts websocket reconnected");
     } else {
-        info!(sockets = slot_count, "xai tts websocket ready");
+        info!("xai tts websocket ready");
     }
 
-    let mut utterance = UtteranceBuf::new();
-    let mut assigner = SlotAssigner::new(slot_count);
-    let mut playback = OrderedPlayback::new();
+    let utterance = UtteranceBuf::new();
+    let mut queue = SocketQueue::new();
+    let mut pcm = PcmCoalesce::new();
 
     loop {
         tokio::select! {
             biased;
             _ = cancel.cancelled() => {
                 let _ = emit_chunks(
-                    playback.reset(),
+                    pcm.reset(),
                     audio_tx,
                     pcm_drops,
                     status_tx,
                     turn_latency,
                     first_audio_ms,
                 );
-                let _ = w0.close().await;
-                if let Some(w) = w1.as_mut() {
-                    let _ = w.close().await;
-                }
+                let _ = write.close().await;
                 info!("xai tts websocket closed on cancel");
                 return Ok(SessionEnd::Done);
             }
             cmd = cmd_rx.recv() => {
                 match cmd {
                     Some(TtsTextCommand::AppendDelta { text, .. }) if !text.is_empty() => {
-                        dispatch_new(
-                            utterance.push_delta(&text),
-                            &mut assigner,
-                            &mut w0,
-                            &mut w1,
-                            &mut r0_live,
-                            &mut r1_live,
+                        start_next(
+                            queue.push_units(utterance.push_delta(&text)),
+                            &mut write,
                         )
                         .await?;
                     }
                     Some(TtsTextCommand::Flush) => {
-                        dispatch_new(
-                            utterance.flush(),
-                            &mut assigner,
-                            &mut w0,
-                            &mut w1,
-                            &mut r0_live,
-                            &mut r1_live,
+                        start_next(
+                            queue.push_units(utterance.flush()),
+                            &mut write,
                         )
                         .await?;
                     }
                     Some(TtsTextCommand::Reset) => {
-                        utterance.reset();
-                        assigner.begin_reset();
+                        queue.begin_reset();
                         if emit_chunks(
-                            playback.reset(),
+                            pcm.reset(),
                             audio_tx,
                             pcm_drops,
                             status_tx,
@@ -258,58 +235,32 @@ async fn run_session(
                             return Ok(SessionEnd::Done);
                         }
                         debug!("xai clear utterance (reset)");
-                        send_clear_all(&mut w0, &mut w1, r0_live, r1_live).await?;
+                        write
+                            .send(Message::Text(pack_text_clear()?.into()))
+                            .await
+                            .context("xai ws send")?;
                     }
                     None => {
                         let _ = emit_chunks(
-                            playback.reset(),
+                            pcm.reset(),
                             audio_tx,
                             pcm_drops,
                             status_tx,
                             turn_latency,
                             first_audio_ms,
                         );
-                        let _ = w0.close().await;
-                        if let Some(w) = w1.as_mut() {
-                            let _ = w.close().await;
-                        }
+                        let _ = write.close().await;
                         return Ok(SessionEnd::Done);
                     }
                     _ => {}
                 }
             }
-            msg = r0.next(), if r0_live => {
+            msg = read.next() => {
                 match on_socket_message(
-                    0,
                     msg,
-                    &mut assigner,
-                    &mut playback,
-                    &mut w0,
-                    &mut w1,
-                    &mut r0_live,
-                    &mut r1_live,
-                    audio_tx,
-                    pcm_drops,
-                    status_tx,
-                    turn_latency,
-                    first_audio_ms,
-                )
-                .await?
-                {
-                    ReadOutcome::Continue => {}
-                    ReadOutcome::Done => return Ok(SessionEnd::Done),
-                }
-            }
-            msg = r1.as_mut().unwrap().next(), if r1_live => {
-                match on_socket_message(
-                    1,
-                    msg,
-                    &mut assigner,
-                    &mut playback,
-                    &mut w0,
-                    &mut w1,
-                    &mut r0_live,
-                    &mut r1_live,
+                    &mut queue,
+                    &mut pcm,
+                    &mut write,
                     audio_tx,
                     pcm_drops,
                     status_tx,
@@ -331,15 +282,11 @@ enum ReadOutcome {
     Done,
 }
 
-async fn on_socket_message<W0, W1>(
-    slot: usize,
+async fn on_socket_message<W>(
     msg: Option<Result<Message, tokio_tungstenite::tungstenite::Error>>,
-    assigner: &mut SlotAssigner,
-    playback: &mut OrderedPlayback,
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    r0_live: &mut bool,
-    r1_live: &mut bool,
+    queue: &mut SocketQueue,
+    pcm: &mut PcmCoalesce,
+    write: &mut W,
     audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
     pcm_drops: &AtomicU64,
     status_tx: &mpsc::Sender<VoiceTtsStatus>,
@@ -347,17 +294,15 @@ async fn on_socket_message<W0, W1>(
     first_audio_ms: &Arc<AtomicU64>,
 ) -> Result<ReadOutcome>
 where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    W: SinkExt<Message> + Unpin,
+    <W as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
 {
     match msg {
         Some(Ok(Message::Text(text))) => match parse_server_message(&text) {
             Some(ParsedServer::Audio(parsed)) => {
-                if let Some(seq) = assigner.slot_seq(slot) {
-                    if emit_chunks(
-                        playback.push_samples(seq, parsed.samples),
+                if queue.is_generating()
+                    && emit_chunks(
+                        pcm.push(parsed.samples),
                         audio_tx,
                         pcm_drops,
                         status_tx,
@@ -365,48 +310,32 @@ where
                         first_audio_ms,
                     )
                     .is_err()
-                    {
-                        return Ok(ReadOutcome::Done);
-                    }
+                {
+                    return Ok(ReadOutcome::Done);
                 }
                 Ok(ReadOutcome::Continue)
             }
             Some(ParsedServer::AudioDone) => {
-                let finish = assigner.on_audio_done(slot);
-                apply_slot_finish(
-                    finish,
-                    assigner,
-                    playback,
-                    w0,
-                    w1,
-                    r0_live,
-                    r1_live,
-                    audio_tx,
-                    pcm_drops,
-                    status_tx,
-                    turn_latency,
-                    first_audio_ms,
-                )
-                .await
+                if queue.is_generating()
+                    && emit_chunks(
+                        pcm.finish_segment(),
+                        audio_tx,
+                        pcm_drops,
+                        status_tx,
+                        turn_latency,
+                        first_audio_ms,
+                    )
+                    .is_err()
+                {
+                    return Ok(ReadOutcome::Done);
+                }
+                start_next(queue.on_audio_done(), write).await?;
+                Ok(ReadOutcome::Continue)
             }
             Some(ParsedServer::AudioClear) => {
-                debug!(slot, "xai audio.clear received");
-                let finish = assigner.on_audio_clear(slot);
-                apply_slot_finish(
-                    finish,
-                    assigner,
-                    playback,
-                    w0,
-                    w1,
-                    r0_live,
-                    r1_live,
-                    audio_tx,
-                    pcm_drops,
-                    status_tx,
-                    turn_latency,
-                    first_audio_ms,
-                )
-                .await
+                debug!("xai audio.clear received");
+                start_next(queue.on_audio_clear(), write).await?;
+                Ok(ReadOutcome::Continue)
             }
             Some(ParsedServer::Error(err)) => {
                 warn!("xai server error: {err}");
@@ -416,262 +345,42 @@ where
         },
         Some(Ok(Message::Binary(_))) => Ok(ReadOutcome::Continue),
         Some(Ok(Message::Ping(data))) => {
-            match slot {
-                0 => w0.send(Message::Pong(data)).await.context("xai pong")?,
-                1 => {
-                    w1.as_mut()
-                        .ok_or_else(|| anyhow!("xai slot 1 missing"))?
-                        .send(Message::Pong(data))
-                        .await
-                        .context("xai pong")?;
-                }
-                _ => {}
-            }
+            write.send(Message::Pong(data)).await.context("xai pong")?;
             Ok(ReadOutcome::Continue)
         }
         Some(Ok(Message::Pong(_))) | Some(Ok(Message::Frame(_))) => Ok(ReadOutcome::Continue),
         Some(Ok(Message::Close(frame))) => {
             let reason = frame.map(|f| f.reason.to_string()).unwrap_or_default();
-            drop_and_failover(
-                slot,
-                anyhow!("xai closed connection: {reason}"),
-                assigner,
-                w0,
-                w1,
-                r0_live,
-                r1_live,
-            )
-            .await
+            Err(anyhow!("xai closed connection: {reason}"))
         }
-        None => drop_and_failover(
-            slot,
-            anyhow!("xai websocket stream ended"),
-            assigner,
-            w0,
-            w1,
-            r0_live,
-            r1_live,
-        )
-        .await,
-        Some(Err(e)) => {
-            drop_and_failover(
-                slot,
-                anyhow!("xai read error: {e}"),
-                assigner,
-                w0,
-                w1,
-                r0_live,
-                r1_live,
-            )
-            .await
-        }
+        None => Err(anyhow!("xai websocket stream ended")),
+        Some(Err(e)) => Err(anyhow!("xai read error: {e}")),
     }
 }
 
-async fn apply_slot_finish<W0, W1>(
-    finish: SlotFinish,
-    assigner: &mut SlotAssigner,
-    playback: &mut OrderedPlayback,
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    r0_live: &mut bool,
-    r1_live: &mut bool,
-    audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
-    pcm_drops: &AtomicU64,
-    status_tx: &mpsc::Sender<VoiceTtsStatus>,
-    turn_latency: &TurnLatencySlot,
-    first_audio_ms: &Arc<AtomicU64>,
-) -> Result<ReadOutcome>
+async fn start_next<W>(unit: Option<SpeakableUnit>, write: &mut W) -> Result<()>
 where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
+    W: SinkExt<Message> + Unpin,
+    <W as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
 {
-    let next = match finish {
-        SlotFinish::Completed { seq, next } => {
-            if emit_chunks(
-                playback.mark_done(seq),
-                audio_tx,
-                pcm_drops,
-                status_tx,
-                turn_latency,
-                first_audio_ms,
-            )
-            .is_err()
-            {
-                return Ok(ReadOutcome::Done);
-            }
-            next
-        }
-        SlotFinish::Cancelled { next } => next,
-        SlotFinish::Ignored => return Ok(ReadOutcome::Continue),
+    let Some(unit) = unit else {
+        return Ok(());
     };
-    if let Some(pair) = next {
-        send_assigned(vec![pair], assigner, w0, w1, r0_live, r1_live).await?;
-    }
-    Ok(ReadOutcome::Continue)
-}
-
-async fn drop_and_failover<W0, W1>(
-    slot: usize,
-    err: anyhow::Error,
-    assigner: &mut SlotAssigner,
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    r0_live: &mut bool,
-    r1_live: &mut bool,
-) -> Result<ReadOutcome>
-where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    warn!(slot, "{err:#}");
-    drop_slot(slot, w1, r0_live, r1_live);
-    let assigned = assigner.on_socket_dead(slot);
-    if assigner.all_dead() {
-        return Err(err);
-    }
-    send_assigned(assigned, assigner, w0, w1, r0_live, r1_live).await?;
-    Ok(ReadOutcome::Continue)
-}
-
-async fn dispatch_new<W0, W1>(
-    units: Vec<SpeakableUnit>,
-    assigner: &mut SlotAssigner,
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    r0_live: &mut bool,
-    r1_live: &mut bool,
-) -> Result<()>
-where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    let assigned = assigner.push_units(units);
-    send_assigned(assigned, assigner, w0, w1, r0_live, r1_live).await
-}
-
-async fn send_assigned<W0, W1>(
-    mut assigned: Vec<(usize, SpeakableUnit)>,
-    assigner: &mut SlotAssigner,
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    r0_live: &mut bool,
-    r1_live: &mut bool,
-) -> Result<()>
-where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    while !assigned.is_empty() {
-        let mut retry = Vec::new();
-        for (slot, unit) in assigned {
-            debug!(
-                slot,
-                seq = unit.seq,
-                chars = unit.text.chars().count(),
-                "xai start utterance"
-            );
-            if let Err(err) = send_utterance(w0, w1, slot, &unit.text).await {
-                warn!(slot, "xai utterance send failed: {err:#}");
-                drop_slot(slot, w1, r0_live, r1_live);
-                retry.extend(assigner.on_socket_dead(slot));
-                if assigner.all_dead() {
-                    return Err(err);
-                }
-            }
-        }
-        assigned = retry;
-    }
-    Ok(())
-}
-
-async fn send_utterance<W0, W1>(
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    slot: usize,
-    text: &str,
-) -> Result<()>
-where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    let delta = pack_text_delta(text)?;
+    debug!(
+        chars = unit.text.chars().count(),
+        "xai start utterance"
+    );
+    let delta = pack_text_delta(&unit.text)?;
     let done = pack_text_done()?;
-    send_text(w0, w1, slot, delta).await?;
-    send_text(w0, w1, slot, done).await
-}
-
-async fn send_clear_all<W0, W1>(
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    r0_live: bool,
-    r1_live: bool,
-) -> Result<()>
-where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    let payload = pack_text_clear()?;
-    if r0_live {
-        send_text(w0, w1, 0, payload.clone()).await?;
-    }
-    if r1_live {
-        send_text(w0, w1, 1, payload).await?;
-    }
+    write
+        .send(Message::Text(delta.into()))
+        .await
+        .context("xai ws send")?;
+    write
+        .send(Message::Text(done.into()))
+        .await
+        .context("xai ws send")?;
     Ok(())
-}
-
-async fn send_text<W0, W1>(
-    w0: &mut W0,
-    w1: &mut Option<W1>,
-    slot: usize,
-    payload: String,
-) -> Result<()>
-where
-    W0: SinkExt<Message> + Unpin,
-    W1: SinkExt<Message> + Unpin,
-    <W0 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-    <W1 as futures_util::Sink<Message>>::Error: std::error::Error + Send + Sync + 'static,
-{
-    match slot {
-        0 => {
-            w0.send(Message::Text(payload.into()))
-                .await
-                .context("xai ws send")?;
-        }
-        1 => {
-            w1.as_mut()
-                .ok_or_else(|| anyhow!("xai slot 1 missing"))?
-                .send(Message::Text(payload.into()))
-                .await
-                .context("xai ws send")?;
-        }
-        _ => return Err(anyhow!("xai slot {slot} out of range")),
-    }
-    Ok(())
-}
-
-fn drop_slot<W1>(slot: usize, w1: &mut Option<W1>, r0_live: &mut bool, r1_live: &mut bool) {
-    match slot {
-        0 => *r0_live = false,
-        1 => {
-            *r1_live = false;
-            *w1 = None;
-        }
-        _ => {}
-    }
 }
 
 fn emit_chunks(
@@ -704,29 +413,8 @@ fn emit_chunks(
     Ok(())
 }
 
-async fn connect_sockets(api_key: &str, url: &str, want_two: bool) -> Result<(XaiWs, Option<XaiWs>)> {
-    if !want_two {
-        return Ok((connect_one(api_key, url).await?, None));
-    }
-    let (a, b) = tokio::join!(connect_one(api_key, url), connect_one(api_key, url));
-    match (a, b) {
-        (Ok(first), Ok(second)) => Ok((first, Some(second))),
-        (Ok(first), Err(err)) => {
-            warn!("xai second socket failed, staying single-socket: {err:#}");
-            Ok((first, None))
-        }
-        (Err(err), Ok(second)) => {
-            warn!("xai first socket failed, using second: {err:#}");
-            Ok((second, None))
-        }
-        (Err(first), Err(second)) => Err(first.context(format!("both xAI sockets failed ({second:#})"))),
-    }
-}
-
-async fn connect_one(api_key: &str, url: &str) -> Result<XaiWs> {
-    let mut request = url
-        .into_client_request()
-        .context("xai ws request")?;
+async fn connect_ws(api_key: &str, url: &str) -> Result<XaiWs> {
+    let mut request = url.into_client_request().context("xai ws request")?;
     let auth = format!("Bearer {}", api_key.trim());
     request.headers_mut().insert(
         AUTHORIZATION,
