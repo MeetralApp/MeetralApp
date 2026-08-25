@@ -3,14 +3,12 @@
 //! Hold the first mux emit of each utterance until preroll (`PLAYOUT_JITTER_MS`)
 //! *and* a second `audio.delta` (or `audio.done` for a short clip). Then
 //! concatenate until ~80 ms and pass samples through unmodified.
-//!
-//! ElevenLabs / Fish keep one stream-input; they flush the first packet
-//! immediately. xAI is one generation per `text.done`, so the DAC cold-starts
-//! every clip — without preroll the ring starves in the first words.
 
 use crate::audio::PlaybackPcmChunk;
 
 use super::config::{playout_jitter_samples, PCM_COALESCE_MIN_SAMPLES};
+#[cfg(test)]
+use super::config::{PLAYOUT_JITTER_MS, XAI_PCM_SAMPLE_RATE};
 
 pub struct PcmCoalesce {
     buf: Vec<i16>,
@@ -38,10 +36,9 @@ impl PcmCoalesce {
         if self.jitter == 0 {
             return true;
         }
-        // Sample-count jitter alone is a no-op when the first audio.delta is
-        // already ≥200 ms (~244 ms in dumps). Also require a second push so
-        // packet 2 is queued before the DAC starts; `finish_segment` covers
-        // single-packet clips.
+        // First `audio.delta` is often already ≥ jitter. Wait for a second
+        // push so packet 2 is queued before the DAC starts; `finish_segment`
+        // covers single-packet clips.
         self.pushes >= 2 && self.buf.len() >= self.jitter
     }
 
@@ -168,12 +165,46 @@ mod tests {
         assert_eq!(max_adjacent_jump(&heard), max_adjacent_jump(&continuous));
     }
 
+    /// Regression lock: `PcmCoalesce::new()` must keep 200 ms preroll *and* wait
+    /// for a second `audio.delta` (or `audio.done`). Sample-count jitter alone
+    /// is a no-op when the first packet is already ≥200 ms.
+    #[test]
+    fn default_coalesce_does_not_start_playout_on_first_delta_alone() {
+        let mut p = PcmCoalesce::new();
+        assert_eq!(PLAYOUT_JITTER_MS, 200);
+        assert_eq!(p.jitter, (XAI_PCM_SAMPLE_RATE as usize * 200) / 1000);
+        assert_eq!(p.min, PCM_COALESCE_MIN_SAMPLES);
+
+        // Typical first audio.delta is already > 200 ms (~244 ms @ 24 kHz).
+        let first = vec![7i16; 5872];
+        assert!(
+            p.push(first.clone()).is_empty(),
+            "must not start the DAC on packet 1 even when it exceeds PLAYOUT_JITTER_MS"
+        );
+
+        let second = vec![9i16; PCM_COALESCE_MIN_SAMPLES];
+        let heard = flatten(p.push(second.clone()));
+        let mut expected = first;
+        expected.extend_from_slice(&second);
+        assert_eq!(heard, expected);
+
+        assert!(p.finish_segment().is_empty());
+        assert!(
+            p.push(vec![3i16; 5872]).is_empty(),
+            "next text.done clip must preroll again"
+        );
+        assert_eq!(
+            flatten(p.finish_segment()),
+            vec![3i16; 5872],
+            "short / single-packet clip must play on audio.done"
+        );
+    }
+
     #[test]
     fn first_delta_larger_than_jitter_still_waits_for_second_push() {
         let mut p = PcmCoalesce::new();
         p.jitter = 8;
         p.min = 4;
-        // Dump-like: first audio.delta already > 200 ms.
         let first: Vec<i16> = (0..20).collect();
         assert!(
             p.push(first.clone()).is_empty(),

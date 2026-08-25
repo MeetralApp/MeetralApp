@@ -147,9 +147,8 @@ async fn list_custom_voices(api_key: &str) -> Result<Vec<XaiVoiceOption>, String
 
 pub async fn list_voices(api_key: &str) -> Result<Vec<XaiVoiceOption>, String> {
     let mut voices = list_builtin_voices(api_key).await?;
-    match list_custom_voices(api_key).await {
-        Ok(custom) => voices.extend(custom),
-        Err(_) => {}
+    if let Ok(custom) = list_custom_voices(api_key).await {
+        voices.extend(custom);
     }
     Ok(voices)
 }

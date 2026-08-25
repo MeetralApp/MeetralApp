@@ -232,7 +232,7 @@ async fn run_session(
                         }
                         debug!("xai clear utterance (reset)");
                         write
-                            .send(Message::Text(pack_text_clear()?.into()))
+                            .send(Message::Text(pack_text_clear()?))
                             .await
                             .context("xai ws send")?;
                     }
@@ -366,11 +366,11 @@ where
     let delta = pack_text_delta(&unit.text)?;
     let done = pack_text_done()?;
     write
-        .send(Message::Text(delta.into()))
+        .send(Message::Text(delta))
         .await
         .context("xai ws send")?;
     write
-        .send(Message::Text(done.into()))
+        .send(Message::Text(done))
         .await
         .context("xai ws send")?;
     Ok(())
