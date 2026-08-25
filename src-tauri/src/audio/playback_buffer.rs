@@ -287,4 +287,45 @@ mod tests {
         assert_eq!(ring.device_rate(), 16_000);
         assert_eq!(ring.len(), 0);
     }
+
+    /// Raw dump = concat every `audio.delta` then listen. Live play starts the
+    /// DAC on the first packet (~244 ms) and pads if the next packet is late —
+    /// freeze in the first-words region even when the concatenated PCM is smooth.
+    #[test]
+    fn live_fill_inserts_pad_between_first_packets_offline_concat_does_not() {
+        let p1: Vec<i16> = (0..240).map(|i| (i * 10) as i16).collect();
+        let p2: Vec<i16> = (240..480).map(|i| (i * 10) as i16).collect();
+        let mut offline = p1.clone();
+        offline.extend_from_slice(&p2);
+        let offline_seam = (offline[239] as i32 - offline[240] as i32).abs();
+
+        let (_tx, mut rx) = mpsc::channel::<Vec<i16>>(8);
+        let mut ring = PlaybackRingBuffer::new(PlaybackBufferConfig::clone_outbound(), 48_000);
+        ring.ingest_source_pcm(p1);
+        assert_eq!(
+            ring.ensure_device_samples(240, &mut rx),
+            PlaybackFillStatus::Ok
+        );
+        let _ = ring.pop_device_samples(240);
+        // Next audio.delta not here yet; WASAPI still asking for frames.
+        assert_eq!(
+            ring.ensure_device_samples(48, &mut rx),
+            PlaybackFillStatus::Ok
+        );
+        let gap = ring.pop_device_samples(48);
+        ring.ingest_source_pcm(p2);
+        assert_eq!(ring.ensure_device_samples(48, &mut rx), PlaybackFillStatus::Ok);
+        let resume = ring.pop_device_samples(1);
+        assert_eq!(resume, vec![2400]);
+
+        assert_eq!(offline_seam, 10, "raw concat stays on the waveform");
+        assert!(
+            gap.iter().all(|&s| s == 2390),
+            "live pad freezes last sample of packet 1: {gap:?}"
+        );
+        assert!(
+            !offline.windows(48).any(|w| w.iter().all(|&s| s == 2390)),
+            "offline concat has no 48-sample freeze — Audacity never hears the stall"
+        );
+    }
 }

@@ -5,8 +5,16 @@ pub const XAI_PCM_SAMPLE_RATE: u32 = 24000;
 pub const WS_HOST: &str = "wss://api.x.ai";
 pub const REST_HOST: &str = "https://api.x.ai";
 
+/// Hold this much PCM before the first mux emit of each utterance so later
+/// `audio.delta` can queue before the DAC starts (removed in `ac931ad`, restored
+/// as preroll — not OrderedPlayback / fade). 200 ms @ 24 kHz = 4800 samples.
+pub const PLAYOUT_JITTER_MS: u32 = 200;
 /// Same ~80 ms coalesce as other custom-voice workers (`EL_PCM_COALESCE_MIN_SAMPLES`).
 pub const PCM_COALESCE_MIN_SAMPLES: usize = 1920;
+
+pub fn playout_jitter_samples() -> usize {
+    (XAI_PCM_SAMPLE_RATE as usize * PLAYOUT_JITTER_MS as usize) / 1000
+}
 
 /// Official BCP-47 codes from xAI TTS docs (plus `auto`). Canonical casing for wire.
 pub const OFFICIAL_LANGUAGE_CODES: &[(&str, &str)] = &[
@@ -155,5 +163,10 @@ mod tests {
     #[test]
     fn pcm_coalesce_is_80ms_at_24k() {
         assert_eq!(PCM_COALESCE_MIN_SAMPLES, 1920);
+    }
+
+    #[test]
+    fn playout_jitter_is_200ms_at_24k() {
+        assert_eq!(playout_jitter_samples(), 4800);
     }
 }

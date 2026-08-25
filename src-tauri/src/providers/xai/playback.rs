@@ -1,14 +1,23 @@
 //! Coalesce xAI `audio.delta` PCM before sending to the mux.
 //!
-//! Concatenate until ~80 ms, then pass samples through unmodified.
+//! Hold the first mux emit of each utterance until preroll (`PLAYOUT_JITTER_MS`)
+//! *and* a second `audio.delta` (or `audio.done` for a short clip). Then
+//! concatenate until ~80 ms and pass samples through unmodified.
+//!
+//! ElevenLabs / Fish keep one stream-input; they flush the first packet
+//! immediately. xAI is one generation per `text.done`, so the DAC cold-starts
+//! every clip — without preroll the ring starves in the first words.
 
 use crate::audio::PlaybackPcmChunk;
 
-use super::config::PCM_COALESCE_MIN_SAMPLES;
+use super::config::{playout_jitter_samples, PCM_COALESCE_MIN_SAMPLES};
 
 pub struct PcmCoalesce {
     buf: Vec<i16>,
     min: usize,
+    jitter: usize,
+    started: bool,
+    pushes: u32,
 }
 
 impl PcmCoalesce {
@@ -16,7 +25,24 @@ impl PcmCoalesce {
         Self {
             buf: Vec::new(),
             min: PCM_COALESCE_MIN_SAMPLES,
+            jitter: playout_jitter_samples(),
+            started: false,
+            pushes: 0,
         }
+    }
+
+    fn ready_to_start(&self) -> bool {
+        if self.started {
+            return true;
+        }
+        if self.jitter == 0 {
+            return true;
+        }
+        // Sample-count jitter alone is a no-op when the first audio.delta is
+        // already ≥200 ms (~244 ms in dumps). Also require a second push so
+        // packet 2 is queued before the DAC starts; `finish_segment` covers
+        // single-packet clips.
+        self.pushes >= 2 && self.buf.len() >= self.jitter
     }
 
     pub fn push(&mut self, samples: Vec<i16>) -> Vec<PlaybackPcmChunk> {
@@ -24,6 +50,11 @@ impl PcmCoalesce {
             return Vec::new();
         }
         self.buf.extend(samples);
+        self.pushes = self.pushes.saturating_add(1);
+        if !self.ready_to_start() {
+            return Vec::new();
+        }
+        self.started = true;
         if self.buf.len() < self.min {
             return Vec::new();
         }
@@ -31,6 +62,8 @@ impl PcmCoalesce {
     }
 
     pub fn finish_segment(&mut self) -> Vec<PlaybackPcmChunk> {
+        self.started = false;
+        self.pushes = 0;
         if self.buf.is_empty() {
             return Vec::new();
         }
@@ -73,9 +106,15 @@ mod tests {
             .collect()
     }
 
+    fn coalesce_no_preroll() -> PcmCoalesce {
+        let mut p = PcmCoalesce::new();
+        p.jitter = 0;
+        p
+    }
+
     #[test]
     fn holds_until_coalesce_or_done() {
-        let mut p = PcmCoalesce::new();
+        let mut p = coalesce_no_preroll();
         p.min = 4;
         assert!(p.push(vec![1, 2, 3]).is_empty());
         let out = p.finish_segment();
@@ -85,7 +124,7 @@ mod tests {
 
     #[test]
     fn emits_once_coalesced() {
-        let mut p = PcmCoalesce::new();
+        let mut p = coalesce_no_preroll();
         p.min = 4;
         let out = p.push(vec![1, 2, 3, 4, 5]);
         assert_eq!(out.len(), 1);
@@ -95,7 +134,7 @@ mod tests {
 
     #[test]
     fn passthrough_does_not_rewrite_samples() {
-        let mut p = PcmCoalesce::new();
+        let mut p = coalesce_no_preroll();
         p.min = 1;
         let src = vec![30i16, 39, 8_000, -2_166, 0];
         let mut got = flatten(p.push(src.clone()));
@@ -105,7 +144,7 @@ mod tests {
 
     #[test]
     fn reset_drops_held_samples() {
-        let mut p = PcmCoalesce::new();
+        let mut p = coalesce_no_preroll();
         p.min = 100;
         let _ = p.push(vec![1, 2, 3]);
         let flushed = flatten(p.reset());
@@ -117,7 +156,7 @@ mod tests {
 
     #[test]
     fn coalesce_of_continuous_pcm_does_not_invent_clicks() {
-        let mut p = PcmCoalesce::new();
+        let mut p = coalesce_no_preroll();
         p.min = 64;
         let continuous = smooth_chunk(500, -2_000, 7_000);
         let mut heard = Vec::new();
@@ -127,5 +166,46 @@ mod tests {
         heard.extend(flatten(p.finish_segment()));
         assert_eq!(heard, continuous);
         assert_eq!(max_adjacent_jump(&heard), max_adjacent_jump(&continuous));
+    }
+
+    #[test]
+    fn first_delta_larger_than_jitter_still_waits_for_second_push() {
+        let mut p = PcmCoalesce::new();
+        p.jitter = 8;
+        p.min = 4;
+        // Dump-like: first audio.delta already > 200 ms.
+        let first: Vec<i16> = (0..20).collect();
+        assert!(
+            p.push(first.clone()).is_empty(),
+            "must not start the DAC on packet 1 alone"
+        );
+        let second: Vec<i16> = (20..28).collect();
+        let out = flatten(p.push(second));
+        let mut expected: Vec<i16> = (0..20).collect();
+        expected.extend(20..28);
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn short_single_packet_utterance_plays_on_done() {
+        let mut p = PcmCoalesce::new();
+        p.jitter = 8;
+        p.min = 4;
+        assert!(p.push(vec![1, 2, 3]).is_empty());
+        assert_eq!(flatten(p.finish_segment()), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn next_utterance_prerolls_again() {
+        let mut p = PcmCoalesce::new();
+        p.jitter = 8;
+        p.min = 1;
+        let _ = p.push(vec![1; 10]);
+        let _ = p.push(vec![2; 10]);
+        let _ = p.finish_segment();
+        assert!(
+            p.push(vec![3; 10]).is_empty(),
+            "new text.done clip must preroll again"
+        );
     }
 }
