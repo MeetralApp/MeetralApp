@@ -88,7 +88,15 @@ pub async fn list_soniox_voices(
             .preferred_model
             .filter(|s| !s.trim().is_empty())
             .or_else(|| {
-                let m = guard.soniox.soniox_tts_model.trim();
+                let m = guard.soniox.soniox_tts_outbound_model.trim();
+                if m.is_empty() {
+                    None
+                } else {
+                    Some(m.to_string())
+                }
+            })
+            .or_else(|| {
+                let m = guard.soniox.soniox_tts_inbound_model.trim();
                 if m.is_empty() {
                     None
                 } else {

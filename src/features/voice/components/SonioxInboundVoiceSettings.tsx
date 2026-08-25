@@ -11,7 +11,6 @@ export default function SonioxInboundVoiceSettings(props: {
   ttsModels: SonioxTtsModelOption[];
   sonioxVoices: SonioxVoiceOption[];
   catalogLoading: boolean;
-  showSharedModel?: boolean;
   onRefreshCatalog: () => void;
   onPreviewVoice?: (voice: string, apiKey?: string) => Promise<void>;
   onSave: (

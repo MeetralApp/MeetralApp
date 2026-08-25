@@ -183,7 +183,8 @@ export default function XaiCustomVoicePanel({
             </button>
           </CollapsibleTrigger>
           <SettingInfoHint label="About xAI advanced settings">
-            Latency and shared playback speed. Defaults work for most meetings.
+            Latency and playback speed for this direction. Defaults work for
+            most meetings.
           </SettingInfoHint>
         </div>
         <CollapsibleContent className="flex flex-col gap-4">

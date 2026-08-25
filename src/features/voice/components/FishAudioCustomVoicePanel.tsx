@@ -201,8 +201,8 @@ export default function FishAudioCustomVoicePanel({
             </button>
           </CollapsibleTrigger>
           <SettingInfoHint label="About Fish Audio advanced settings">
-            Model, latency, temperature, speed, and top-p. Defaults work for
-            most meetings. s2.1-pro-free has no latency SLA.
+            Model, latency, temperature, speed, and top-p for this direction.
+            Defaults work for most meetings. s2.1-pro-free has no latency SLA.
           </SettingInfoHint>
         </div>
         <CollapsibleContent className="flex flex-col gap-4">

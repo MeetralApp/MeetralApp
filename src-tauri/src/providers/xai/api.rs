@@ -198,7 +198,7 @@ pub async fn preview_voice(
     validate_voice(api_key, voice_id).await?;
     let client = voice_http_client(VOICE_PREVIEW_HTTP_TIMEOUT_SECS)?;
     let language = super::config::map_tts_language(&config.meeting_language);
-    let speed = clamp_speed(config.xai.xai_speed);
+    let speed = clamp_speed(config.xai.xai_outbound_speed);
     let body = serde_json::json!({
         "text": PREVIEW_SAMPLE_TEXT,
         "voice_id": voice_id,

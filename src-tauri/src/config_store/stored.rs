@@ -127,8 +127,13 @@ pub(crate) struct StoredConfig {
     pub(crate) soniox_tts_voice: String,
     #[serde(default)]
     pub(crate) soniox_tts_outbound_voice: String,
-    #[serde(default = "default_soniox_tts_model")]
-    pub(crate) soniox_tts_model: String,
+    #[serde(default)]
+    pub(crate) soniox_tts_outbound_model: Option<String>,
+    #[serde(default)]
+    pub(crate) soniox_tts_inbound_model: Option<String>,
+    /// Legacy shared model — load only; migrate into outbound/inbound when missing.
+    #[serde(default, skip_serializing)]
+    pub(crate) soniox_tts_model: Option<String>,
     #[serde(default)]
     pub(crate) soniox_tts_voices: Vec<crate::voice::SonioxVoiceOption>,
     #[serde(default)]
@@ -230,10 +235,20 @@ pub(crate) struct StoredConfig {
     pub(crate) fishaudio_temperature: f32,
     #[serde(default = "default_fishaudio_temperature")]
     pub(crate) fishaudio_inbound_temperature: f32,
-    #[serde(default = "default_fishaudio_speed")]
-    pub(crate) fishaudio_speed: f32,
-    #[serde(default = "default_fishaudio_top_p")]
-    pub(crate) fishaudio_top_p: f32,
+    #[serde(default)]
+    pub(crate) fishaudio_outbound_speed: Option<f32>,
+    #[serde(default)]
+    pub(crate) fishaudio_inbound_speed: Option<f32>,
+    /// Legacy shared speed — load only.
+    #[serde(default, skip_serializing)]
+    pub(crate) fishaudio_speed: Option<f32>,
+    #[serde(default)]
+    pub(crate) fishaudio_outbound_top_p: Option<f32>,
+    #[serde(default)]
+    pub(crate) fishaudio_inbound_top_p: Option<f32>,
+    /// Legacy shared top_p — load only.
+    #[serde(default, skip_serializing)]
+    pub(crate) fishaudio_top_p: Option<f32>,
     #[serde(default)]
     pub(crate) encrypted_xai_api_key: Option<String>,
     #[serde(default)]
@@ -248,8 +263,13 @@ pub(crate) struct StoredConfig {
     pub(crate) xai_latency: crate::config::XaiLatency,
     #[serde(default)]
     pub(crate) xai_inbound_latency: crate::config::XaiLatency,
-    #[serde(default = "default_xai_speed")]
-    pub(crate) xai_speed: f32,
+    #[serde(default)]
+    pub(crate) xai_outbound_speed: Option<f32>,
+    #[serde(default)]
+    pub(crate) xai_inbound_speed: Option<f32>,
+    /// Legacy shared speed — load only.
+    #[serde(default, skip_serializing)]
+    pub(crate) xai_speed: Option<f32>,
 }
 
 pub(crate) fn stored_default_unified_outbound_topology() -> bool {
@@ -604,7 +624,36 @@ impl StoredConfig {
                 soniox_active_context_profile_id: self.soniox_active_context_profile_id,
                 soniox_tts_voice: self.soniox_tts_voice,
                 soniox_tts_outbound_voice: self.soniox_tts_outbound_voice,
-                soniox_tts_model: self.soniox_tts_model,
+                soniox_tts_outbound_model: {
+                    let legacy = self
+                        .soniox_tts_model
+                        .as_ref()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                    self.soniox_tts_outbound_model
+                        .as_ref()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .or(legacy)
+                        .unwrap_or_else(default_soniox_tts_model)
+                },
+                soniox_tts_inbound_model: {
+                    let legacy = self
+                        .soniox_tts_model
+                        .as_ref()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                    self.soniox_tts_inbound_model
+                        .as_ref()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .or(legacy)
+                        .unwrap_or_default()
+                },
                 soniox_tts_voices: self.soniox_tts_voices,
                 soniox_tts_models: self.soniox_tts_models,
                 soniox_tts_inbound_speed: self.soniox_tts_inbound_speed,
@@ -648,8 +697,22 @@ impl StoredConfig {
                 fishaudio_inbound_latency: self.fishaudio_inbound_latency,
                 fishaudio_temperature: self.fishaudio_temperature,
                 fishaudio_inbound_temperature: self.fishaudio_inbound_temperature,
-                fishaudio_speed: self.fishaudio_speed,
-                fishaudio_top_p: self.fishaudio_top_p,
+                fishaudio_outbound_speed: {
+                    let legacy = self.fishaudio_speed.unwrap_or_else(default_fishaudio_speed);
+                    self.fishaudio_outbound_speed.unwrap_or(legacy)
+                },
+                fishaudio_inbound_speed: {
+                    let legacy = self.fishaudio_speed.unwrap_or_else(default_fishaudio_speed);
+                    self.fishaudio_inbound_speed.unwrap_or(legacy)
+                },
+                fishaudio_outbound_top_p: {
+                    let legacy = self.fishaudio_top_p.unwrap_or_else(default_fishaudio_top_p);
+                    self.fishaudio_outbound_top_p.unwrap_or(legacy)
+                },
+                fishaudio_inbound_top_p: {
+                    let legacy = self.fishaudio_top_p.unwrap_or_else(default_fishaudio_top_p);
+                    self.fishaudio_inbound_top_p.unwrap_or(legacy)
+                },
             },
             xai: crate::config::XaiSettings {
                 xai_api_key,
@@ -658,7 +721,14 @@ impl StoredConfig {
                 xai_voices: self.xai_voices,
                 xai_latency: self.xai_latency,
                 xai_inbound_latency: self.xai_inbound_latency,
-                xai_speed: self.xai_speed,
+                xai_outbound_speed: {
+                    let legacy = self.xai_speed.unwrap_or_else(default_xai_speed);
+                    self.xai_outbound_speed.unwrap_or(legacy)
+                },
+                xai_inbound_speed: {
+                    let legacy = self.xai_speed.unwrap_or_else(default_xai_speed);
+                    self.xai_inbound_speed.unwrap_or(legacy)
+                },
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,
@@ -747,7 +817,9 @@ impl StoredConfig {
                 .clone(),
             soniox_tts_voice: config.soniox.soniox_tts_voice.clone(),
             soniox_tts_outbound_voice: config.soniox.soniox_tts_outbound_voice.clone(),
-            soniox_tts_model: config.soniox.soniox_tts_model.clone(),
+            soniox_tts_outbound_model: Some(config.soniox.soniox_tts_outbound_model.clone()),
+            soniox_tts_inbound_model: Some(config.soniox.soniox_tts_inbound_model.clone()),
+            soniox_tts_model: None,
             soniox_tts_voices: config.soniox.soniox_tts_voices.clone(),
             soniox_tts_models: config.soniox.soniox_tts_models.clone(),
             soniox_tts_inbound_speed: config.soniox.soniox_tts_inbound_speed,
@@ -794,8 +866,12 @@ impl StoredConfig {
             fishaudio_inbound_latency: config.fishaudio.fishaudio_inbound_latency,
             fishaudio_temperature: config.fishaudio.fishaudio_temperature,
             fishaudio_inbound_temperature: config.fishaudio.fishaudio_inbound_temperature,
-            fishaudio_speed: config.fishaudio.fishaudio_speed,
-            fishaudio_top_p: config.fishaudio.fishaudio_top_p,
+            fishaudio_outbound_speed: Some(config.fishaudio.fishaudio_outbound_speed),
+            fishaudio_inbound_speed: Some(config.fishaudio.fishaudio_inbound_speed),
+            fishaudio_speed: None,
+            fishaudio_outbound_top_p: Some(config.fishaudio.fishaudio_outbound_top_p),
+            fishaudio_inbound_top_p: Some(config.fishaudio.fishaudio_inbound_top_p),
+            fishaudio_top_p: None,
             encrypted_xai_api_key: write_xai_api_key(&config.xai.xai_api_key)?,
             xai_api_key: None,
             xai_voice_id: config.xai.xai_voice_id.clone(),
@@ -803,7 +879,9 @@ impl StoredConfig {
             xai_voices: config.xai.xai_voices.clone(),
             xai_latency: config.xai.xai_latency,
             xai_inbound_latency: config.xai.xai_inbound_latency,
-            xai_speed: config.xai.xai_speed,
+            xai_outbound_speed: Some(config.xai.xai_outbound_speed),
+            xai_inbound_speed: Some(config.xai.xai_inbound_speed),
+            xai_speed: None,
             artifacts_enabled: config.artifacts_enabled,
             answer_language: config.answer_language.clone(),
             meeting_context: config.meeting_context.clone(),

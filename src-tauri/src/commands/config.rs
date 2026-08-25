@@ -114,7 +114,9 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub soniox_tts_outbound_voice: Option<String>,
     #[serde(default)]
-    pub soniox_tts_model: Option<String>,
+    pub soniox_tts_outbound_model: Option<String>,
+    #[serde(default)]
+    pub soniox_tts_inbound_model: Option<String>,
     #[serde(default)]
     pub soniox_tts_voices: Option<Vec<crate::voice::SonioxVoiceOption>>,
     #[serde(default)]
@@ -193,9 +195,13 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub fishaudio_inbound_temperature: Option<f32>,
     #[serde(default)]
-    pub fishaudio_speed: Option<f32>,
+    pub fishaudio_outbound_speed: Option<f32>,
     #[serde(default)]
-    pub fishaudio_top_p: Option<f32>,
+    pub fishaudio_inbound_speed: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_outbound_top_p: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_inbound_top_p: Option<f32>,
     #[serde(default)]
     pub xai_api_key: String,
     #[serde(default)]
@@ -211,7 +217,9 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub xai_inbound_latency: Option<crate::config::XaiLatency>,
     #[serde(default)]
-    pub xai_speed: Option<f32>,
+    pub xai_outbound_speed: Option<f32>,
+    #[serde(default)]
+    pub xai_inbound_speed: Option<f32>,
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
     #[serde(default)]
@@ -409,10 +417,14 @@ impl SaveConfigRequest {
                     .soniox_tts_outbound_voice
                     .filter(|v| !v.trim().is_empty())
                     .unwrap_or_else(|| existing.soniox.soniox_tts_outbound_voice.clone()),
-                soniox_tts_model: self
-                    .soniox_tts_model
+                soniox_tts_outbound_model: self
+                    .soniox_tts_outbound_model
                     .filter(|v| !v.trim().is_empty())
-                    .unwrap_or_else(|| existing.soniox.soniox_tts_model.clone()),
+                    .unwrap_or_else(|| existing.soniox.soniox_tts_outbound_model.clone()),
+                soniox_tts_inbound_model: self
+                    .soniox_tts_inbound_model
+                    .filter(|v| !v.trim().is_empty())
+                    .unwrap_or_else(|| existing.soniox.soniox_tts_inbound_model.clone()),
                 soniox_tts_voices: if self.clear_soniox_api_key {
                     Vec::new()
                 } else {
@@ -557,12 +569,18 @@ impl SaveConfigRequest {
                 fishaudio_inbound_temperature: self
                     .fishaudio_inbound_temperature
                     .unwrap_or(existing.fishaudio.fishaudio_inbound_temperature),
-                fishaudio_speed: self
-                    .fishaudio_speed
-                    .unwrap_or(existing.fishaudio.fishaudio_speed),
-                fishaudio_top_p: self
-                    .fishaudio_top_p
-                    .unwrap_or(existing.fishaudio.fishaudio_top_p),
+                fishaudio_outbound_speed: self
+                    .fishaudio_outbound_speed
+                    .unwrap_or(existing.fishaudio.fishaudio_outbound_speed),
+                fishaudio_inbound_speed: self
+                    .fishaudio_inbound_speed
+                    .unwrap_or(existing.fishaudio.fishaudio_inbound_speed),
+                fishaudio_outbound_top_p: self
+                    .fishaudio_outbound_top_p
+                    .unwrap_or(existing.fishaudio.fishaudio_outbound_top_p),
+                fishaudio_inbound_top_p: self
+                    .fishaudio_inbound_top_p
+                    .unwrap_or(existing.fishaudio.fishaudio_inbound_top_p),
             },
             xai: crate::config::XaiSettings {
                 xai_api_key,
@@ -586,7 +604,12 @@ impl SaveConfigRequest {
                 xai_inbound_latency: self
                     .xai_inbound_latency
                     .unwrap_or(existing.xai.xai_inbound_latency),
-                xai_speed: self.xai_speed.unwrap_or(existing.xai.xai_speed),
+                xai_outbound_speed: self
+                    .xai_outbound_speed
+                    .unwrap_or(existing.xai.xai_outbound_speed),
+                xai_inbound_speed: self
+                    .xai_inbound_speed
+                    .unwrap_or(existing.xai.xai_inbound_speed),
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,

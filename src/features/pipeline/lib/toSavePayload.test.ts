@@ -56,7 +56,8 @@ describe("toSavePayload", () => {
       xaiInboundVoiceId: "eve",
       xaiLatency: "low",
       xaiInboundLatency: "normal",
-      xaiSpeed: 1.2,
+      xaiOutboundSpeed: 1.2,
+      xaiInboundSpeed: 0.9,
     });
     expect(payload.outboundCustomVoiceVendor).toBe("xai");
     expect(payload.inboundCustomVoiceVendor).toBe("xai");
@@ -65,7 +66,8 @@ describe("toSavePayload", () => {
     expect(payload.xaiInboundVoiceId).toBe("eve");
     expect(payload.xaiLatency).toBe("low");
     expect(payload.xaiInboundLatency).toBe("normal");
-    expect(payload.xaiSpeed).toBe(1.2);
+    expect(payload.xaiOutboundSpeed).toBe(1.2);
+    expect(payload.xaiInboundSpeed).toBe(0.9);
   });
 
   it("preserves soniox context overrides", () => {

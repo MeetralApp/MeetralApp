@@ -133,8 +133,10 @@ describe("VoiceSettings", () => {
       fishaudioInboundLatency: _inLat,
       fishaudioTemperature: _temp,
       fishaudioInboundTemperature: _inTemp,
-      fishaudioSpeed: _speed,
-      fishaudioTopP: _topP,
+      fishaudioOutboundSpeed: _speed,
+      fishaudioInboundSpeed: _inSpeed,
+      fishaudioOutboundTopP: _topP,
+      fishaudioInboundTopP: _inTopP,
       ...legacy
     } = baseConfig;
     renderVoice(legacy);
@@ -301,12 +303,13 @@ describe("VoiceSettings", () => {
     expect(last.interpreterOutboundVoiceOutput).toBe("providerNative");
   });
 
-  it("shows the shared Soniox TTS model on both Engine columns", () => {
+  it("shows Soniox TTS model on both Engine columns", () => {
     renderVoice({
       ...baseConfig,
       aiProvider: "soniox",
       sonioxApiKeyConfigured: true,
-      sonioxTtsModel: "tts-rt-v1",
+      sonioxTtsOutboundModel: "tts-rt-v1",
+      sonioxTtsInboundModel: "tts-rt-v1",
       sonioxTtsModels: [
         { id: "tts-rt-v1", name: "v1", languages: [] },
         { id: "tts-rt-v2", name: "v2", languages: [] },
@@ -340,7 +343,8 @@ describe("VoiceSettings", () => {
             ...baseConfig,
             aiProvider: "soniox",
             sonioxApiKeyConfigured: true,
-            sonioxTtsModel: "tts-rt-v1",
+            sonioxTtsOutboundModel: "tts-rt-v1",
+            sonioxTtsInboundModel: "tts-rt-v1",
             sonioxTtsModels: [
               { id: "tts-rt-v1", name: "v1", languages: [] },
               { id: "tts-rt-v2", name: "v2", languages: [] },
@@ -364,8 +368,8 @@ describe("VoiceSettings", () => {
     await waitFor(() => {
       expect(
         onSave.mock.calls.some((call) => {
-          const payload = call[0] as { sonioxTtsModel?: string };
-          return payload.sonioxTtsModel === "tts-rt-v2";
+          const payload = call[0] as { sonioxTtsInboundModel?: string };
+          return payload.sonioxTtsInboundModel === "tts-rt-v2";
         }),
       ).toBe(true);
     });
@@ -384,11 +388,8 @@ describe("VoiceSettings", () => {
 
     const catalogSaves = onSave.mock.calls.slice(callsBeforeCatalog);
     for (const [payload] of catalogSaves) {
-      expect(payload.sonioxTtsModel).not.toBe("tts-rt-v1");
-      expect(
-        payload.sonioxTtsModel === undefined ||
-          payload.sonioxTtsModel === "tts-rt-v2",
-      ).toBe(true);
+      expect(payload.sonioxTtsInboundModel).toBeUndefined();
+      expect(payload.sonioxTtsOutboundModel).toBeUndefined();
     }
   });
 });

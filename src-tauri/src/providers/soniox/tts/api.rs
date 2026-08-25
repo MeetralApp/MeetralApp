@@ -146,9 +146,14 @@ pub async fn preview_voice(
     let voice = crate::providers::soniox::tts::config::normalize_soniox_tts_voice(voice);
     let language = config.resolve_soniox_tts_language();
     let model = {
-        let m = config.soniox.soniox_tts_model.trim();
+        let m = config.soniox.soniox_tts_inbound_model.trim();
         if m.is_empty() {
-            crate::providers::soniox::tts::config::DEFAULT_SONIOX_TTS_MODEL
+            let outbound = config.soniox.soniox_tts_outbound_model.trim();
+            if outbound.is_empty() {
+                crate::providers::soniox::tts::config::DEFAULT_SONIOX_TTS_MODEL
+            } else {
+                outbound
+            }
         } else {
             m
         }

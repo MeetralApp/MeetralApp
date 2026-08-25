@@ -31,8 +31,6 @@ interface Props {
   ttsModels: SonioxTtsModelOption[];
   sonioxVoices: SonioxVoiceOption[];
   catalogLoading: boolean;
-  /** Shared TTS model — same field on both Engine columns. */
-  showSharedModel?: boolean;
   onRefreshCatalog: () => void;
   onPreviewVoice?: (voice: string, apiKey?: string) => Promise<void>;
   onSave: (patch: SonioxVoicePatch) => Promise<SaveConfigResult | void>;
@@ -46,7 +44,6 @@ export default function SonioxEngineVoiceSettings({
   ttsModels,
   sonioxVoices,
   catalogLoading,
-  showSharedModel = true,
   onRefreshCatalog,
   onPreviewVoice,
   onSave,
@@ -54,7 +51,11 @@ export default function SonioxEngineVoiceSettings({
 }: Props) {
   const isInbound = direction === "inbound";
   const directionLabel = isInbound ? "Meeting → You" : "You → Meeting";
-  const selectedModel = config.sonioxTtsModel ?? "tts-rt-v1";
+  const selectedModel = isInbound
+    ? (config.sonioxTtsInboundModel ??
+      config.sonioxTtsOutboundModel ??
+      "tts-rt-v1")
+    : (config.sonioxTtsOutboundModel ?? "tts-rt-v1");
   const [previewing, setPreviewing] = useState(false);
   const [draftModel, setDraftModel] = useState(selectedModel);
   useEffect(() => {
@@ -137,50 +138,54 @@ export default function SonioxEngineVoiceSettings({
       title="Soniox TTS"
       titleHint={
         <SettingInfoHint label={`About ${directionLabel} Soniox TTS`}>
-          Voice and speed are per-direction. TTS model is shared across both
-          directions. Language follows Translate → Languages.
+          Voice, speed, and TTS model are per-direction. Language follows
+          Translate → Languages.
         </SettingInfoHint>
       }
       headerEnd={refreshAction}
     >
-      {showSharedModel ? (
-        <SettingsField label="TTS model" htmlFor={modelId}>
-          <Select
-            value={draftModel}
-            disabled={disabled || ttsModels.length === 0}
-            onValueChange={(model) => {
-              setDraftModel(model);
-              void onSave({ sonioxTtsModel: model })
-                .then(() => {
-                  onToast("success", "Soniox TTS model saved");
-                })
-                .catch((e) => {
-                  setDraftModel(selectedModel);
-                  onToast("error", String(e));
-                });
-            }}
-          >
-            <SelectTrigger id={modelId} className="w-full">
-              <SelectValue
-                placeholder={catalogLoading ? "Loading…" : "Select model"}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {ttsModels.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {model.name ?? model.id}
-                </SelectItem>
-              ))}
-              {draftModel &&
-              !ttsModels.some((m) => m.id === draftModel) ? (
-                <SelectItem value={draftModel}>
-                  {draftModel} (saved)
-                </SelectItem>
-              ) : null}
-            </SelectContent>
-          </Select>
-        </SettingsField>
-      ) : null}
+      <SettingsField label="TTS model" htmlFor={modelId}>
+        <Select
+          value={draftModel}
+          disabled={disabled || ttsModels.length === 0}
+          onValueChange={(model) => {
+            setDraftModel(model);
+            const payload = isInbound
+              ? { sonioxTtsInboundModel: model }
+              : { sonioxTtsOutboundModel: model };
+            void onSave(payload)
+              .then(() => {
+                onToast(
+                  "success",
+                  `${directionLabel} Soniox TTS model saved`,
+                );
+              })
+              .catch((e) => {
+                setDraftModel(selectedModel);
+                onToast("error", String(e));
+              });
+          }}
+        >
+          <SelectTrigger id={modelId} className="w-full">
+            <SelectValue
+              placeholder={catalogLoading ? "Loading…" : "Select model"}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {ttsModels.map((model) => (
+              <SelectItem key={model.id} value={model.id}>
+                {model.name ?? model.id}
+              </SelectItem>
+            ))}
+            {draftModel &&
+            !ttsModels.some((m) => m.id === draftModel) ? (
+              <SelectItem value={draftModel}>
+                {draftModel} (saved)
+              </SelectItem>
+            ) : null}
+          </SelectContent>
+        </Select>
+      </SettingsField>
 
       <SettingsField
         label="TTS voice"

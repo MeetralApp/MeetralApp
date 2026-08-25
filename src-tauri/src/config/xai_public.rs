@@ -18,7 +18,9 @@ pub struct XaiPublicSettings {
     #[serde(default)]
     pub xai_inbound_latency: XaiLatency,
     #[serde(default = "default_xai_speed")]
-    pub xai_speed: f32,
+    pub xai_outbound_speed: f32,
+    #[serde(default = "default_xai_speed")]
+    pub xai_inbound_speed: f32,
 }
 
 impl From<&XaiSettings> for XaiPublicSettings {
@@ -29,7 +31,8 @@ impl From<&XaiSettings> for XaiPublicSettings {
             xai_voices: s.xai_voices.clone(),
             xai_latency: s.xai_latency,
             xai_inbound_latency: s.xai_inbound_latency,
-            xai_speed: s.xai_speed,
+            xai_outbound_speed: s.xai_outbound_speed,
+            xai_inbound_speed: s.xai_inbound_speed,
         }
     }
 }
@@ -43,7 +46,8 @@ impl XaiPublicSettings {
             xai_voices: self.xai_voices.clone(),
             xai_latency: self.xai_latency,
             xai_inbound_latency: self.xai_inbound_latency,
-            xai_speed: self.xai_speed,
+            xai_outbound_speed: self.xai_outbound_speed,
+            xai_inbound_speed: self.xai_inbound_speed,
         }
     }
 }

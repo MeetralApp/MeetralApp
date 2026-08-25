@@ -151,9 +151,9 @@ pub async fn preview_voice(
         "sample_rate": super::config::FISH_PCM_SAMPLE_RATE,
         "latency": config.fishaudio.fishaudio_latency.as_api_str(),
         "temperature": config.fishaudio.fishaudio_temperature,
-        "top_p": config.fishaudio.fishaudio_top_p,
+        "top_p": config.fishaudio.fishaudio_outbound_top_p,
         "prosody": {
-            "speed": super::config::clamp_speed(config.fishaudio.fishaudio_speed),
+            "speed": super::config::clamp_speed(config.fishaudio.fishaudio_outbound_speed),
             "volume": 0,
             "normalize_loudness": true
         }

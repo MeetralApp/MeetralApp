@@ -201,7 +201,7 @@ pub(super) async fn spawn_inbound_provider_tts_session(
         SonioxTtsWorkerConfig {
             api_key: config.soniox_api_key.clone(),
             voice: config.soniox.soniox_tts_voice.clone(),
-            model: config.soniox.soniox_tts_model.clone(),
+            model: config.soniox.soniox_tts_inbound_model.clone(),
             language: config.resolve_soniox_tts_language().to_string(),
             speed: config.soniox.soniox_tts_inbound_speed,
         },

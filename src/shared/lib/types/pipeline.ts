@@ -293,7 +293,10 @@ export interface ConfigView {
   sonioxTtsVoice?: string;
   /** You → Meeting Soniox TTS voice when Engine voice. Defaults from inbound voice. */
   sonioxTtsOutboundVoice?: string;
-  sonioxTtsModel?: string;
+  /** You → Meeting Soniox TTS model when Engine voice. */
+  sonioxTtsOutboundModel?: string;
+  /** Meeting → You Soniox TTS model when Engine voice. */
+  sonioxTtsInboundModel?: string;
   /** Cached Soniox TTS voice catalog (persisted; Refresh re-syncs). */
   sonioxTtsVoices?: SonioxVoiceOption[];
   /** Cached Soniox TTS model catalog (persisted; Refresh re-syncs). */
@@ -342,14 +345,17 @@ export interface ConfigView {
   fishaudioInboundLatency?: FishAudioLatency;
   fishaudioTemperature?: number;
   fishaudioInboundTemperature?: number;
-  fishaudioSpeed?: number;
-  fishaudioTopP?: number;
+  fishaudioOutboundSpeed?: number;
+  fishaudioInboundSpeed?: number;
+  fishaudioOutboundTopP?: number;
+  fishaudioInboundTopP?: number;
   xaiVoiceId?: string;
   xaiInboundVoiceId?: string;
   xaiVoices?: XaiVoiceOption[];
   xaiLatency?: XaiLatency;
   xaiInboundLatency?: XaiLatency;
-  xaiSpeed?: number;
+  xaiOutboundSpeed?: number;
+  xaiInboundSpeed?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   /** Preferred AI output language; "" = match the meeting's You language. */
@@ -443,7 +449,8 @@ export interface SaveConfigPayload {
   sonioxActiveContextProfileId?: string | null;
   sonioxTtsVoice?: string;
   sonioxTtsOutboundVoice?: string;
-  sonioxTtsModel?: string;
+  sonioxTtsOutboundModel?: string;
+  sonioxTtsInboundModel?: string;
   sonioxTtsVoices?: SonioxVoiceOption[];
   sonioxTtsModels?: SonioxTtsModelOption[];
   sonioxTtsInboundSpeed?: number;
@@ -483,8 +490,10 @@ export interface SaveConfigPayload {
   fishaudioInboundLatency?: FishAudioLatency;
   fishaudioTemperature?: number;
   fishaudioInboundTemperature?: number;
-  fishaudioSpeed?: number;
-  fishaudioTopP?: number;
+  fishaudioOutboundSpeed?: number;
+  fishaudioInboundSpeed?: number;
+  fishaudioOutboundTopP?: number;
+  fishaudioInboundTopP?: number;
   xaiApiKey?: string;
   clearXaiApiKey?: boolean;
   xaiVoiceId?: string;
@@ -492,7 +501,8 @@ export interface SaveConfigPayload {
   xaiVoices?: XaiVoiceOption[];
   xaiLatency?: XaiLatency;
   xaiInboundLatency?: XaiLatency;
-  xaiSpeed?: number;
+  xaiOutboundSpeed?: number;
+  xaiInboundSpeed?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   answerLanguage?: string;

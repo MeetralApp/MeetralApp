@@ -35,7 +35,8 @@ type VoiceSession = {
   outputMode: OutboundVoiceOutput;
   inboundCustomVoiceVendor: CustomVoiceVendor;
   outboundCustomVoiceVendor: CustomVoiceVendor;
-  sonioxTtsModel: string;
+  sonioxTtsOutboundModel: string;
+  sonioxTtsInboundModel: string;
 };
 
 type VoiceSavePatch = Parameters<typeof toSavePayload>[1];
@@ -153,8 +154,12 @@ export default function VoiceSettings({
   const [fishTemperature, setFishTemperature] = useState(
     config.fishaudioTemperature ?? 0.7,
   );
-  const [fishSpeed, setFishSpeed] = useState(config.fishaudioSpeed ?? 1.0);
-  const [fishTopP, setFishTopP] = useState(config.fishaudioTopP ?? 0.7);
+  const [fishOutboundSpeed, setFishOutboundSpeed] = useState(
+    config.fishaudioOutboundSpeed ?? 1.0,
+  );
+  const [fishOutboundTopP, setFishOutboundTopP] = useState(
+    config.fishaudioOutboundTopP ?? 0.7,
+  );
   const [inboundFishTtsModel, setInboundFishTtsModel] = useState(
     config.fishaudioInboundTtsModel ?? "s2.1-pro",
   );
@@ -164,12 +169,23 @@ export default function VoiceSettings({
   const [inboundFishTemperature, setInboundFishTemperature] = useState(
     config.fishaudioInboundTemperature ?? 0.7,
   );
+  const [fishInboundSpeed, setFishInboundSpeed] = useState(
+    config.fishaudioInboundSpeed ?? 1.0,
+  );
+  const [fishInboundTopP, setFishInboundTopP] = useState(
+    config.fishaudioInboundTopP ?? 0.7,
+  );
   const [xaiLatency, setXaiLatency] = useState<XaiLatency>(
     config.xaiLatency ?? "balanced",
   );
-  const [xaiSpeed, setXaiSpeed] = useState(config.xaiSpeed ?? 1.0);
+  const [xaiOutboundSpeed, setXaiOutboundSpeed] = useState(
+    config.xaiOutboundSpeed ?? 1.0,
+  );
   const [inboundXaiLatency, setInboundXaiLatency] = useState<XaiLatency>(
     config.xaiInboundLatency ?? "balanced",
+  );
+  const [xaiInboundSpeed, setXaiInboundSpeed] = useState(
+    config.xaiInboundSpeed ?? 1.0,
   );
   const inboundCustomVoiceSectionRef = useRef<HTMLDivElement>(null);
   const outboundCustomVoiceSectionRef = useRef<HTMLDivElement>(null);
@@ -180,7 +196,11 @@ export default function VoiceSettings({
     outputMode,
     inboundCustomVoiceVendor,
     outboundCustomVoiceVendor,
-    sonioxTtsModel: config.sonioxTtsModel ?? "tts-rt-v1",
+    sonioxTtsOutboundModel: config.sonioxTtsOutboundModel ?? "tts-rt-v1",
+    sonioxTtsInboundModel:
+      config.sonioxTtsInboundModel ??
+      config.sonioxTtsOutboundModel ??
+      "tts-rt-v1",
   });
   sessionRef.current.inboundOutputMode = inboundOutputMode;
   sessionRef.current.outputMode = outputMode;
@@ -217,20 +237,20 @@ export default function VoiceSettings({
     fishTtsModel !== (config.fishaudioTtsModel ?? "s2.1-pro") ||
     fishLatency !== (config.fishaudioLatency ?? "balanced") ||
     fishTemperature !== (config.fishaudioTemperature ?? 0.7) ||
-    fishSpeed !== (config.fishaudioSpeed ?? 1.0) ||
-    fishTopP !== (config.fishaudioTopP ?? 0.7);
+    fishOutboundSpeed !== (config.fishaudioOutboundSpeed ?? 1.0) ||
+    fishOutboundTopP !== (config.fishaudioOutboundTopP ?? 0.7);
   const inboundFishCustomVoiceSettingsDirty =
     inboundFishTtsModel !== (config.fishaudioInboundTtsModel ?? "s2.1-pro") ||
     inboundFishLatency !== (config.fishaudioInboundLatency ?? "balanced") ||
     inboundFishTemperature !== (config.fishaudioInboundTemperature ?? 0.7) ||
-    fishSpeed !== (config.fishaudioSpeed ?? 1.0) ||
-    fishTopP !== (config.fishaudioTopP ?? 0.7);
+    fishInboundSpeed !== (config.fishaudioInboundSpeed ?? 1.0) ||
+    fishInboundTopP !== (config.fishaudioInboundTopP ?? 0.7);
   const xaiCustomVoiceSettingsDirty =
     xaiLatency !== (config.xaiLatency ?? "balanced") ||
-    xaiSpeed !== (config.xaiSpeed ?? 1.0);
+    xaiOutboundSpeed !== (config.xaiOutboundSpeed ?? 1.0);
   const inboundXaiCustomVoiceSettingsDirty =
     inboundXaiLatency !== (config.xaiInboundLatency ?? "balanced") ||
-    xaiSpeed !== (config.xaiSpeed ?? 1.0);
+    xaiInboundSpeed !== (config.xaiInboundSpeed ?? 1.0);
   const dirty =
     keyDirty ||
     voiceDirty ||
@@ -288,41 +308,51 @@ export default function VoiceSettings({
   }, [config.outboundCustomVoiceVendor]);
 
   useEffect(() => {
-    sessionRef.current.sonioxTtsModel = config.sonioxTtsModel ?? "tts-rt-v1";
-  }, [config.sonioxTtsModel]);
+    sessionRef.current.sonioxTtsOutboundModel =
+      config.sonioxTtsOutboundModel ?? "tts-rt-v1";
+    sessionRef.current.sonioxTtsInboundModel =
+      config.sonioxTtsInboundModel ??
+      config.sonioxTtsOutboundModel ??
+      "tts-rt-v1";
+  }, [config.sonioxTtsOutboundModel, config.sonioxTtsInboundModel]);
 
   useEffect(() => {
     setFishTtsModel(config.fishaudioTtsModel ?? "s2.1-pro");
     setFishLatency(config.fishaudioLatency ?? "balanced");
     setFishTemperature(config.fishaudioTemperature ?? 0.7);
-    setFishSpeed(config.fishaudioSpeed ?? 1.0);
-    setFishTopP(config.fishaudioTopP ?? 0.7);
+    setFishOutboundSpeed(config.fishaudioOutboundSpeed ?? 1.0);
+    setFishOutboundTopP(config.fishaudioOutboundTopP ?? 0.7);
   }, [
     config.fishaudioTtsModel,
     config.fishaudioLatency,
     config.fishaudioTemperature,
-    config.fishaudioSpeed,
-    config.fishaudioTopP,
+    config.fishaudioOutboundSpeed,
+    config.fishaudioOutboundTopP,
   ]);
 
   useEffect(() => {
     setInboundFishTtsModel(config.fishaudioInboundTtsModel ?? "s2.1-pro");
     setInboundFishLatency(config.fishaudioInboundLatency ?? "balanced");
     setInboundFishTemperature(config.fishaudioInboundTemperature ?? 0.7);
+    setFishInboundSpeed(config.fishaudioInboundSpeed ?? 1.0);
+    setFishInboundTopP(config.fishaudioInboundTopP ?? 0.7);
   }, [
     config.fishaudioInboundTtsModel,
     config.fishaudioInboundLatency,
     config.fishaudioInboundTemperature,
+    config.fishaudioInboundSpeed,
+    config.fishaudioInboundTopP,
   ]);
 
   useEffect(() => {
     setXaiLatency(config.xaiLatency ?? "balanced");
-    setXaiSpeed(config.xaiSpeed ?? 1.0);
-  }, [config.xaiLatency, config.xaiSpeed]);
+    setXaiOutboundSpeed(config.xaiOutboundSpeed ?? 1.0);
+  }, [config.xaiLatency, config.xaiOutboundSpeed]);
 
   useEffect(() => {
     setInboundXaiLatency(config.xaiInboundLatency ?? "balanced");
-  }, [config.xaiInboundLatency]);
+    setXaiInboundSpeed(config.xaiInboundSpeed ?? 1.0);
+  }, [config.xaiInboundLatency, config.xaiInboundSpeed]);
 
   const buildVoiceSave = useCallback((patch: VoiceSavePatch = {}) => {
     const session = sessionRef.current;
@@ -331,15 +361,19 @@ export default function VoiceSettings({
       outboundVoiceOutput: session.outputMode,
       inboundCustomVoiceVendor: session.inboundCustomVoiceVendor,
       outboundCustomVoiceVendor: session.outboundCustomVoiceVendor,
-      sonioxTtsModel: session.sonioxTtsModel,
+      sonioxTtsOutboundModel: session.sonioxTtsOutboundModel,
+      sonioxTtsInboundModel: session.sonioxTtsInboundModel,
       ...patch,
     });
   }, []);
 
   const saveVoicePatch = useCallback(
     (patch: VoiceSavePatch = {}) => {
-      if (patch.sonioxTtsModel) {
-        sessionRef.current.sonioxTtsModel = patch.sonioxTtsModel;
+      if (patch.sonioxTtsOutboundModel) {
+        sessionRef.current.sonioxTtsOutboundModel = patch.sonioxTtsOutboundModel;
+      }
+      if (patch.sonioxTtsInboundModel) {
+        sessionRef.current.sonioxTtsInboundModel = patch.sonioxTtsInboundModel;
       }
       return onSave(buildVoiceSave(patch));
     },
@@ -357,10 +391,14 @@ export default function VoiceSettings({
         outboundVoiceOutput: session.outputMode,
         inboundCustomVoiceVendor: session.inboundCustomVoiceVendor,
         outboundCustomVoiceVendor: session.outboundCustomVoiceVendor,
-        sonioxTtsModel:
-          payload.sonioxTtsModel === undefined
+        sonioxTtsOutboundModel:
+          payload.sonioxTtsOutboundModel === undefined
             ? undefined
-            : session.sonioxTtsModel,
+            : session.sonioxTtsOutboundModel,
+        sonioxTtsInboundModel:
+          payload.sonioxTtsInboundModel === undefined
+            ? undefined
+            : session.sonioxTtsInboundModel,
         ...(notesMode
           ? {}
           : {
@@ -426,7 +464,10 @@ export default function VoiceSettings({
       }
       setSonioxVoicesLoading(true);
       try {
-        const preferred = sessionRef.current.sonioxTtsModel || "tts-rt-v1";
+        const preferred =
+          sessionRef.current.sonioxTtsOutboundModel ||
+          sessionRef.current.sonioxTtsInboundModel ||
+          "tts-rt-v1";
         const [rawModels, voices] = await Promise.all([
           listSonioxTtsModels(),
           listSonioxVoices(undefined, preferred),
@@ -709,16 +750,16 @@ export default function VoiceSettings({
     setFishTtsModel(config.fishaudioTtsModel ?? "s2.1-pro");
     setFishLatency(config.fishaudioLatency ?? "balanced");
     setFishTemperature(config.fishaudioTemperature ?? 0.7);
-    setFishSpeed(config.fishaudioSpeed ?? 1.0);
-    setFishTopP(config.fishaudioTopP ?? 0.7);
+    setFishOutboundSpeed(config.fishaudioOutboundSpeed ?? 1.0);
+    setFishOutboundTopP(config.fishaudioOutboundTopP ?? 0.7);
   }, [config]);
 
   const resetInboundFishCustomVoiceSettings = useCallback(() => {
     setInboundFishTtsModel(config.fishaudioInboundTtsModel ?? "s2.1-pro");
     setInboundFishLatency(config.fishaudioInboundLatency ?? "balanced");
     setInboundFishTemperature(config.fishaudioInboundTemperature ?? 0.7);
-    setFishSpeed(config.fishaudioSpeed ?? 1.0);
-    setFishTopP(config.fishaudioTopP ?? 0.7);
+    setFishInboundSpeed(config.fishaudioInboundSpeed ?? 1.0);
+    setFishInboundTopP(config.fishaudioInboundTopP ?? 0.7);
   }, [config]);
 
   const persistFishCustomVoiceSettings = useCallback(async () => {
@@ -729,8 +770,8 @@ export default function VoiceSettings({
           fishaudioTtsModel: fishTtsModel,
           fishaudioLatency: fishLatency,
           fishaudioTemperature: fishTemperature,
-          fishaudioSpeed: fishSpeed,
-          fishaudioTopP: fishTopP,
+          fishaudioOutboundSpeed: fishOutboundSpeed,
+          fishaudioOutboundTopP: fishOutboundTopP,
         }),
       );
       onToast("success", "Voice settings saved");
@@ -742,9 +783,9 @@ export default function VoiceSettings({
   }, [
     buildVoiceSave,
     fishLatency,
-    fishSpeed,
+    fishOutboundSpeed,
     fishTemperature,
-    fishTopP,
+    fishOutboundTopP,
     fishTtsModel,
     onSave,
     onToast,
@@ -758,8 +799,8 @@ export default function VoiceSettings({
           fishaudioInboundTtsModel: inboundFishTtsModel,
           fishaudioInboundLatency: inboundFishLatency,
           fishaudioInboundTemperature: inboundFishTemperature,
-          fishaudioSpeed: fishSpeed,
-          fishaudioTopP: fishTopP,
+          fishaudioInboundSpeed: fishInboundSpeed,
+          fishaudioInboundTopP: fishInboundTopP,
         }),
       );
       onToast("success", "Meeting voice settings saved");
@@ -770,8 +811,8 @@ export default function VoiceSettings({
     }
   }, [
     buildVoiceSave,
-    fishSpeed,
-    fishTopP,
+    fishInboundSpeed,
+    fishInboundTopP,
     inboundFishLatency,
     inboundFishTemperature,
     inboundFishTtsModel,
@@ -781,12 +822,12 @@ export default function VoiceSettings({
 
   const resetXaiCustomVoiceSettings = useCallback(() => {
     setXaiLatency(config.xaiLatency ?? "balanced");
-    setXaiSpeed(config.xaiSpeed ?? 1.0);
+    setXaiOutboundSpeed(config.xaiOutboundSpeed ?? 1.0);
   }, [config]);
 
   const resetInboundXaiCustomVoiceSettings = useCallback(() => {
     setInboundXaiLatency(config.xaiInboundLatency ?? "balanced");
-    setXaiSpeed(config.xaiSpeed ?? 1.0);
+    setXaiInboundSpeed(config.xaiInboundSpeed ?? 1.0);
   }, [config]);
 
   const persistXaiCustomVoiceSettings = useCallback(async () => {
@@ -795,7 +836,7 @@ export default function VoiceSettings({
       await onSave(
         buildVoiceSave({
           xaiLatency,
-          xaiSpeed,
+          xaiOutboundSpeed,
         }),
       );
       onToast("success", "Voice settings saved");
@@ -804,7 +845,7 @@ export default function VoiceSettings({
     } finally {
       setCustomVoiceSettingsSaving(false);
     }
-  }, [buildVoiceSave, onSave, onToast, xaiLatency, xaiSpeed]);
+  }, [buildVoiceSave, onSave, onToast, xaiLatency, xaiOutboundSpeed]);
 
   const persistInboundXaiCustomVoiceSettings = useCallback(async () => {
     setInboundCustomVoiceSettingsSaving(true);
@@ -812,7 +853,7 @@ export default function VoiceSettings({
       await onSave(
         buildVoiceSave({
           xaiInboundLatency: inboundXaiLatency,
-          xaiSpeed,
+          xaiInboundSpeed,
         }),
       );
       onToast("success", "Meeting voice settings saved");
@@ -821,7 +862,7 @@ export default function VoiceSettings({
     } finally {
       setInboundCustomVoiceSettingsSaving(false);
     }
-  }, [buildVoiceSave, inboundXaiLatency, onSave, onToast, xaiSpeed]);
+  }, [buildVoiceSave, inboundXaiLatency, onSave, onToast, xaiInboundSpeed]);
 
   return (
     <>
@@ -849,7 +890,6 @@ export default function VoiceSettings({
             ttsModels={sonioxTtsModels}
             sonioxVoices={sonioxVoices}
             catalogLoading={sonioxVoicesLoading}
-            showSharedModel
             onRefreshCatalog={() => void refreshSonioxVoices()}
             onPreviewVoice={previewSonioxVoice}
             onSave={saveVoicePatch}
@@ -919,10 +959,10 @@ export default function VoiceSettings({
                 setLatency={setInboundFishLatency}
                 temperature={inboundFishTemperature}
                 setTemperature={setInboundFishTemperature}
-                speed={fishSpeed}
-                setSpeed={setFishSpeed}
-                topP={fishTopP}
-                setTopP={setFishTopP}
+                speed={fishInboundSpeed}
+                setSpeed={setFishInboundSpeed}
+                topP={fishInboundTopP}
+                setTopP={setFishInboundTopP}
                 customVoiceSettingsDirty={inboundFishCustomVoiceSettingsDirty}
                 customVoiceSettingsSaving={inboundCustomVoiceSettingsSaving}
                 onSave={saveKeepingCloneSession}
@@ -951,8 +991,8 @@ export default function VoiceSettings({
                 voicesNonce={voicesNonce}
                 latency={inboundXaiLatency}
                 setLatency={setInboundXaiLatency}
-                speed={xaiSpeed}
-                setSpeed={setXaiSpeed}
+                speed={xaiInboundSpeed}
+                setSpeed={setXaiInboundSpeed}
                 customVoiceSettingsDirty={inboundXaiCustomVoiceSettingsDirty}
                 customVoiceSettingsSaving={inboundCustomVoiceSettingsSaving}
                 onSave={saveKeepingCloneSession}
@@ -999,7 +1039,6 @@ export default function VoiceSettings({
             ttsModels={sonioxTtsModels}
             sonioxVoices={sonioxVoices}
             catalogLoading={sonioxVoicesLoading}
-            showSharedModel
             onRefreshCatalog={() => void refreshSonioxVoices()}
             onPreviewVoice={previewSonioxVoice}
             onSave={saveVoicePatch}
@@ -1069,10 +1108,10 @@ export default function VoiceSettings({
                 setLatency={setFishLatency}
                 temperature={fishTemperature}
                 setTemperature={setFishTemperature}
-                speed={fishSpeed}
-                setSpeed={setFishSpeed}
-                topP={fishTopP}
-                setTopP={setFishTopP}
+                speed={fishOutboundSpeed}
+                setSpeed={setFishOutboundSpeed}
+                topP={fishOutboundTopP}
+                setTopP={setFishOutboundTopP}
                 customVoiceSettingsDirty={fishCustomVoiceSettingsDirty}
                 customVoiceSettingsSaving={customVoiceSettingsSaving}
                 onSave={saveKeepingCloneSession}
@@ -1101,8 +1140,8 @@ export default function VoiceSettings({
                 voicesNonce={voicesNonce}
                 latency={xaiLatency}
                 setLatency={setXaiLatency}
-                speed={xaiSpeed}
-                setSpeed={setXaiSpeed}
+                speed={xaiOutboundSpeed}
+                setSpeed={setXaiOutboundSpeed}
                 customVoiceSettingsDirty={xaiCustomVoiceSettingsDirty}
                 customVoiceSettingsSaving={customVoiceSettingsSaving}
                 onSave={saveKeepingCloneSession}

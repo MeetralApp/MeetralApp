@@ -36,7 +36,9 @@ pub struct XaiSettings {
     #[serde(default)]
     pub xai_inbound_latency: XaiLatency,
     #[serde(default = "default_xai_speed")]
-    pub xai_speed: f32,
+    pub xai_outbound_speed: f32,
+    #[serde(default = "default_xai_speed")]
+    pub xai_inbound_speed: f32,
 }
 
 pub(crate) fn default_xai_voice_id() -> String {
@@ -56,7 +58,8 @@ impl Default for XaiSettings {
             xai_voices: Vec::new(),
             xai_latency: XaiLatency::Balanced,
             xai_inbound_latency: XaiLatency::Balanced,
-            xai_speed: default_xai_speed(),
+            xai_outbound_speed: default_xai_speed(),
+            xai_inbound_speed: default_xai_speed(),
         }
     }
 }

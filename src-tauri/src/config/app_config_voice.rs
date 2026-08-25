@@ -75,8 +75,8 @@ impl AppConfig {
             model_id: self.fishaudio.fishaudio_tts_model.clone(),
             latency: self.fishaudio.fishaudio_latency,
             temperature: self.fishaudio.fishaudio_temperature,
-            top_p: self.fishaudio.fishaudio_top_p,
-            speed: self.fishaudio.fishaudio_speed,
+            top_p: self.fishaudio.fishaudio_outbound_top_p,
+            speed: self.fishaudio.fishaudio_outbound_speed,
         }
     }
 
@@ -88,8 +88,8 @@ impl AppConfig {
             model_id: self.fishaudio.fishaudio_inbound_tts_model.clone(),
             latency: self.fishaudio.fishaudio_inbound_latency,
             temperature: self.fishaudio.fishaudio_inbound_temperature,
-            top_p: self.fishaudio.fishaudio_top_p,
-            speed: self.fishaudio.fishaudio_speed,
+            top_p: self.fishaudio.fishaudio_inbound_top_p,
+            speed: self.fishaudio.fishaudio_inbound_speed,
         }
     }
 
@@ -97,7 +97,7 @@ impl AppConfig {
         crate::providers::xai::protocol::XaiInitSettings {
             voice_id: self.xai.xai_voice_id.clone(),
             language: crate::providers::xai::config::map_tts_language(&self.meeting_language),
-            speed: self.xai.xai_speed,
+            speed: self.xai.xai_outbound_speed,
             latency: self.xai.xai_latency,
         }
     }
@@ -106,7 +106,7 @@ impl AppConfig {
         crate::providers::xai::protocol::XaiInitSettings {
             voice_id: self.xai.xai_inbound_voice_id.clone(),
             language: crate::providers::xai::config::map_tts_language(&self.my_language),
-            speed: self.xai.xai_speed,
+            speed: self.xai.xai_inbound_speed,
             latency: self.xai.xai_inbound_latency,
         }
     }

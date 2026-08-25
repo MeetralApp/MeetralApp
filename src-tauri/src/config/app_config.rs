@@ -379,9 +379,12 @@ impl AppConfig {
             crate::providers::soniox::tts::config::normalize_soniox_tts_voice(
                 &self.soniox.soniox_tts_outbound_voice,
             );
-        if self.soniox.soniox_tts_model.trim().is_empty() {
-            self.soniox.soniox_tts_model =
+        if self.soniox.soniox_tts_outbound_model.trim().is_empty() {
+            self.soniox.soniox_tts_outbound_model =
                 crate::config::soniox_settings::default_soniox_tts_model_field();
+        }
+        if self.soniox.soniox_tts_inbound_model.trim().is_empty() {
+            self.soniox.soniox_tts_inbound_model = self.soniox.soniox_tts_outbound_model.clone();
         }
         self.soniox.soniox_tts_inbound_speed =
             crate::providers::soniox::tts::config::clamp_soniox_tts_speed(
@@ -391,15 +394,40 @@ impl AppConfig {
             crate::providers::soniox::tts::config::clamp_soniox_tts_speed(
                 self.soniox.soniox_tts_outbound_speed,
             );
-        if !self.soniox.soniox_tts_models.is_empty()
-            && !self
+        if !self.soniox.soniox_tts_models.is_empty() {
+            if !self
                 .soniox
                 .soniox_tts_models
                 .iter()
-                .any(|m| m.id == self.soniox.soniox_tts_model)
-        {
-            self.soniox.soniox_tts_model = self.soniox.soniox_tts_models[0].id.clone();
+                .any(|m| m.id == self.soniox.soniox_tts_outbound_model)
+            {
+                self.soniox.soniox_tts_outbound_model = self.soniox.soniox_tts_models[0].id.clone();
+            }
+            if !self
+                .soniox
+                .soniox_tts_models
+                .iter()
+                .any(|m| m.id == self.soniox.soniox_tts_inbound_model)
+            {
+                self.soniox.soniox_tts_inbound_model = self.soniox.soniox_tts_models[0].id.clone();
+            }
         }
+        self.xai.xai_outbound_speed =
+            crate::providers::xai::config::clamp_speed(self.xai.xai_outbound_speed);
+        self.xai.xai_inbound_speed =
+            crate::providers::xai::config::clamp_speed(self.xai.xai_inbound_speed);
+        self.fishaudio.fishaudio_outbound_speed = crate::providers::fishaudio::config::clamp_speed(
+            self.fishaudio.fishaudio_outbound_speed,
+        );
+        self.fishaudio.fishaudio_inbound_speed = crate::providers::fishaudio::config::clamp_speed(
+            self.fishaudio.fishaudio_inbound_speed,
+        );
+        self.fishaudio.fishaudio_outbound_top_p = crate::providers::fishaudio::config::clamp_top_p(
+            self.fishaudio.fishaudio_outbound_top_p,
+        );
+        self.fishaudio.fishaudio_inbound_top_p = crate::providers::fishaudio::config::clamp_top_p(
+            self.fishaudio.fishaudio_inbound_top_p,
+        );
         if !self.soniox.soniox_tts_voices.is_empty()
             && !self
                 .soniox

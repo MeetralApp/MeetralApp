@@ -274,7 +274,7 @@ pub async fn ensure_provider_tts_worker(
         SonioxTtsWorkerConfig {
             api_key: config.soniox_api_key.clone(),
             voice: config.soniox.soniox_tts_outbound_voice.clone(),
-            model: config.soniox.soniox_tts_model.clone(),
+            model: config.soniox.soniox_tts_outbound_model.clone(),
             language: language.to_string(),
             speed: config.soniox.soniox_tts_outbound_speed,
         },
