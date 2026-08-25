@@ -16,6 +16,8 @@ Live speech vendors and the summary Chat LLM. Routing rules: [capabilities.md](.
 
 Shared live kernel: `providers/shared/live/`. Factory connect: `runtime/factories/live.rs` + `setup.rs`.
 
+**Soniox Engine TTS** (`providers/soniox/tts/`): utterance-per-`AppendDelta` like xAI Custom — each translated prefix is one stream (`config` + `{ text, text_end: true }`); later deltas queue until `terminated`. Fanout still peels prefixes and Flushes on `turn_complete` (shared with Custom EL/Fish on Soniox live); the Engine TTS worker treats `Flush` as a no-op. First mux emit of each generation prerolls `PLAYOUT_JITTER_MS` (200 ms) and a second audio packet (or `audio_end` / `terminated` on a short clip), then coalesces ~80 ms. Do not change fanout to Flush-per-delta (would break Custom EL/Fish).
+
 When Meeting → You is Translated or Custom, the pipeline may mix a quiet copy of the meeting floor under TTS inside `spawn_pipeline_audio` — **not** via `DirectRelay`. Use headphones; do not route Local Playback into Meeting Capture.
 
 ---
