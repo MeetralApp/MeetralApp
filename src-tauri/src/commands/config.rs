@@ -159,10 +159,6 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub elevenlabs_tts_synthesis_mode: Option<crate::voice::config::TtsSynthesisMode>,
     #[serde(default)]
-    pub elevenlabs_playback_crossfade: Option<bool>,
-    #[serde(default)]
-    pub elevenlabs_crossfade_ms: Option<u32>,
-    #[serde(default)]
     pub elevenlabs_inbound_voice_id: String,
     #[serde(default)]
     pub elevenlabs_inbound_tts_model: Option<String>,
@@ -496,12 +492,6 @@ impl SaveConfigRequest {
                     .unwrap_or_else(|| existing.elevenlabs.elevenlabs_tts_language_code.clone()),
                 elevenlabs_auto_mode: existing.elevenlabs.elevenlabs_auto_mode,
                 unified_outbound_topology: existing.elevenlabs.unified_outbound_topology,
-                elevenlabs_playback_crossfade: self
-                    .elevenlabs_playback_crossfade
-                    .unwrap_or(existing.elevenlabs.elevenlabs_playback_crossfade),
-                elevenlabs_crossfade_ms: self
-                    .elevenlabs_crossfade_ms
-                    .unwrap_or(existing.elevenlabs.elevenlabs_crossfade_ms),
                 elevenlabs_inbound_voice_id: if self.elevenlabs_inbound_voice_id.trim().is_empty() {
                     existing.elevenlabs.elevenlabs_inbound_voice_id.clone()
                 } else {

@@ -93,9 +93,7 @@ impl AppConfig {
         }
     }
 
-    pub fn xai_outbound_init_settings(
-        &self,
-    ) -> crate::providers::xai::protocol::XaiInitSettings {
+    pub fn xai_outbound_init_settings(&self) -> crate::providers::xai::protocol::XaiInitSettings {
         crate::providers::xai::protocol::XaiInitSettings {
             voice_id: self.xai.xai_voice_id.clone(),
             language: crate::providers::xai::config::map_tts_language(&self.meeting_language),

@@ -9,7 +9,6 @@ use crate::config::{
 
 use super::stored::{
     default_elevenlabs_auto_mode, default_elevenlabs_chunk_schedule_preset,
-    default_elevenlabs_crossfade_ms, default_elevenlabs_playback_crossfade,
     default_elevenlabs_similarity_boost, default_elevenlabs_speed, default_elevenlabs_stability,
     default_elevenlabs_tts_language_auto, default_elevenlabs_tts_model,
     default_elevenlabs_tts_synthesis_mode, default_elevenlabs_use_speaker_boost,
@@ -147,8 +146,6 @@ impl LegacyStoredConfig {
             elevenlabs_tts_synthesis_mode: default_elevenlabs_tts_synthesis_mode(),
             elevenlabs_auto_mode: default_elevenlabs_auto_mode(),
             unified_outbound_topology: stored_default_unified_outbound_topology(),
-            elevenlabs_playback_crossfade: default_elevenlabs_playback_crossfade(),
-            elevenlabs_crossfade_ms: default_elevenlabs_crossfade_ms(),
             elevenlabs_inbound_voice_id: String::new(),
             elevenlabs_inbound_tts_model: default_elevenlabs_tts_model(),
             elevenlabs_inbound_stability: default_elevenlabs_stability(),

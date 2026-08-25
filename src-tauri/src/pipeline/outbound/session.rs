@@ -8,8 +8,7 @@ use tracing::info;
 use crate::audio::{
     gate_pcm_in_place, resolve_role_device, send_passthrough, shared_playback_device,
     spawn_pipeline_audio, start_user_mic_capture, AudioDeviceInfo, AudioFaultSender,
-    AudioModeHandle, AudioRole, CaptureHeartbeat, PlaybackCrossfadeOptions, ResolvedDevice,
-    CAPTURE_CHANNEL_DEPTH,
+    AudioModeHandle, AudioRole, CaptureHeartbeat, ResolvedDevice, CAPTURE_CHANNEL_DEPTH,
 };
 use crate::config::AppConfig;
 use crate::providers::shared::live::{
@@ -93,14 +92,6 @@ impl OutboundPipeline {
         };
         let playback_device = shared_playback_device(teams_mic_feed);
 
-        let crossfade = if config.elevenlabs.elevenlabs_playback_crossfade {
-            Some(PlaybackCrossfadeOptions {
-                crossfade_ms: config.elevenlabs.elevenlabs_crossfade_ms,
-                flush_aware: true,
-            })
-        } else {
-            None
-        };
         let voice_engine = voice_runtime
             .as_ref()
             .map(|runtime| runtime.voice_engine.clone());
@@ -145,7 +136,6 @@ impl OutboundPipeline {
             passthrough_rx,
             None,
             bridge_ready,
-            crossfade,
             voice_engine,
             None,
             None,

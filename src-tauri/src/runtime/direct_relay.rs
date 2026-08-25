@@ -280,7 +280,6 @@ fn start_direct_relay(
         None,
         None,
         None,
-        None,
         pcm_drops,
     );
 

@@ -7,9 +7,9 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
 use crate::audio::runtime::atomic_to_mode;
 use crate::audio::try_send_pcm_bounded;
+use crate::audio::PlaybackPcmChunk;
 use crate::capabilities::PlaybackSource;
 use crate::config::PipelineOutputMode;
 use crate::pipeline::drain::drain_unbounded;
@@ -104,7 +104,7 @@ pub fn spawn_outbound_playback_mux(
                             if source == PlaybackSource::BridgeSts {
                                 let _ = try_send_pcm_bounded(
                                     &playback_tx,
-                                    PlaybackPcmChunk::continuation(pcm_24k),
+                                    PlaybackPcmChunk::new(pcm_24k),
                                     &pcm_drops,
                                 );
                             }
@@ -253,7 +253,7 @@ mod tests {
         );
 
         provider_tx
-            .send(PlaybackPcmChunk::continuation(vec![500i16; 120]))
+            .send(PlaybackPcmChunk::new(vec![500i16; 120]))
             .await
             .unwrap();
 
@@ -300,7 +300,7 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(30)).await;
 
         provider_tx
-            .send(PlaybackPcmChunk::continuation(vec![700i16; 96]))
+            .send(PlaybackPcmChunk::new(vec![700i16; 96]))
             .await
             .unwrap();
 
@@ -343,7 +343,7 @@ mod tests {
         );
 
         clone_tx
-            .send(PlaybackPcmChunk::continuation(vec![300i16; 80]))
+            .send(PlaybackPcmChunk::new(vec![300i16; 80]))
             .await
             .unwrap();
 
@@ -397,7 +397,7 @@ mod tests {
         );
 
         provider_tx
-            .send(PlaybackPcmChunk::continuation(vec![500i16; 64]))
+            .send(PlaybackPcmChunk::new(vec![500i16; 64]))
             .await
             .unwrap();
         let got = tokio::time::timeout(tokio::time::Duration::from_millis(500), playback_rx.recv())
@@ -438,7 +438,7 @@ mod tests {
 
         bridge_tx.send(vec![1000i16; 120]).await.unwrap();
         clone_tx
-            .send(PlaybackPcmChunk::continuation(vec![300i16; 40]))
+            .send(PlaybackPcmChunk::new(vec![300i16; 40]))
             .await
             .unwrap();
 

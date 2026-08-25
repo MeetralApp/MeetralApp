@@ -97,7 +97,9 @@ mod tests {
         assert_eq!(first.unwrap().text, "one");
         assert!(q.is_generating());
         assert_eq!(q.pending.len(), 1);
-        let next = q.on_audio_done().expect("queued unit starts after audio.done");
+        let next = q
+            .on_audio_done()
+            .expect("queued unit starts after audio.done");
         assert_eq!(next.text, "two");
     }
 
@@ -107,7 +109,9 @@ mod tests {
         let _ = q.push_units(vec![unit("a")]);
         q.begin_reset();
         assert!(q.push_units(vec![unit("c")]).is_none());
-        let next = q.on_audio_clear().expect("pending unit starts after cancel ack");
+        let next = q
+            .on_audio_clear()
+            .expect("pending unit starts after cancel ack");
         assert_eq!(next.text, "c");
     }
 

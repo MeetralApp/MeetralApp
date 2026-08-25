@@ -10,9 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::ducking_mix::{DuckingMixer, DuckingParams, EnqueueTtsOutcome};
 use super::pcm_channel::{try_send_pcm_bounded, PLAYBACK_PCM_CHANNEL_DEPTH};
-use super::pcm_crossfade::{
-    PcmChunkBoundary, PcmCrossfadeMixer, PlaybackCrossfadeOptions, PlaybackPcmChunk,
-};
+use super::pcm_chunk::PlaybackPcmChunk;
 use super::playback::{start_playback, PlaybackHandle};
 use super::playback_buffer::PlaybackBufferConfig;
 use super::resampler::upsample_24k_to_48k;
@@ -139,7 +137,6 @@ pub fn spawn_pipeline_audio(
     mut passthrough_rx: mpsc::Receiver<Vec<i16>>,
     playback_gate: Option<Arc<AtomicBool>>,
     bridge_ready: Option<Arc<AtomicBool>>,
-    crossfade: Option<PlaybackCrossfadeOptions>,
     voice_engine: Option<Arc<AtomicU8>>,
     ducking_params: Option<Arc<StdMutex<DuckingParams>>>,
     app: Option<AppHandle>,
@@ -149,11 +146,6 @@ pub fn spawn_pipeline_audio(
         let mut last_generation = generation.load(Ordering::SeqCst);
         let mut playback: Option<PlaybackHandle> = None;
         let mut playback_tx: Option<mpsc::Sender<Vec<i16>>> = None;
-        let mut crossfade_mixer = crossfade.map(|opts| PcmCrossfadeMixer::new(&opts));
-        let crossfade_enabled = crossfade_mixer.is_some();
-        let mut last_voice_engine = voice_engine
-            .as_ref()
-            .map(|engine| engine.load(Ordering::SeqCst));
         let mut active_device_id = String::new();
         let mut ducking = ducking_params.as_ref().map(|params| {
             let snap = params
@@ -202,19 +194,6 @@ pub fn spawn_pipeline_audio(
             let _ = try_send_pcm_bounded(tx, pcm, &pcm_drops);
         };
 
-        let flush_mixer = |mixer: &mut Option<PcmCrossfadeMixer>,
-                           tx: Option<&mpsc::Sender<Vec<i16>>>| {
-            if let Some(m) = mixer.as_mut() {
-                let tail = m.flush();
-                if !tail.is_empty() {
-                    if let Some(tx) = tx {
-                        send_playback(tx, tail);
-                    }
-                }
-                m.reset();
-            }
-        };
-
         let current_device = || -> ResolvedDevice {
             playback_device
                 .lock()
@@ -232,7 +211,6 @@ pub fn spawn_pipeline_audio(
                 if let Some(handle) = playback.take() {
                     handle.stop();
                 }
-                flush_mixer(&mut crossfade_mixer, playback_tx.as_ref());
                 playback_tx = None;
                 active_device_id.clear();
                 drain_chunks(&mut bridge_audio_rx);
@@ -250,7 +228,6 @@ pub fn spawn_pipeline_audio(
                 if let Some(handle) = playback.take() {
                     handle.stop();
                 }
-                flush_mixer(&mut crossfade_mixer, playback_tx.as_ref());
                 playback_tx = None;
                 active_device_id.clear();
                 if let Some(m) = ducking.as_mut() {
@@ -284,7 +261,6 @@ pub fn spawn_pipeline_audio(
                 if let Some(handle) = playback.take() {
                     handle.stop();
                 }
-                flush_mixer(&mut crossfade_mixer, playback_tx.as_ref());
                 playback_tx = None;
                 active_device_id.clear();
                 drain_chunks(&mut bridge_audio_rx);
@@ -315,7 +291,6 @@ pub fn spawn_pipeline_audio(
                                                        match pcm {
                                                            Some(pcm_48k) if bridge_degraded() => {
                                                                drain_chunks(&mut bridge_audio_rx);
-                                                               flush_mixer(&mut crossfade_mixer, Some(tx));
                                                                if let Some(m) = ducking.as_mut() {
                                                                    m.reset();
                                                                }
@@ -327,11 +302,6 @@ pub fn spawn_pipeline_audio(
                                                                let (_ingested, dropped) = ingest_pending_underlay_tts(
                                                                    &mut bridge_audio_rx,
                                                                    &mut ducking,
-                                                                   &mut crossfade_mixer,
-                                                                   crossfade_enabled,
-                                                                   &voice_engine,
-                                                                   &mut last_voice_engine,
-                                                                   |mixer| flush_mixer(mixer, Some(tx)),
                                                                    UNDERLAY_TTS_INGEST_BUDGET,
                                                                    UNDERLAY_TTS_INGEST_SAMPLES,
                                                                );
@@ -353,18 +323,7 @@ pub fn spawn_pipeline_audio(
                                                    chunk = bridge_audio_rx.recv() => {
                                                        match chunk {
                                                            Some(chunk) if !bridge_degraded() => {
-                                                               if note_voice_engine_change(
-                                                                   &voice_engine,
-                                                                   &mut last_voice_engine,
-                                                               ) {
-                                                                   flush_mixer(&mut crossfade_mixer, Some(tx));
-                                                               }
-                                                               let pcm_48k = prepare_translated_pcm_48k(
-                                                                   chunk,
-                                                                   &mut crossfade_mixer,
-                                                                   crossfade_enabled,
-                                                                   &voice_engine,
-                                                               );
+                                                               let pcm_48k = upsample_chunk(chunk);
                                                                if !pcm_48k.is_empty() {
                                                                    if let Some(m) = ducking.as_mut() {
                                                                        sync_ducking_params(m);
@@ -393,50 +352,12 @@ pub fn spawn_pipeline_audio(
                                                                drain_bounded(&mut passthrough_rx);
                                                                let chunk =
                                                                    merge_pending_chunks(chunk, &mut bridge_audio_rx);
-                                                               if let Some(engine) = voice_engine.as_ref() {
-                                                                   let current = engine.load(Ordering::SeqCst);
-                                                                   if last_voice_engine != Some(current) {
-                                                                       flush_mixer(&mut crossfade_mixer, Some(tx));
-                                                                       last_voice_engine = Some(current);
+                                                               let pcm_48k = upsample_chunk(chunk);
+                                                               if !pcm_48k.is_empty() {
+                                                                   if let Some(m) = ducking.as_mut() {
+                                                                       sync_ducking_params(m);
                                                                    }
-                                                               }
-                                                               match upsample_24k_to_48k(&chunk.samples) {
-                                                                   Ok(pcm_48k) => {
-                                                                       let crossfade_active = crossfade_enabled
-                                                                           && voice_engine.as_ref().is_some_and(
-                                                                               |engine| {
-                                                                                   engine.load(Ordering::SeqCst)
-                                                                                       == VOICE_ENGINE_CUSTOM
-                                                                               },
-                                                                           );
-                                                                       let pcm_48k = if crossfade_active {
-                                                                           if let Some(mixer) = crossfade_mixer.as_mut()
-                                                                           {
-                                                                               mixer.push_chunk(PlaybackPcmChunk {
-                                                                                   samples: pcm_48k,
-                                                                                   boundary: chunk.boundary,
-                                                                               })
-                                                                           } else {
-                                                                               tracing::warn!(
-                                                                                   "crossfade active but mixer missing; passing through without crossfade"
-                                                                               );
-                                                                               pcm_48k
-                                                                           }
-                                                                       } else {
-                                                                           pcm_48k
-                                                                       };
-                                                                       if pcm_48k.is_empty() {
-                        // nothing
-                                                                       } else {
-                                                                           if let Some(m) = ducking.as_mut() {
-                                                                               sync_ducking_params(m);
-                                                                           }
-                                                                           send_playback(tx, pcm_48k);
-                                                                       }
-                                                                   }
-                                                                   Err(e) => {
-                                                                       tracing::error!("audio resample: {e:#}")
-                                                                   }
+                                                                   send_playback(tx, pcm_48k);
                                                                }
                                                            }
                                                            Some(_) => {}
@@ -447,7 +368,6 @@ pub fn spawn_pipeline_audio(
                                                        match pcm {
                                                            Some(pcm_48k) if bridge_degraded() => {
                                                                drain_chunks(&mut bridge_audio_rx);
-                                                               flush_mixer(&mut crossfade_mixer, Some(tx));
                                                                if let Some(m) = ducking.as_mut() {
                                                                    m.reset();
                                                                }
@@ -475,7 +395,6 @@ pub fn spawn_pipeline_audio(
                             match pcm {
                                 Some(pcm_48k) => {
                                     drain_chunks(&mut bridge_audio_rx);
-                                    flush_mixer(&mut crossfade_mixer, Some(tx));
                                     send_playback(tx, pcm_48k);
                                 }
                                 None => break,
@@ -506,7 +425,6 @@ pub fn spawn_pipeline_audio(
             }
         }
 
-        flush_mixer(&mut crossfade_mixer, playback_tx.as_ref());
         if let Some(m) = ducking.as_mut() {
             m.reset();
         }
@@ -538,50 +456,13 @@ fn underlay_uses_passthrough_clock(mixer: Option<&DuckingMixer>) -> bool {
 const UNDERLAY_TTS_INGEST_BUDGET: usize = 32;
 const UNDERLAY_TTS_INGEST_SAMPLES: usize = 48_000;
 
-fn note_voice_engine_change(
-    voice_engine: &Option<Arc<AtomicU8>>,
-    last_voice_engine: &mut Option<u8>,
-) -> bool {
-    let Some(engine) = voice_engine.as_ref() else {
-        return false;
-    };
-    let current = engine.load(Ordering::SeqCst);
-    if *last_voice_engine == Some(current) {
-        return false;
-    }
-    *last_voice_engine = Some(current);
-    true
-}
-
-fn prepare_translated_pcm_48k(
-    chunk: PlaybackPcmChunk,
-    crossfade_mixer: &mut Option<PcmCrossfadeMixer>,
-    crossfade_enabled: bool,
-    voice_engine: &Option<Arc<AtomicU8>>,
-) -> Vec<i16> {
-    let pcm_48k = match upsample_24k_to_48k(&chunk.samples) {
+fn upsample_chunk(chunk: PlaybackPcmChunk) -> Vec<i16> {
+    match upsample_24k_to_48k(&chunk.samples) {
         Ok(pcm) => pcm,
         Err(e) => {
             tracing::error!("audio resample: {e:#}");
-            return Vec::new();
+            Vec::new()
         }
-    };
-    let crossfade_active = crossfade_enabled
-        && voice_engine
-            .as_ref()
-            .is_some_and(|engine| engine.load(Ordering::SeqCst) == VOICE_ENGINE_CUSTOM);
-    if crossfade_active {
-        if let Some(mixer) = crossfade_mixer.as_mut() {
-            mixer.push_chunk(PlaybackPcmChunk {
-                samples: pcm_48k,
-                boundary: chunk.boundary,
-            })
-        } else {
-            tracing::warn!("crossfade active but mixer missing; passing through without crossfade");
-            pcm_48k
-        }
-    } else {
-        pcm_48k
     }
 }
 
@@ -591,11 +472,6 @@ fn prepare_translated_pcm_48k(
 fn ingest_pending_underlay_tts(
     bridge_audio_rx: &mut mpsc::Receiver<PlaybackPcmChunk>,
     ducking: &mut Option<DuckingMixer>,
-    crossfade_mixer: &mut Option<PcmCrossfadeMixer>,
-    crossfade_enabled: bool,
-    voice_engine: &Option<Arc<AtomicU8>>,
-    last_voice_engine: &mut Option<u8>,
-    mut on_engine_change: impl FnMut(&mut Option<PcmCrossfadeMixer>),
     chunk_budget: usize,
     sample_budget: usize,
 ) -> (usize, bool) {
@@ -606,11 +482,7 @@ fn ingest_pending_underlay_tts(
         let Ok(chunk) = bridge_audio_rx.try_recv() else {
             break;
         };
-        if note_voice_engine_change(voice_engine, last_voice_engine) {
-            on_engine_change(crossfade_mixer);
-        }
-        let pcm_48k =
-            prepare_translated_pcm_48k(chunk, crossfade_mixer, crossfade_enabled, voice_engine);
+        let pcm_48k = upsample_chunk(chunk);
         ingested += 1;
         if pcm_48k.is_empty() {
             continue;
@@ -634,9 +506,6 @@ fn merge_pending_chunks(
 ) -> PlaybackPcmChunk {
     while let Ok(next) = rx.try_recv() {
         first.samples.extend(next.samples);
-        if next.boundary == PcmChunkBoundary::SegmentEnd {
-            first.boundary = PcmChunkBoundary::SegmentEnd;
-        }
     }
     first
 }
@@ -742,24 +611,17 @@ mod tests {
     fn ingest_pending_underlay_tts_prevents_mid_utterance_underrun() {
         let (tx, mut rx) = mpsc::channel::<PlaybackPcmChunk>(PLAYBACK_PCM_CHANNEL_DEPTH);
         // Two 24 kHz sub-chunks of one utterance (upsample → 8 samples each @ 48 kHz).
-        tx.try_send(PlaybackPcmChunk::continuation(vec![1000i16; 4]))
+        tx.try_send(PlaybackPcmChunk::new(vec![1000i16; 4]))
             .unwrap();
-        tx.try_send(PlaybackPcmChunk::continuation(vec![2000i16; 4]))
+        tx.try_send(PlaybackPcmChunk::new(vec![2000i16; 4]))
             .unwrap();
 
         let mut ducking = Some(DuckingMixer::new(DuckingParams::from_config_fields(
             true, 0.18,
         )));
-        let mut crossfade = None;
-        let mut last_engine = None;
         let (ingested, dropped) = ingest_pending_underlay_tts(
             &mut rx,
             &mut ducking,
-            &mut crossfade,
-            false,
-            &None,
-            &mut last_engine,
-            |_| {},
             UNDERLAY_TTS_INGEST_BUDGET,
             UNDERLAY_TTS_INGEST_SAMPLES,
         );

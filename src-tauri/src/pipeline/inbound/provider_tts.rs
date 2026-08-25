@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
+use crate::audio::PlaybackPcmChunk;
 use crate::capabilities::{
     needs_custom_tts_for_inbound, scaffolds_inbound_text_tts, uses_provider_tts_for_inbound,
 };

@@ -8,7 +8,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
+use crate::audio::PlaybackPcmChunk;
 use crate::config::{AppConfig, CustomVoiceVendor};
 use crate::providers::fishaudio::{spawn_fishaudio_tts_worker, FishAudioWorkerConfig};
 use crate::providers::xai::{spawn_xai_tts_worker, XaiWorkerConfig};
@@ -61,11 +61,8 @@ pub async fn validate_outbound_custom_voice(config: &AppConfig) -> Result<(), St
             .await
         }
         CustomVoiceVendor::Xai => {
-            crate::providers::xai::validate_voice(
-                &config.xai.xai_api_key,
-                &config.xai.xai_voice_id,
-            )
-            .await
+            crate::providers::xai::validate_voice(&config.xai.xai_api_key, &config.xai.xai_voice_id)
+                .await
         }
     }
 }

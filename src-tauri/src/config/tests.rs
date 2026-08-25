@@ -161,8 +161,6 @@ fn legacy_flat_soniox_and_elevenlabs_settings_deserialize() {
             "sonioxEndpointSensitivity": 0.8,
             "elevenlabsApiKey": "eleven-key",
             "elevenlabsVoiceId": "voice-id",
-            "elevenlabsPlaybackCrossfade": true,
-            "elevenlabsCrossfadeMs": 12,
             "elevenlabsInboundVoiceId": "inbound-voice"
         }"#,
     )
@@ -173,8 +171,6 @@ fn legacy_flat_soniox_and_elevenlabs_settings_deserialize() {
     assert!((config.soniox.soniox_endpoint_sensitivity - 0.8).abs() < f64::EPSILON);
     assert_eq!(config.elevenlabs.elevenlabs_api_key, "eleven-key");
     assert_eq!(config.elevenlabs.elevenlabs_voice_id, "voice-id");
-    assert!(config.elevenlabs.elevenlabs_playback_crossfade);
-    assert_eq!(config.elevenlabs.elevenlabs_crossfade_ms, 12);
     assert_eq!(
         config.elevenlabs.elevenlabs_inbound_voice_id,
         "inbound-voice"

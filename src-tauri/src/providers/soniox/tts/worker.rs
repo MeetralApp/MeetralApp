@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::audio::pcm_crossfade::{PcmChunkBoundary, PlaybackPcmChunk};
 use crate::audio::try_send_pcm_bounded;
+use crate::audio::PlaybackPcmChunk;
 use anyhow::{anyhow, Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
@@ -343,26 +343,13 @@ async fn run_connected_session(
     const TERMINATE_TIMEOUT: Duration = Duration::from_secs(15);
 
     let flush_coalesce = |buf: &mut Vec<i16>,
-                          boundary: PcmChunkBoundary,
                           audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
                           pcm_drops: &AtomicU64|
      -> Result<()> {
         if buf.is_empty() {
-            if boundary == PcmChunkBoundary::SegmentEnd {
-                let chunk = PlaybackPcmChunk {
-                    samples: Vec::new(),
-                    boundary: PcmChunkBoundary::SegmentEnd,
-                };
-                if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
-                    return Err(anyhow!("playback channel closed"));
-                }
-            }
             return Ok(());
         }
-        let chunk = PlaybackPcmChunk {
-            samples: std::mem::take(buf),
-            boundary,
-        };
+        let chunk = PlaybackPcmChunk::new(std::mem::take(buf));
         if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
             return Err(anyhow!("playback channel closed"));
         }
@@ -476,7 +463,7 @@ async fn run_connected_session(
                                let _ = write.send(Message::Text(build_cancel_message(id))).await;
                            }
                        }
-                       let _ = flush_coalesce(&mut coalesce_buf, PcmChunkBoundary::SegmentEnd, audio_tx, pcm_drops);
+                       let _ = flush_coalesce(&mut coalesce_buf, audio_tx, pcm_drops);
                        let _ = write.close().await;
                        return Ok(SessionEnd::Done);
                    }
@@ -488,7 +475,7 @@ async fn run_connected_session(
                    }, if awaiting_terminated && terminate_deadline.is_some() => {
                        warn!("soniox tts terminated timeout — dropping websocket");
                        debug::log_soniox_tts("terminated_timeout_drop_ws");
-                       let _ = flush_coalesce(&mut coalesce_buf, PcmChunkBoundary::SegmentEnd, audio_tx, pcm_drops);
+                       let _ = flush_coalesce(&mut coalesce_buf, audio_tx, pcm_drops);
                        let _ = write.close().await;
                        if let Some(pending) = pending_work_from_queue(pending_queue) {
                            return Ok(SessionEnd::Reconnect(pending));
@@ -587,7 +574,6 @@ async fn run_connected_session(
                                stream_id = None;
                                let _ = flush_coalesce(
                                    &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
                                    audio_tx,
                                    pcm_drops,
                                );
@@ -605,7 +591,6 @@ async fn run_connected_session(
                                }
                                let _ = flush_coalesce(
                                    &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
                                    audio_tx,
                                    pcm_drops,
                                );
@@ -645,7 +630,6 @@ async fn run_connected_session(
                                        warn!("soniox tts recoverable error — reconnecting: {err}");
                                        let _ = flush_coalesce(
                                            &mut coalesce_buf,
-                                           PcmChunkBoundary::SegmentEnd,
                                            audio_tx,
                                            pcm_drops,
                                        );
@@ -676,7 +660,6 @@ async fn run_connected_session(
                                    if is_first || coalesce_buf.len() >= SONIOX_PCM_COALESCE_MIN_SAMPLES {
                                        flush_coalesce(
                                            &mut coalesce_buf,
-                                           PcmChunkBoundary::Continuation,
                                            audio_tx,
                                            pcm_drops,
                                        )?;
@@ -685,7 +668,6 @@ async fn run_connected_session(
                                if parsed.audio_end || parsed.terminated {
                                    flush_coalesce(
                                        &mut coalesce_buf,
-                                       PcmChunkBoundary::SegmentEnd,
                                        audio_tx,
                                        pcm_drops,
                                    )?;
@@ -732,7 +714,6 @@ async fn run_connected_session(
                            Some(Ok(Message::Close(_))) => {
                                let _ = flush_coalesce(
                                    &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
                                    audio_tx,
                                    pcm_drops,
                                );
@@ -749,7 +730,6 @@ async fn run_connected_session(
                                    warn!("soniox tts ws error — idle reconnect: {msg}");
                                    let _ = flush_coalesce(
                                        &mut coalesce_buf,
-                                       PcmChunkBoundary::SegmentEnd,
                                        audio_tx,
                                        pcm_drops,
                                    );
@@ -763,7 +743,6 @@ async fn run_connected_session(
                            None => {
                                let _ = flush_coalesce(
                                    &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
                                    audio_tx,
                                    pcm_drops,
                                );

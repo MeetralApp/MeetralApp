@@ -176,8 +176,6 @@ pub(crate) struct StoredConfig {
     pub(crate) elevenlabs_auto_mode: bool,
     #[serde(default = "stored_default_unified_outbound_topology")]
     pub(crate) unified_outbound_topology: bool,
-    #[serde(default = "default_elevenlabs_playback_crossfade")]
-    pub(crate) elevenlabs_playback_crossfade: bool,
     #[serde(default = "default_true")]
     pub(crate) artifacts_enabled: bool,
     #[serde(default)]
@@ -194,8 +192,6 @@ pub(crate) struct StoredConfig {
     /// persist; entries without a matching profile are GC'd on load.
     #[serde(default)]
     pub(crate) encrypted_custom_llm_keys: std::collections::HashMap<String, String>,
-    #[serde(default = "default_elevenlabs_crossfade_ms")]
-    pub(crate) elevenlabs_crossfade_ms: u32,
     #[serde(default)]
     pub(crate) elevenlabs_inbound_voice_id: String,
     #[serde(default = "default_elevenlabs_tts_model")]
@@ -323,14 +319,6 @@ pub(crate) fn default_elevenlabs_tts_synthesis_mode() -> crate::voice::config::T
 
 pub(crate) fn default_elevenlabs_auto_mode() -> bool {
     crate::voice::config::default_elevenlabs_auto_mode()
-}
-
-pub(crate) fn default_elevenlabs_playback_crossfade() -> bool {
-    crate::voice::config::default_elevenlabs_playback_crossfade()
-}
-
-pub(crate) fn default_elevenlabs_crossfade_ms() -> u32 {
-    crate::voice::config::default_elevenlabs_crossfade_ms()
 }
 
 pub(crate) fn default_soniox_tts_voice() -> String {
@@ -642,8 +630,6 @@ impl StoredConfig {
                 elevenlabs_tts_synthesis_mode: self.elevenlabs_tts_synthesis_mode,
                 elevenlabs_auto_mode: self.elevenlabs_auto_mode,
                 unified_outbound_topology: self.unified_outbound_topology,
-                elevenlabs_playback_crossfade: self.elevenlabs_playback_crossfade,
-                elevenlabs_crossfade_ms: self.elevenlabs_crossfade_ms,
                 elevenlabs_inbound_voice_id: self.elevenlabs_inbound_voice_id.clone(),
                 elevenlabs_inbound_tts_model: self.elevenlabs_inbound_tts_model.clone(),
                 elevenlabs_inbound_stability: self.elevenlabs_inbound_stability,
@@ -785,8 +771,6 @@ impl StoredConfig {
             elevenlabs_tts_synthesis_mode: config.elevenlabs.elevenlabs_tts_synthesis_mode,
             elevenlabs_auto_mode: config.elevenlabs.elevenlabs_auto_mode,
             unified_outbound_topology: config.elevenlabs.unified_outbound_topology,
-            elevenlabs_playback_crossfade: config.elevenlabs.elevenlabs_playback_crossfade,
-            elevenlabs_crossfade_ms: config.elevenlabs.elevenlabs_crossfade_ms,
             elevenlabs_inbound_voice_id: config.elevenlabs.elevenlabs_inbound_voice_id.clone(),
             elevenlabs_inbound_tts_model: config.elevenlabs.elevenlabs_inbound_tts_model.clone(),
             elevenlabs_inbound_stability: config.elevenlabs.elevenlabs_inbound_stability,

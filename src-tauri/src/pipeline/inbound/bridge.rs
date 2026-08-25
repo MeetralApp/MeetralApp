@@ -8,7 +8,7 @@ use anyhow::Result;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
+use crate::audio::PlaybackPcmChunk;
 use crate::audio::{AudioModeHandle, PLAYBACK_PCM_CHANNEL_DEPTH};
 use crate::capabilities::{
     bridge_emits_playback_audio, bridge_play_audio_enabled, needs_custom_tts_for_inbound,

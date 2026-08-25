@@ -24,7 +24,7 @@ When Meeting → You is Translated or Custom, the pipeline may mix a quiet copy 
 
 `providers/elevenlabs/` + `runtime/voice_runtime.rs` + `runtime/factories/custom.rs`. Shared API key; per-direction voice / model / stability / similarity / synthesis mode. `PlaybackSource::CustomTts` when that column’s vendor is ElevenLabs.
 
-Do not recreate a shared mega `tts_delivery`. Delivery stays inside the ElevenLabs slice as Gemini/OpenAI text coalescing. Do not point the ElevenLabs worker at Fish’s ElevenLabs-compat URL.
+Do not recreate a shared mega `tts_delivery`. Delivery stays inside the ElevenLabs slice as Gemini/OpenAI text coalescing. Do not point the ElevenLabs worker at Fish’s ElevenLabs-compat URL. Playback mux does not overlap-mix PCM.
 
 ---
 

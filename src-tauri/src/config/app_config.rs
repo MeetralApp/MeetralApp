@@ -7,13 +7,13 @@ use crate::ai::{
 use super::device::DeviceRef;
 use super::elevenlabs_settings::ElevenLabsSettings;
 use super::fishaudio_settings::FishAudioSettings;
-use super::xai_settings::XaiSettings;
 use super::modes::{
     CustomVoiceVendor, InboundVoiceOutput, OutboundVoiceOutput, PipelineOutputMode, SessionMode,
     ThemePreference, TranscriptLayout, VadSensitivity,
 };
 use super::overlay_settings::OverlaySettings;
 use super::soniox_settings::SonioxSettings;
+use super::xai_settings::XaiSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -368,8 +368,6 @@ impl AppConfig {
             crate::voice::config::normalize_chunk_schedule_preset(
                 self.elevenlabs.elevenlabs_chunk_schedule_preset,
             );
-        self.elevenlabs.elevenlabs_crossfade_ms =
-            self.elevenlabs.elevenlabs_crossfade_ms.clamp(0, 20);
         self.soniox.soniox_tts_voice =
             crate::providers::soniox::tts::config::normalize_soniox_tts_voice(
                 &self.soniox.soniox_tts_voice,

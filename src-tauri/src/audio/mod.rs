@@ -4,7 +4,7 @@ pub mod device;
 pub mod device_monitor;
 pub mod ducking_mix;
 pub mod pcm_channel;
-pub mod pcm_crossfade;
+pub mod pcm_chunk;
 pub mod playback;
 pub mod playback_buffer;
 pub mod resampler;
@@ -26,10 +26,7 @@ pub use device::{
 };
 pub use device_monitor::{start_device_change_monitor, DeviceChangeEvent, DeviceChangeSender};
 pub use pcm_channel::{try_send_pcm_bounded, try_send_pcm_drop_oldest, PLAYBACK_PCM_CHANNEL_DEPTH};
-pub use pcm_crossfade::{
-    spawn_pcm24k_adapter, PcmChunkBoundary, PcmCrossfadeMixer, PlaybackCrossfadeOptions,
-    PlaybackPcmChunk,
-};
+pub use pcm_chunk::{spawn_pcm24k_adapter, PlaybackPcmChunk};
 pub use playback::{start_playback, start_playback_for_role, PlaybackHandle};
 pub use playback_buffer::{PlaybackBufferConfig, PlaybackFillStatus, PlaybackRingBuffer};
 pub use runtime::{

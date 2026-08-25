@@ -132,8 +132,6 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     elevenlabsTtsLanguageAuto: data.elevenlabsTtsLanguageAuto ?? true,
     elevenlabsTtsLanguageCode: data.elevenlabsTtsLanguageCode ?? "",
     elevenlabsTtsSynthesisMode: data.elevenlabsTtsSynthesisMode ?? "streaming",
-    elevenlabsPlaybackCrossfade: data.elevenlabsPlaybackCrossfade ?? false,
-    elevenlabsCrossfadeMs: data.elevenlabsCrossfadeMs ?? 8,
     fishaudioVoiceId: data.fishaudioVoiceId ?? "",
     fishaudioInboundVoiceId: data.fishaudioInboundVoiceId ?? "",
     fishaudioVoices: data.fishaudioVoices ?? [],

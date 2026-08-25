@@ -18,7 +18,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::audio::ducking_mix::DuckingParams;
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
+use crate::audio::PlaybackPcmChunk;
 use crate::audio::{
     resolve_role_device, AudioDeviceInfo, AudioModeHandle, AudioRole, CaptureHandle,
     CaptureHeartbeat, SharedPlaybackDevice,
@@ -36,7 +36,7 @@ pub struct InboundBridgeConnect {
     pub bridge: LiveBridgeHandle,
     /// Legacy raw PCM (Gemini/OpenAI STS, or unused when `playback_chunks` is set).
     pub playback_rx: mpsc::Receiver<Vec<i16>>,
-    /// Soniox TTS path: chunked PCM with segment boundaries for crossfade.
+    /// Soniox TTS path: chunked 24 kHz PCM.
     pub playback_chunks: Option<mpsc::Receiver<PlaybackPcmChunk>>,
     /// Shared with fanout when Soniox TTS is scaffolded (any inbound mode under Soniox).
     pub audio_mode: Option<AudioModeHandle>,

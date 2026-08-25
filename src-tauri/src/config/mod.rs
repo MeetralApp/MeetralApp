@@ -26,7 +26,6 @@ pub use custom_llm::{
 pub use device::DeviceRef;
 pub use elevenlabs_settings::ElevenLabsSettings;
 pub use fishaudio_settings::{FishAudioLatency, FishAudioSettings};
-pub use xai_settings::{XaiLatency, XaiSettings};
 pub use meeting_context::{
     MeetingContextPair, MeetingContextPayload, MeetingContextTranslationTerm,
 };
@@ -40,6 +39,7 @@ pub use overlay_settings::{
 };
 pub use soniox_settings::SonioxSettings;
 pub use view::ConfigView;
+pub use xai_settings::{XaiLatency, XaiSettings};
 
 pub const INPUT_SAMPLE_RATE: u32 = 48000;
 pub const OUTPUT_SAMPLE_RATE: u32 = 24000;

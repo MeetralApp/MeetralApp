@@ -331,8 +331,6 @@ export interface ConfigView {
   elevenlabsTtsLanguageAuto: boolean;
   elevenlabsTtsLanguageCode: string;
   elevenlabsTtsSynthesisMode: TtsSynthesisMode;
-  elevenlabsPlaybackCrossfade: boolean;
-  elevenlabsCrossfadeMs: number;
   fishaudioVoiceId?: string;
   fishaudioInboundVoiceId?: string;
   fishaudioVoices?: FishAudioVoiceOption[];
@@ -472,8 +470,6 @@ export interface SaveConfigPayload {
   elevenlabsTtsLanguageAuto?: boolean;
   elevenlabsTtsLanguageCode?: string;
   elevenlabsTtsSynthesisMode?: TtsSynthesisMode;
-  elevenlabsPlaybackCrossfade?: boolean;
-  elevenlabsCrossfadeMs?: number;
   fishaudioApiKey?: string;
   clearFishaudioApiKey?: boolean;
   fishaudioVoiceId?: string;

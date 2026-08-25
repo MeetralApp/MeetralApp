@@ -33,10 +33,6 @@ pub struct ElevenLabsSettings {
     pub elevenlabs_auto_mode: bool,
     #[serde(default = "default_unified_outbound_topology")]
     pub unified_outbound_topology: bool,
-    #[serde(default = "default_elevenlabs_playback_crossfade")]
-    pub elevenlabs_playback_crossfade: bool,
-    #[serde(default = "default_elevenlabs_crossfade_ms")]
-    pub elevenlabs_crossfade_ms: u32,
     /// Meeting → You ElevenLabs voice (shared API key with outbound).
     #[serde(default)]
     pub elevenlabs_inbound_voice_id: String,
@@ -91,14 +87,6 @@ pub(crate) fn default_elevenlabs_auto_mode() -> bool {
     crate::voice::config::default_elevenlabs_auto_mode()
 }
 
-pub(crate) fn default_elevenlabs_playback_crossfade() -> bool {
-    crate::voice::config::default_elevenlabs_playback_crossfade()
-}
-
-pub(crate) fn default_elevenlabs_crossfade_ms() -> u32 {
-    crate::voice::config::default_elevenlabs_crossfade_ms()
-}
-
 impl Default for ElevenLabsSettings {
     fn default() -> Self {
         Self {
@@ -117,8 +105,6 @@ impl Default for ElevenLabsSettings {
             elevenlabs_tts_synthesis_mode: default_elevenlabs_tts_synthesis_mode(),
             elevenlabs_auto_mode: default_elevenlabs_auto_mode(),
             unified_outbound_topology: default_unified_outbound_topology(),
-            elevenlabs_playback_crossfade: default_elevenlabs_playback_crossfade(),
-            elevenlabs_crossfade_ms: default_elevenlabs_crossfade_ms(),
             elevenlabs_inbound_voice_id: String::new(),
             elevenlabs_inbound_tts_model: default_elevenlabs_tts_model(),
             elevenlabs_inbound_stability: default_elevenlabs_stability(),

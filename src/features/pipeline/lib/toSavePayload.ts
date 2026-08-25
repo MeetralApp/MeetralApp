@@ -73,8 +73,6 @@ export function toSavePayload(
     elevenlabsTtsLanguageAuto?: boolean;
     elevenlabsTtsLanguageCode?: string;
     elevenlabsTtsSynthesisMode?: TtsSynthesisMode;
-    elevenlabsPlaybackCrossfade?: boolean;
-    elevenlabsCrossfadeMs?: number;
     fishaudioApiKey?: string;
     clearFishaudioApiKey?: boolean;
     fishaudioVoiceId?: string;
@@ -261,12 +259,6 @@ export function toSavePayload(
       options.elevenlabsTtsSynthesisMode ??
       config.elevenlabsTtsSynthesisMode ??
       "streaming",
-    elevenlabsPlaybackCrossfade:
-      options.elevenlabsPlaybackCrossfade ??
-      config.elevenlabsPlaybackCrossfade ??
-      false,
-    elevenlabsCrossfadeMs:
-      options.elevenlabsCrossfadeMs ?? config.elevenlabsCrossfadeMs ?? 8,
     fishaudioApiKey: options.fishaudioApiKey ?? "",
     clearFishaudioApiKey: options.clearFishaudioApiKey,
     fishaudioVoiceId:

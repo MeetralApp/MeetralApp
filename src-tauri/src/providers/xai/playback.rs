@@ -2,7 +2,7 @@
 //!
 //! Concatenate until ~80 ms, then pass samples through unmodified.
 
-use crate::audio::pcm_crossfade::{PcmChunkBoundary, PlaybackPcmChunk};
+use crate::audio::PlaybackPcmChunk;
 
 use super::config::PCM_COALESCE_MIN_SAMPLES;
 
@@ -27,17 +27,14 @@ impl PcmCoalesce {
         if self.buf.len() < self.min {
             return Vec::new();
         }
-        vec![PlaybackPcmChunk {
-            samples: std::mem::take(&mut self.buf),
-            boundary: PcmChunkBoundary::Continuation,
-        }]
+        vec![PlaybackPcmChunk::new(std::mem::take(&mut self.buf))]
     }
 
     pub fn finish_segment(&mut self) -> Vec<PlaybackPcmChunk> {
-        vec![PlaybackPcmChunk {
-            samples: std::mem::take(&mut self.buf),
-            boundary: PcmChunkBoundary::SegmentEnd,
-        }]
+        if self.buf.is_empty() {
+            return Vec::new();
+        }
+        vec![PlaybackPcmChunk::new(std::mem::take(&mut self.buf))]
     }
 
     pub fn reset(&mut self) -> Vec<PlaybackPcmChunk> {
@@ -83,21 +80,17 @@ mod tests {
         assert!(p.push(vec![1, 2, 3]).is_empty());
         let out = p.finish_segment();
         assert_eq!(out.len(), 1);
-        assert_eq!(out[0].boundary, PcmChunkBoundary::SegmentEnd);
         assert_eq!(out[0].samples, vec![1, 2, 3]);
     }
 
     #[test]
-    fn emits_continuation_once_coalesced() {
+    fn emits_once_coalesced() {
         let mut p = PcmCoalesce::new();
         p.min = 4;
         let out = p.push(vec![1, 2, 3, 4, 5]);
         assert_eq!(out.len(), 1);
-        assert_eq!(out[0].boundary, PcmChunkBoundary::Continuation);
         assert_eq!(out[0].samples, vec![1, 2, 3, 4, 5]);
-        let rest = p.finish_segment();
-        assert!(rest[0].samples.is_empty());
-        assert_eq!(rest[0].boundary, PcmChunkBoundary::SegmentEnd);
+        assert!(p.finish_segment().is_empty());
     }
 
     #[test]

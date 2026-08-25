@@ -62,14 +62,6 @@ pub fn default_elevenlabs_tts_synthesis_mode() -> TtsSynthesisMode {
     TtsSynthesisMode::Streaming
 }
 
-pub fn default_elevenlabs_playback_crossfade() -> bool {
-    false
-}
-
-pub fn default_elevenlabs_crossfade_ms() -> u32 {
-    8
-}
-
 /// ElevenLabs WS `voice_settings.speed` allows 0.7–1.2 inclusive. `f32` values such as
 /// `1.2` become `1.200000047…` in JSON and can trigger `invalid_voice_settings`.
 pub fn elevenlabs_speed_for_api(speed: f32) -> f64 {

@@ -53,8 +53,6 @@ export const baseConfig: ConfigView = {
   elevenlabsUseSpeakerBoost: true,
   elevenlabsChunkSchedulePreset: "fast",
   elevenlabsTtsSynthesisMode: "streaming",
-  elevenlabsPlaybackCrossfade: false,
-  elevenlabsCrossfadeMs: 8,
   elevenlabsTtsLanguageAuto: true,
   elevenlabsTtsLanguageCode: "",
   fishaudioVoiceId: "",

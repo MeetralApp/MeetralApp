@@ -2,17 +2,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
 use crate::audio::try_send_pcm_bounded;
+use crate::audio::PlaybackPcmChunk;
 use anyhow::{anyhow, Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{
-    connect_async,
-    tungstenite::client::IntoClientRequest,
-    tungstenite::http::header::AUTHORIZATION,
-    tungstenite::http::HeaderValue,
-    tungstenite::Message,
+    connect_async, tungstenite::client::IntoClientRequest,
+    tungstenite::http::header::AUTHORIZATION, tungstenite::http::HeaderValue, tungstenite::Message,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
@@ -29,9 +26,8 @@ use crate::voice::elevenlabs::latency::TurnLatencySlot;
 use crate::voice::shared::tts_command::TtsTextCommand;
 use crate::voice::shared::types::VoiceTtsStatus;
 
-type XaiWs = tokio_tungstenite::WebSocketStream<
-    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
->;
+type XaiWs =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 #[derive(Debug, Clone)]
 pub struct XaiWorkerConfig {
@@ -366,10 +362,7 @@ where
     let Some(unit) = unit else {
         return Ok(());
     };
-    debug!(
-        chars = unit.text.chars().count(),
-        "xai start utterance"
-    );
+    debug!(chars = unit.text.chars().count(), "xai start utterance");
     let delta = pack_text_delta(&unit.text)?;
     let done = pack_text_done()?;
     write
@@ -402,8 +395,7 @@ fn emit_chunks(
             crate::runtime::control_channel::try_send_control(
                 status_tx,
                 VoiceTtsStatus::Degraded {
-                    message: "Custom voice playback unavailable — Stop and Start to retry."
-                        .into(),
+                    message: "Custom voice playback unavailable — Stop and Start to retry.".into(),
                 },
                 "tts-status",
             );
@@ -420,7 +412,8 @@ async fn connect_ws(api_key: &str, url: &str) -> Result<XaiWs> {
         AUTHORIZATION,
         HeaderValue::from_str(&auth).context("xai auth header")?,
     );
-    let connect_result = tokio::time::timeout(Duration::from_secs(15), connect_async(request)).await;
+    let connect_result =
+        tokio::time::timeout(Duration::from_secs(15), connect_async(request)).await;
     match connect_result {
         Ok(Ok((ws, _))) => Ok(ws),
         Ok(Err(e)) => Err(anyhow!("xai connect failed: {e}")),
