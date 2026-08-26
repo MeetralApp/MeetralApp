@@ -4,6 +4,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 pub mod ai;
+pub mod app_data;
 pub mod app_state;
 pub mod audio;
 pub mod capabilities;

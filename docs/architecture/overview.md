@@ -42,6 +42,7 @@ src-tauri/src/
 ├── overlay/             # transcript overlay window (Win hide-from-capture; Mac best-effort)
 ├── config/              # AppConfig (+ vendor sub-structs; ConfigView maps 1:1)
 ├── config_store/        # persistence + migration
+├── app_data.rs          # durable AppData root (Win: unvirtualized Roaming + \\?\ I/O)
 ├── ai/                  # AiProvider enum, live handle, summary client (thin re-exports — do not grow)
 │   └── llm/             # ChatLlmProvider trait + ChatRequest + LlmError/LlmErrorKind
 ├── voice/               # shared TTS types + config (thin re-exports — do not grow)

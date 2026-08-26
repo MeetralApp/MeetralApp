@@ -45,7 +45,7 @@ src-tauri/src/       Rust crate (one crate — no workspace split)
   pipeline/          inbound / outbound session wiring
   meeting/           SQLite library, SegmentEngine, summary, prompts, recording
   audio/             WASAPI / CoreAudio + Direct passthrough
-  overlay/, tray.rs, commands/, config/, config_store/
+  overlay/, tray.rs, commands/, config/, config_store/, app_data.rs
 design-system/       UI SSOT (tokens + page overrides)
 docs/                Project knowledge — see docs/README.md
 ```

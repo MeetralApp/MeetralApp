@@ -5,6 +5,15 @@ Sparse MSIX identity (taskbar grouping / notifications) vs unpackaged `cargo run
 **App id (install / release):** `com.meetral.desktop`. Sparse package **Name** in the Appx manifest is `Meetral`.
 **App id (local dev):** `com.meetral.desktop.dev` via `npm run tauri:dev` → `%APPDATA%\com.meetral.desktop.dev\`.
 
+## Durable app data (Roaming)
+
+Config, the meeting library (`meetings.db`), default recordings, and logs are stored under real roaming AppData — not under `Packages\Meetral_*\LocalCache`:
+
+- Release / install: `%APPDATA%\com.meetral.desktop\`
+- `npm run tauri:dev`: `%APPDATA%\com.meetral.desktop.dev\`
+
+Owner: `src-tauri/src/app_data.rs`. On Windows it resolves Roaming with `KF_FLAG_NO_PACKAGE_REDIRECTION` and prefixes paths with `\\?\` so package AppData redirection cannot send writes back into LocalCache. The sparse manifest also declares `unvirtualizedResources` + `FileSystemWriteVirtualization=disabled`; **re-register** sparse identity after rebuilding the `.msix` so that capability takes effect. There is no automatic copy from LocalCache — a first launch after this change starts with empty settings/library unless you copy files yourself.
+
 ## `The process has no package identity` (os error 15700)
 
 Windows refused `CreateProcess`. Cargo’s “never executed” means the process did not start — this is not `windows_identity.rs` (that runs after launch).
