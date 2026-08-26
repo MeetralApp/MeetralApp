@@ -106,11 +106,10 @@ fn roaming_app_data_from_userprofile() -> Option<PathBuf> {
     path.is_dir().then_some(path)
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
     use super::*;
 
-    #[cfg(windows)]
     #[test]
     fn verbatim_prefix_round_trips_for_display() {
         let logical = PathBuf::from(r"C:\Users\nhantruong\AppData\Roaming\com.meetral.desktop");
@@ -123,7 +122,6 @@ mod tests {
         assert_eq!(verbatim_prefix(io.clone()), io);
     }
 
-    #[cfg(windows)]
     #[test]
     fn unvirtualized_roaming_is_not_package_localcache() {
         let path = roaming_app_data_unvirtualized()
