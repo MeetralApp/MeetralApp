@@ -56,6 +56,7 @@ fn for_fs(path: PathBuf) -> PathBuf {
     }
 }
 
+#[cfg(windows)]
 fn verbatim_prefix(path: PathBuf) -> PathBuf {
     let s = path.to_string_lossy();
     if s.starts_with(r"\\?\") {
@@ -109,6 +110,7 @@ fn roaming_app_data_from_userprofile() -> Option<PathBuf> {
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn verbatim_prefix_round_trips_for_display() {
         let logical = PathBuf::from(r"C:\Users\nhantruong\AppData\Roaming\com.meetral.desktop");
