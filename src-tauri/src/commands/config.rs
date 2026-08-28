@@ -114,7 +114,9 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub soniox_tts_outbound_voice: Option<String>,
     #[serde(default)]
-    pub soniox_tts_model: Option<String>,
+    pub soniox_tts_outbound_model: Option<String>,
+    #[serde(default)]
+    pub soniox_tts_inbound_model: Option<String>,
     #[serde(default)]
     pub soniox_tts_voices: Option<Vec<crate::voice::SonioxVoiceOption>>,
     #[serde(default)]
@@ -159,10 +161,6 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub elevenlabs_tts_synthesis_mode: Option<crate::voice::config::TtsSynthesisMode>,
     #[serde(default)]
-    pub elevenlabs_playback_crossfade: Option<bool>,
-    #[serde(default)]
-    pub elevenlabs_crossfade_ms: Option<u32>,
-    #[serde(default)]
     pub elevenlabs_inbound_voice_id: String,
     #[serde(default)]
     pub elevenlabs_inbound_tts_model: Option<String>,
@@ -197,9 +195,31 @@ pub struct SaveConfigRequest {
     #[serde(default)]
     pub fishaudio_inbound_temperature: Option<f32>,
     #[serde(default)]
-    pub fishaudio_speed: Option<f32>,
+    pub fishaudio_outbound_speed: Option<f32>,
     #[serde(default)]
-    pub fishaudio_top_p: Option<f32>,
+    pub fishaudio_inbound_speed: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_outbound_top_p: Option<f32>,
+    #[serde(default)]
+    pub fishaudio_inbound_top_p: Option<f32>,
+    #[serde(default)]
+    pub xai_api_key: String,
+    #[serde(default)]
+    pub clear_xai_api_key: bool,
+    #[serde(default)]
+    pub xai_voice_id: String,
+    #[serde(default)]
+    pub xai_inbound_voice_id: String,
+    #[serde(default)]
+    pub xai_voices: Option<Vec<crate::providers::xai::XaiVoiceOption>>,
+    #[serde(default)]
+    pub xai_latency: Option<crate::config::XaiLatency>,
+    #[serde(default)]
+    pub xai_inbound_latency: Option<crate::config::XaiLatency>,
+    #[serde(default)]
+    pub xai_outbound_speed: Option<f32>,
+    #[serde(default)]
+    pub xai_inbound_speed: Option<f32>,
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
     #[serde(default)]
@@ -270,6 +290,14 @@ impl SaveConfigRequest {
             existing.fishaudio.fishaudio_api_key.clone()
         } else {
             self.fishaudio_api_key
+        };
+
+        let xai_api_key = if self.clear_xai_api_key {
+            String::new()
+        } else if self.xai_api_key.trim().is_empty() {
+            existing.xai.xai_api_key.clone()
+        } else {
+            self.xai_api_key
         };
 
         let mut config = AppConfig {
@@ -389,10 +417,14 @@ impl SaveConfigRequest {
                     .soniox_tts_outbound_voice
                     .filter(|v| !v.trim().is_empty())
                     .unwrap_or_else(|| existing.soniox.soniox_tts_outbound_voice.clone()),
-                soniox_tts_model: self
-                    .soniox_tts_model
+                soniox_tts_outbound_model: self
+                    .soniox_tts_outbound_model
                     .filter(|v| !v.trim().is_empty())
-                    .unwrap_or_else(|| existing.soniox.soniox_tts_model.clone()),
+                    .unwrap_or_else(|| existing.soniox.soniox_tts_outbound_model.clone()),
+                soniox_tts_inbound_model: self
+                    .soniox_tts_inbound_model
+                    .filter(|v| !v.trim().is_empty())
+                    .unwrap_or_else(|| existing.soniox.soniox_tts_inbound_model.clone()),
                 soniox_tts_voices: if self.clear_soniox_api_key {
                     Vec::new()
                 } else {
@@ -472,12 +504,6 @@ impl SaveConfigRequest {
                     .unwrap_or_else(|| existing.elevenlabs.elevenlabs_tts_language_code.clone()),
                 elevenlabs_auto_mode: existing.elevenlabs.elevenlabs_auto_mode,
                 unified_outbound_topology: existing.elevenlabs.unified_outbound_topology,
-                elevenlabs_playback_crossfade: self
-                    .elevenlabs_playback_crossfade
-                    .unwrap_or(existing.elevenlabs.elevenlabs_playback_crossfade),
-                elevenlabs_crossfade_ms: self
-                    .elevenlabs_crossfade_ms
-                    .unwrap_or(existing.elevenlabs.elevenlabs_crossfade_ms),
                 elevenlabs_inbound_voice_id: if self.elevenlabs_inbound_voice_id.trim().is_empty() {
                     existing.elevenlabs.elevenlabs_inbound_voice_id.clone()
                 } else {
@@ -543,12 +569,47 @@ impl SaveConfigRequest {
                 fishaudio_inbound_temperature: self
                     .fishaudio_inbound_temperature
                     .unwrap_or(existing.fishaudio.fishaudio_inbound_temperature),
-                fishaudio_speed: self
-                    .fishaudio_speed
-                    .unwrap_or(existing.fishaudio.fishaudio_speed),
-                fishaudio_top_p: self
-                    .fishaudio_top_p
-                    .unwrap_or(existing.fishaudio.fishaudio_top_p),
+                fishaudio_outbound_speed: self
+                    .fishaudio_outbound_speed
+                    .unwrap_or(existing.fishaudio.fishaudio_outbound_speed),
+                fishaudio_inbound_speed: self
+                    .fishaudio_inbound_speed
+                    .unwrap_or(existing.fishaudio.fishaudio_inbound_speed),
+                fishaudio_outbound_top_p: self
+                    .fishaudio_outbound_top_p
+                    .unwrap_or(existing.fishaudio.fishaudio_outbound_top_p),
+                fishaudio_inbound_top_p: self
+                    .fishaudio_inbound_top_p
+                    .unwrap_or(existing.fishaudio.fishaudio_inbound_top_p),
+            },
+            xai: crate::config::XaiSettings {
+                xai_api_key,
+                xai_voice_id: if self.xai_voice_id.trim().is_empty() {
+                    existing.xai.xai_voice_id.clone()
+                } else {
+                    self.xai_voice_id
+                },
+                xai_inbound_voice_id: if self.xai_inbound_voice_id.trim().is_empty() {
+                    existing.xai.xai_inbound_voice_id.clone()
+                } else {
+                    self.xai_inbound_voice_id
+                },
+                xai_voices: if self.clear_xai_api_key {
+                    Vec::new()
+                } else {
+                    self.xai_voices
+                        .unwrap_or_else(|| existing.xai.xai_voices.clone())
+                },
+                xai_latency: self.xai_latency.unwrap_or(existing.xai.xai_latency),
+                xai_inbound_latency: self
+                    .xai_inbound_latency
+                    .unwrap_or(existing.xai.xai_inbound_latency),
+                xai_outbound_speed: self
+                    .xai_outbound_speed
+                    .unwrap_or(existing.xai.xai_outbound_speed),
+                xai_inbound_speed: self
+                    .xai_inbound_speed
+                    .unwrap_or(existing.xai.xai_inbound_speed),
             },
             artifacts_enabled: self.artifacts_enabled,
             answer_language: self.answer_language,

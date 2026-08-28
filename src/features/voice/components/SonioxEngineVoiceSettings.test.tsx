@@ -16,17 +16,16 @@ const ttsModels = [
 ];
 
 describe("SonioxEngineVoiceSettings", () => {
-  it("shows the shared TTS model on the You → Meeting Engine column", () => {
+  it("shows the TTS model on the You → Meeting Engine column", () => {
     render(
       wrap(
         <SonioxEngineVoiceSettings
-          config={{ ...baseConfig, sonioxTtsModel: "tts-rt-v1" }}
+          config={{ ...baseConfig, sonioxTtsOutboundModel: "tts-rt-v1" }}
           direction="outbound"
           locked={false}
           ttsModels={ttsModels}
           sonioxVoices={[{ id: "Adrian", name: "Adrian", gender: "male" }]}
           catalogLoading={false}
-          showSharedModel
           onRefreshCatalog={vi.fn()}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onToast={vi.fn()}
@@ -37,19 +36,18 @@ describe("SonioxEngineVoiceSettings", () => {
     expect(document.getElementById("soniox-tts-outbound-model")).toBeTruthy();
   });
 
-  it("saves a model pick without refreshing the catalog", async () => {
+  it("saves a Meeting → You model pick without refreshing the catalog", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onRefreshCatalog = vi.fn();
     render(
       wrap(
         <SonioxEngineVoiceSettings
-          config={{ ...baseConfig, sonioxTtsModel: "tts-rt-v1" }}
+          config={{ ...baseConfig, sonioxTtsInboundModel: "tts-rt-v1" }}
           direction="inbound"
           locked={false}
           ttsModels={ttsModels}
           sonioxVoices={[{ id: "Adrian", name: "Adrian", gender: "male" }]}
           catalogLoading={false}
-          showSharedModel
           onRefreshCatalog={onRefreshCatalog}
           onSave={onSave}
           onToast={vi.fn()}
@@ -63,7 +61,7 @@ describe("SonioxEngineVoiceSettings", () => {
     );
     fireEvent.click(await screen.findByRole("option", { name: "v2" }));
 
-    expect(onSave).toHaveBeenCalledWith({ sonioxTtsModel: "tts-rt-v2" });
+    expect(onSave).toHaveBeenCalledWith({ sonioxTtsInboundModel: "tts-rt-v2" });
     expect(onRefreshCatalog).not.toHaveBeenCalled();
   });
 });

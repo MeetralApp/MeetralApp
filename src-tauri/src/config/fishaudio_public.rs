@@ -31,9 +31,13 @@ pub struct FishAudioPublicSettings {
     #[serde(default = "default_fishaudio_temperature")]
     pub fishaudio_inbound_temperature: f32,
     #[serde(default = "default_fishaudio_speed")]
-    pub fishaudio_speed: f32,
+    pub fishaudio_outbound_speed: f32,
+    #[serde(default = "default_fishaudio_speed")]
+    pub fishaudio_inbound_speed: f32,
     #[serde(default = "default_fishaudio_top_p")]
-    pub fishaudio_top_p: f32,
+    pub fishaudio_outbound_top_p: f32,
+    #[serde(default = "default_fishaudio_top_p")]
+    pub fishaudio_inbound_top_p: f32,
 }
 
 impl From<&FishAudioSettings> for FishAudioPublicSettings {
@@ -49,8 +53,10 @@ impl From<&FishAudioSettings> for FishAudioPublicSettings {
             fishaudio_inbound_latency: s.fishaudio_inbound_latency,
             fishaudio_temperature: s.fishaudio_temperature,
             fishaudio_inbound_temperature: s.fishaudio_inbound_temperature,
-            fishaudio_speed: s.fishaudio_speed,
-            fishaudio_top_p: s.fishaudio_top_p,
+            fishaudio_outbound_speed: s.fishaudio_outbound_speed,
+            fishaudio_inbound_speed: s.fishaudio_inbound_speed,
+            fishaudio_outbound_top_p: s.fishaudio_outbound_top_p,
+            fishaudio_inbound_top_p: s.fishaudio_inbound_top_p,
         }
     }
 }
@@ -69,8 +75,10 @@ impl FishAudioPublicSettings {
             fishaudio_inbound_latency: self.fishaudio_inbound_latency,
             fishaudio_temperature: self.fishaudio_temperature,
             fishaudio_inbound_temperature: self.fishaudio_inbound_temperature,
-            fishaudio_speed: self.fishaudio_speed,
-            fishaudio_top_p: self.fishaudio_top_p,
+            fishaudio_outbound_speed: self.fishaudio_outbound_speed,
+            fishaudio_inbound_speed: self.fishaudio_inbound_speed,
+            fishaudio_outbound_top_p: self.fishaudio_outbound_top_p,
+            fishaudio_inbound_top_p: self.fishaudio_inbound_top_p,
         }
     }
 }

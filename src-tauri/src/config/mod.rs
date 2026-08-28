@@ -13,6 +13,8 @@ pub mod modes;
 pub mod overlay_settings;
 pub mod soniox_settings;
 pub mod view;
+pub mod xai_public;
+pub mod xai_settings;
 
 #[cfg(test)]
 mod tests;
@@ -37,6 +39,7 @@ pub use overlay_settings::{
 };
 pub use soniox_settings::SonioxSettings;
 pub use view::ConfigView;
+pub use xai_settings::{XaiLatency, XaiSettings};
 
 pub const INPUT_SAMPLE_RATE: u32 = 48000;
 pub const OUTPUT_SAMPLE_RATE: u32 = 24000;

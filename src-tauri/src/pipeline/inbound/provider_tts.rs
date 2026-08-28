@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
+use crate::audio::PlaybackPcmChunk;
 use crate::capabilities::{
     needs_custom_tts_for_inbound, scaffolds_inbound_text_tts, uses_provider_tts_for_inbound,
 };
@@ -201,7 +201,7 @@ pub(super) async fn spawn_inbound_provider_tts_session(
         SonioxTtsWorkerConfig {
             api_key: config.soniox_api_key.clone(),
             voice: config.soniox.soniox_tts_voice.clone(),
-            model: config.soniox.soniox_tts_model.clone(),
+            model: config.soniox.soniox_tts_inbound_model.clone(),
             language: config.resolve_soniox_tts_language().to_string(),
             speed: config.soniox.soniox_tts_inbound_speed,
         },

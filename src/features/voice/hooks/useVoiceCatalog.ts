@@ -18,5 +18,9 @@ export function useVoiceCatalog() {
     listFishAudioModels: voiceApi.listFishAudioModels,
     validateFishAudioVoice: voiceApi.validateFishAudioVoice,
     previewFishAudioVoice: voiceApi.previewFishAudioVoice,
+    testXaiApiKey: voiceApi.testXaiApiKey,
+    listXaiVoices: voiceApi.listXaiVoices,
+    validateXaiVoice: voiceApi.validateXaiVoice,
+    previewXaiVoice: voiceApi.previewXaiVoice,
   };
 }

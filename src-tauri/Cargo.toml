@@ -8,7 +8,7 @@ panic = "unwind"
 
 [package]
 name = "meetral"
-version = "4.8.5"
+version = "4.8.6"
 description = "Real-time voice translation for online meetings"
 authors = ["iamnhaan"]
 license = "MIT"
@@ -60,6 +60,7 @@ windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Media_Audio",
     "Win32_System_Com",
+    "Win32_UI_Shell",
 ] }
 windows-core = "0.62"
 windows-sys = { version = "0.59", features = [

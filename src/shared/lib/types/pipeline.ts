@@ -42,8 +42,9 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   width: 420,
   height: 280,
 };
-export type CustomVoiceVendor = "elevenLabs" | "fishAudio";
+export type CustomVoiceVendor = "elevenLabs" | "fishAudio" | "xai";
 export type FishAudioLatency = "low" | "balanced" | "normal";
+export type XaiLatency = "low" | "balanced" | "normal";
 export type InboundVoiceOutput = "providerNative" | "custom";
 export type OutboundVoiceOutput = "providerNative" | "custom";
 
@@ -62,12 +63,21 @@ export function normalizeVoiceOutput<
 export function normalizeCustomVoiceVendor(
   value: CustomVoiceVendor | string | undefined,
 ): CustomVoiceVendor {
-  return value === "fishAudio" ? "fishAudio" : "elevenLabs";
+  if (value === "xai") return "xai";
+  if (value === "fishAudio") return "fishAudio";
+  return "elevenLabs";
 }
 
 export interface FishAudioVoiceOption {
   voiceId: string;
   name: string;
+}
+
+export interface XaiVoiceOption {
+  voiceId: string;
+  name: string;
+  /** `builtIn` or `custom` when known. */
+  kind?: string;
 }
 
 export interface FishAudioModelOption {
@@ -283,7 +293,10 @@ export interface ConfigView {
   sonioxTtsVoice?: string;
   /** You → Meeting Soniox TTS voice when Engine voice. Defaults from inbound voice. */
   sonioxTtsOutboundVoice?: string;
-  sonioxTtsModel?: string;
+  /** You → Meeting Soniox TTS model when Engine voice. */
+  sonioxTtsOutboundModel?: string;
+  /** Meeting → You Soniox TTS model when Engine voice. */
+  sonioxTtsInboundModel?: string;
   /** Cached Soniox TTS voice catalog (persisted; Refresh re-syncs). */
   sonioxTtsVoices?: SonioxVoiceOption[];
   /** Cached Soniox TTS model catalog (persisted; Refresh re-syncs). */
@@ -301,6 +314,7 @@ export interface ConfigView {
   summaryFallbackAvailable?: boolean;
   elevenlabsApiKeyConfigured: boolean;
   fishaudioApiKeyConfigured?: boolean;
+  xaiApiKeyConfigured?: boolean;
   elevenlabsInboundVoiceId?: string;
   elevenlabsInboundTtsModel?: string;
   elevenlabsInboundStability?: number;
@@ -320,8 +334,6 @@ export interface ConfigView {
   elevenlabsTtsLanguageAuto: boolean;
   elevenlabsTtsLanguageCode: string;
   elevenlabsTtsSynthesisMode: TtsSynthesisMode;
-  elevenlabsPlaybackCrossfade: boolean;
-  elevenlabsCrossfadeMs: number;
   fishaudioVoiceId?: string;
   fishaudioInboundVoiceId?: string;
   fishaudioVoices?: FishAudioVoiceOption[];
@@ -333,8 +345,17 @@ export interface ConfigView {
   fishaudioInboundLatency?: FishAudioLatency;
   fishaudioTemperature?: number;
   fishaudioInboundTemperature?: number;
-  fishaudioSpeed?: number;
-  fishaudioTopP?: number;
+  fishaudioOutboundSpeed?: number;
+  fishaudioInboundSpeed?: number;
+  fishaudioOutboundTopP?: number;
+  fishaudioInboundTopP?: number;
+  xaiVoiceId?: string;
+  xaiInboundVoiceId?: string;
+  xaiVoices?: XaiVoiceOption[];
+  xaiLatency?: XaiLatency;
+  xaiInboundLatency?: XaiLatency;
+  xaiOutboundSpeed?: number;
+  xaiInboundSpeed?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   /** Preferred AI output language; "" = match the meeting's You language. */
@@ -428,7 +449,8 @@ export interface SaveConfigPayload {
   sonioxActiveContextProfileId?: string | null;
   sonioxTtsVoice?: string;
   sonioxTtsOutboundVoice?: string;
-  sonioxTtsModel?: string;
+  sonioxTtsOutboundModel?: string;
+  sonioxTtsInboundModel?: string;
   sonioxTtsVoices?: SonioxVoiceOption[];
   sonioxTtsModels?: SonioxTtsModelOption[];
   sonioxTtsInboundSpeed?: number;
@@ -455,8 +477,6 @@ export interface SaveConfigPayload {
   elevenlabsTtsLanguageAuto?: boolean;
   elevenlabsTtsLanguageCode?: string;
   elevenlabsTtsSynthesisMode?: TtsSynthesisMode;
-  elevenlabsPlaybackCrossfade?: boolean;
-  elevenlabsCrossfadeMs?: number;
   fishaudioApiKey?: string;
   clearFishaudioApiKey?: boolean;
   fishaudioVoiceId?: string;
@@ -470,8 +490,19 @@ export interface SaveConfigPayload {
   fishaudioInboundLatency?: FishAudioLatency;
   fishaudioTemperature?: number;
   fishaudioInboundTemperature?: number;
-  fishaudioSpeed?: number;
-  fishaudioTopP?: number;
+  fishaudioOutboundSpeed?: number;
+  fishaudioInboundSpeed?: number;
+  fishaudioOutboundTopP?: number;
+  fishaudioInboundTopP?: number;
+  xaiApiKey?: string;
+  clearXaiApiKey?: boolean;
+  xaiVoiceId?: string;
+  xaiInboundVoiceId?: string;
+  xaiVoices?: XaiVoiceOption[];
+  xaiLatency?: XaiLatency;
+  xaiInboundLatency?: XaiLatency;
+  xaiOutboundSpeed?: number;
+  xaiInboundSpeed?: number;
   /** Meeting Intelligence. */
   artifactsEnabled?: boolean;
   answerLanguage?: string;

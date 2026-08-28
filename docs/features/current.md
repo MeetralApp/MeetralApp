@@ -1,6 +1,6 @@
 # Current — Meetral
 
-**Version:** `4.8.5`  
+**Version:** `4.8.6`  
 **Catalog:** [catalog.md](catalog.md)  
 **Module boundaries:** [../architecture/overview.md](../architecture/overview.md)  
 **Agent router:** [AGENTS.md](../../AGENTS.md)
@@ -9,7 +9,7 @@
 
 ## Product
 
-Real-time meeting interpreter: **You** / **Meeting** columns, Direct or Translate, Gemini / OpenAI / Soniox, optional Custom voice TTS (ElevenLabs and/or Fish Audio, both directions, mixed vendors allowed), Notes session, Opus recording, library + FTS, TipTap summaries, artifacts, overlay, tray.
+Real-time meeting interpreter: **You** / **Meeting** columns, Direct or Translate, Gemini / OpenAI / Soniox, optional Custom voice TTS (ElevenLabs, Fish Audio, and/or xAI, both directions, mixed vendors allowed), Notes session, Opus recording, library + FTS, TipTap summaries, artifacts, overlay, tray.
 
 Details and entry files: [catalog.md](catalog.md). Terms: [glossary.md](glossary.md). Unlisted capabilities have **no implementation plan** — do not start them unless the user asks.
 
@@ -29,6 +29,10 @@ Details and entry files: [catalog.md](catalog.md). Terms: [glossary.md](glossary
 
 ## Delta
 
-**4.8.5** adds Fish Audio as a second Custom voice TTS vendor. Toolbar stays Engine ↔ Custom; Settings picks ElevenLabs or Fish Audio **per column**. Native Fish WebSocket (`wss://api.fish.audio/v1/tts/live`, MessagePack PCM 24 kHz). Custom voices on fish.audio — no in-app `POST /model` upload. Wire value is `"custom"` (hard rename — no legacy clone aliases).
+**4.8.6** durable Windows app data: with sparse package identity, config / `meetings.db` / default recordings / logs write to real `%APPDATA%\com.meetral.desktop` (dev: `com.meetral.desktop.dev`) via `app_data.rs` (`KF_FLAG_NO_PACKAGE_REDIRECTION` + `\\?\` I/O). Sparse manifest declares `unvirtualizedResources` + disabled filesystem write virtualization. No automatic LocalCache migration.
 
-Voice settings persist is a full-document replace. Interpreter voice-output stash must follow the active Engine/Custom patch (same as pipeline modes), and Soniox catalog refresh must not resend the selected TTS model — otherwise later catalog/voice-list writes resurrect Custom voice or the previous model while the drawer is still open.
+**4.8.6** adds xAI as a third Custom voice TTS vendor. Toolbar stays Engine ↔ Custom; Settings picks ElevenLabs, Fish Audio, or xAI **per column**. Native xAI WebSocket (`wss://api.x.ai/v1/tts`, JSON `text.delta` / `text.done` / `text.clear`, PCM 24 kHz). Built-in + console custom voices — no in-app clone upload. Wire vendor value is `"xai"`. Settings Advanced: per-direction latency (`optimize_streaming_latency`) and per-direction speed (`xaiOutboundSpeed` / `xaiInboundSpeed`); API key stays shared. Fish Audio Advanced: per-direction speed and top-p (`fishaudioOutboundSpeed` / `InboundSpeed`, `OutboundTopP` / `InboundTopP`); API key shared. Soniox Engine TTS: per-direction model (`sonioxTtsOutboundModel` / `sonioxTtsInboundModel`) plus per-direction voice and speed; Soniox API key shared. Legacy shared keys (`xaiSpeed`, `fishaudioSpeed`, `fishaudioTopP`, `sonioxTtsModel`) seed both directions on load. xAI is utterance TTS: each Soniox `AppendDelta` (translated prefix) is one `text.delta` + `text.done` immediately — do not wait for `Flush` / `turn_complete` / a new transcript segment. One WebSocket per direction (same as ElevenLabs / Fish); later deltas queue until `audio.done`. Do not re-chunk translate text by character count. PCM coalesces ~80 ms then passes through unmodified. First mux emit of each utterance waits for preroll (`PLAYOUT_JITTER_MS` = 200 ms) **and** a second `audio.delta` (or `audio.done` if the clip is one packet) so the DAC does not starve in the first words. The outbound PCM overlap mixer (`elevenlabsPlaybackCrossfade`) is gone — mux upsamples and plays chunks as-is. Stale JSON keys are ignored on load. Soniox Engine TTS matches that utterance policy on its own WS: each `AppendDelta` is one closed stream (`text_end: true`); `Flush` is a no-op in the Engine worker; Custom EL/Fish on Soniox live still stream until fanout Flush. Engine TTS also prerolls 200 ms + a second audio packet per generation.
+
+**4.8.5** added Fish Audio as a second Custom voice TTS vendor (MessagePack live WS, per-column with ElevenLabs). Wire output value is `"custom"`.
+
+Voice settings persist is a full-document replace. Interpreter voice-output stash must follow the active Engine/Custom patch (same as pipeline modes), and Soniox catalog refresh must not resend the selected TTS models — otherwise later catalog/voice-list writes resurrect Custom voice or the previous model while the drawer is still open.

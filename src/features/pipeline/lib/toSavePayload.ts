@@ -17,6 +17,8 @@ import type {
   MeetingContextPayload,
   SonioxTtsModelOption,
   TtsSynthesisMode,
+  XaiLatency,
+  XaiVoiceOption,
 } from "@/shared/lib/types/pipeline";
 import { DEFAULT_OVERLAY_SETTINGS } from "@/shared/lib/types/pipeline";
 
@@ -38,8 +40,9 @@ export function toSavePayload(
     sonioxActiveContextProfileId?: string | null;
     sonioxTtsVoice?: string;
     sonioxTtsOutboundVoice?: string;
-    sonioxTtsModel?: string;
-    /** Catalog-only persist — do not send a selected model (keeps the user's pick). */
+    sonioxTtsOutboundModel?: string;
+    sonioxTtsInboundModel?: string;
+    /** Catalog-only persist — do not send selected models (keeps the user's picks). */
     skipSonioxTtsModel?: boolean;
     sonioxTtsVoices?: SonioxVoiceOption[];
     sonioxTtsModels?: SonioxTtsModelOption[];
@@ -71,8 +74,6 @@ export function toSavePayload(
     elevenlabsTtsLanguageAuto?: boolean;
     elevenlabsTtsLanguageCode?: string;
     elevenlabsTtsSynthesisMode?: TtsSynthesisMode;
-    elevenlabsPlaybackCrossfade?: boolean;
-    elevenlabsCrossfadeMs?: number;
     fishaudioApiKey?: string;
     clearFishaudioApiKey?: boolean;
     fishaudioVoiceId?: string;
@@ -85,8 +86,19 @@ export function toSavePayload(
     fishaudioInboundLatency?: FishAudioLatency;
     fishaudioTemperature?: number;
     fishaudioInboundTemperature?: number;
-    fishaudioSpeed?: number;
-    fishaudioTopP?: number;
+    fishaudioOutboundSpeed?: number;
+    fishaudioInboundSpeed?: number;
+    fishaudioOutboundTopP?: number;
+    fishaudioInboundTopP?: number;
+    xaiApiKey?: string;
+    clearXaiApiKey?: boolean;
+    xaiVoiceId?: string;
+    xaiInboundVoiceId?: string;
+    xaiVoices?: XaiVoiceOption[];
+    xaiLatency?: XaiLatency;
+    xaiInboundLatency?: XaiLatency;
+    xaiOutboundSpeed?: number;
+    xaiInboundSpeed?: number;
     artifactsEnabled?: boolean;
     answerLanguage?: string;
     meetingContext?: MeetingContextPayload;
@@ -188,9 +200,17 @@ export function toSavePayload(
       config.sonioxTtsOutboundVoice ??
       config.sonioxTtsVoice ??
       "Adrian",
-    sonioxTtsModel: options.skipSonioxTtsModel
+    sonioxTtsOutboundModel: options.skipSonioxTtsModel
       ? undefined
-      : (options.sonioxTtsModel ?? config.sonioxTtsModel ?? "tts-rt-v1"),
+      : (options.sonioxTtsOutboundModel ??
+        config.sonioxTtsOutboundModel ??
+        "tts-rt-v1"),
+    sonioxTtsInboundModel: options.skipSonioxTtsModel
+      ? undefined
+      : (options.sonioxTtsInboundModel ??
+        config.sonioxTtsInboundModel ??
+        config.sonioxTtsOutboundModel ??
+        "tts-rt-v1"),
     sonioxTtsVoices: options.sonioxTtsVoices ?? config.sonioxTtsVoices ?? [],
     sonioxTtsModels: options.sonioxTtsModels ?? config.sonioxTtsModels ?? [],
     sonioxTtsInboundSpeed:
@@ -251,12 +271,6 @@ export function toSavePayload(
       options.elevenlabsTtsSynthesisMode ??
       config.elevenlabsTtsSynthesisMode ??
       "streaming",
-    elevenlabsPlaybackCrossfade:
-      options.elevenlabsPlaybackCrossfade ??
-      config.elevenlabsPlaybackCrossfade ??
-      false,
-    elevenlabsCrossfadeMs:
-      options.elevenlabsCrossfadeMs ?? config.elevenlabsCrossfadeMs ?? 8,
     fishaudioApiKey: options.fishaudioApiKey ?? "",
     clearFishaudioApiKey: options.clearFishaudioApiKey,
     fishaudioVoiceId:
@@ -283,8 +297,25 @@ export function toSavePayload(
       options.fishaudioInboundTemperature ??
       config.fishaudioInboundTemperature ??
       0.7,
-    fishaudioSpeed: options.fishaudioSpeed ?? config.fishaudioSpeed ?? 1.0,
-    fishaudioTopP: options.fishaudioTopP ?? config.fishaudioTopP ?? 0.7,
+    fishaudioOutboundSpeed:
+      options.fishaudioOutboundSpeed ?? config.fishaudioOutboundSpeed ?? 1.0,
+    fishaudioInboundSpeed:
+      options.fishaudioInboundSpeed ?? config.fishaudioInboundSpeed ?? 1.0,
+    fishaudioOutboundTopP:
+      options.fishaudioOutboundTopP ?? config.fishaudioOutboundTopP ?? 0.7,
+    fishaudioInboundTopP:
+      options.fishaudioInboundTopP ?? config.fishaudioInboundTopP ?? 0.7,
+    xaiApiKey: options.xaiApiKey ?? "",
+    clearXaiApiKey: options.clearXaiApiKey,
+    xaiVoiceId: options.xaiVoiceId ?? config.xaiVoiceId ?? "eve",
+    xaiInboundVoiceId:
+      options.xaiInboundVoiceId ?? config.xaiInboundVoiceId ?? "eve",
+    xaiVoices: options.xaiVoices ?? config.xaiVoices ?? [],
+    xaiLatency: options.xaiLatency ?? config.xaiLatency ?? "balanced",
+    xaiInboundLatency:
+      options.xaiInboundLatency ?? config.xaiInboundLatency ?? "balanced",
+    xaiOutboundSpeed: options.xaiOutboundSpeed ?? config.xaiOutboundSpeed ?? 1.0,
+    xaiInboundSpeed: options.xaiInboundSpeed ?? config.xaiInboundSpeed ?? 1.0,
     artifactsEnabled:
       options.artifactsEnabled ?? config.artifactsEnabled ?? true,
     answerLanguage: options.answerLanguage ?? config.answerLanguage ?? "",

@@ -50,6 +50,19 @@ impl AppConfig {
                     );
                 }
             }
+            crate::config::CustomVoiceVendor::Xai => {
+                if !self.is_xai_api_key_configured() {
+                    return Err(
+                        "xAI API key is required for custom voice. Add it in Settings → Voice."
+                            .into(),
+                    );
+                }
+                if self.xai.xai_voice_id.trim().is_empty() {
+                    return Err(
+                        "xAI voice ID is required for You → Meeting custom voice. Pick a voice in Settings → Voice.".into(),
+                    );
+                }
+            }
         }
         Ok(())
     }
@@ -87,6 +100,19 @@ impl AppConfig {
                 if self.fishaudio.fishaudio_inbound_voice_id.trim().is_empty() {
                     return Err(
                         "Fish Audio voice ID is required for Meeting → You custom voice. Pick a voice in Settings → Voice.".into(),
+                    );
+                }
+            }
+            crate::config::CustomVoiceVendor::Xai => {
+                if !self.is_xai_api_key_configured() {
+                    return Err(
+                        "xAI API key is required for Meeting → You custom voice. Add it in Settings → Voice."
+                            .into(),
+                    );
+                }
+                if self.xai.xai_inbound_voice_id.trim().is_empty() {
+                    return Err(
+                        "xAI voice ID is required for Meeting → You custom voice. Pick a voice in Settings → Voice.".into(),
                     );
                 }
             }

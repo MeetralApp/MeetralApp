@@ -18,8 +18,8 @@ bridge_emits_playback_audio // !uses_separate_tts
 supports_notes_stt_only    // OpenAI + Soniox = true; Gemini = false
 ```
 
-| Live provider | Engine voice PCM | Custom voice (ElevenLabs or Fish Audio) |
-|---------------|------------------|--------------------------|
+| Live provider | Engine voice PCM | Custom voice (ElevenLabs, Fish Audio, or xAI) |
+|---------------|------------------|-----------------------------------------------|
 | Gemini / OpenAI | `BridgeSts` (STS from the live bridge) | `CustomTts` — **both** outbound (You→Meeting) and inbound (Meeting→You) |
 | Soniox | `ProviderTts` (separate TTS WebSocket) | `CustomTts` — **both** directions |
 
@@ -27,7 +27,7 @@ supports_notes_stt_only    // OpenAI + Soniox = true; Gemini = false
 enum PlaybackSource { BridgeSts, ProviderTts, CustomTts }
 ```
 
-Shared custom voice path (`PlaybackSource::CustomTts`) on **both** You and Meeting columns. Per-direction `CustomVoiceVendor` (ElevenLabs or Fish Audio). One API key per vendor; per-direction voice/model/knobs. Pipeline / mux / engine still branch on `PlaybackSource` / `VOICE_ENGINE_CUSTOM`, never Fish identity.
+Shared custom voice path (`PlaybackSource::CustomTts`) on **both** You and Meeting columns. Per-direction `CustomVoiceVendor` (ElevenLabs, Fish Audio, or xAI). One API key per vendor; per-direction voice/knobs. Pipeline / mux / engine still branch on `PlaybackSource` / `VOICE_ENGINE_CUSTOM`, never vendor identity.
 
 Notes session (`SessionMode::Notes`) is STT-only. Gemini cannot run Notes (`supports_notes_stt_only = false`). Validation: `config/app_config_validate.rs`.
 

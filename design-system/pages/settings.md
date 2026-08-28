@@ -87,11 +87,11 @@ Overlay open action: label **Open overlay** / **Open** — do not reuse voice �
 
 | State | UI |
 |-------|-----|
-| Missing | Full `SecretApiKeyField` under owner (Engine / Intelligence Provider / ElevenLabs / Fish Audio) — no duplicate L1 “API key” section once configured path exists |
+| Missing | Full `SecretApiKeyField` under owner (Engine / Intelligence Provider / ElevenLabs / Fish Audio / xAI) — no duplicate L1 “API key” section once configured path exists |
 | Ready | Icon-only `ApiKeyChip` (Key + status tone) on **owner header**; tooltip `API key · {status}`; expand → `border-t` + field with `showLabel={false}` |
 | Dirty | Auto-open panel; status “Not saved”; must feed drawer `hasUnsavedChanges` (including Intelligence) |
 
-Owners: Engine field (Translate cluster), Intelligence Provider block header, ElevenLabs L2, Fish Audio L2.
+Owners: Engine field (Translate cluster), Intelligence Provider block header, ElevenLabs L2, Fish Audio L2, xAI L2.
 
 ### Typography
 
@@ -123,10 +123,10 @@ Two L1 sections (do not wrap in a redundant “Voice” L1). Status badge on **M
 
 | Section (L1) | Content |
 |--------------|---------|
-| **Meeting → You** | L3 mode; Custom voice engine (ElevenLabs \| Fish Audio) when custom voice is on; Soniox → L2 Soniox TTS (**shared TTS model on both Engine columns**, same field; per-direction voice + speed + Preview on voice field); Gemini/OpenAI Engine → session note; vendor L2 + Advanced L2 collapsible |
+| **Meeting → You** | L3 mode; Custom voice engine (ElevenLabs \| Fish Audio \| xAI) when custom voice is on; Soniox → L2 Soniox TTS (per-direction TTS model + voice + speed + Preview on voice field); Gemini/OpenAI Engine → session note; vendor L2 + Advanced L2 collapsible |
 | **You → Meeting** | Same anatomy |
 
-Custom voice API keys once per vendor on the first visible custom voice group that uses that vendor. ElevenLabs Advanced: Speaking style (hidden for Soniox live engine), TTS model (`SettingsField` + Refresh), Stability, Similarity. Fish Audio Advanced: TTS model (`SettingsField` + Refresh, same chrome as ElevenLabs), latency, temperature, speed, top-p. Draft footer when dirty.
+Custom voice API keys once per vendor on the first visible custom voice group that uses that vendor. ElevenLabs Advanced: Speaking style (hidden for Soniox live engine), TTS model (`SettingsField` + Refresh), Stability, Similarity. Fish Audio Advanced: TTS model (`SettingsField` + Refresh, same chrome as ElevenLabs), latency, temperature, per-direction speed and top-p. xAI Advanced: per-direction latency and speed (no model select). Draft footer when dirty.
 
 ### Audio
 

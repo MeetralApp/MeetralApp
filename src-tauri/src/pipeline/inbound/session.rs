@@ -120,7 +120,6 @@ impl InboundPipeline {
             Some(speaker_muted.clone()),
             Some(bridge_ready),
             None,
-            None,
             Some(ducking_params.clone()),
             Some(app.clone()),
             pcm_drops,

@@ -47,6 +47,29 @@ describe("toSavePayload", () => {
     expect(payload.sonioxActiveContextProfileId).toBe("");
   });
 
+  it("applies xAI vendor and public field overrides", () => {
+    const payload = toSavePayload(baseConfig, {
+      outboundCustomVoiceVendor: "xai",
+      inboundCustomVoiceVendor: "xai",
+      xaiApiKey: "xai-key",
+      xaiVoiceId: "ara",
+      xaiInboundVoiceId: "eve",
+      xaiLatency: "low",
+      xaiInboundLatency: "normal",
+      xaiOutboundSpeed: 1.2,
+      xaiInboundSpeed: 0.9,
+    });
+    expect(payload.outboundCustomVoiceVendor).toBe("xai");
+    expect(payload.inboundCustomVoiceVendor).toBe("xai");
+    expect(payload.xaiApiKey).toBe("xai-key");
+    expect(payload.xaiVoiceId).toBe("ara");
+    expect(payload.xaiInboundVoiceId).toBe("eve");
+    expect(payload.xaiLatency).toBe("low");
+    expect(payload.xaiInboundLatency).toBe("normal");
+    expect(payload.xaiOutboundSpeed).toBe(1.2);
+    expect(payload.xaiInboundSpeed).toBe(0.9);
+  });
+
   it("preserves soniox context overrides", () => {
     const payload = toSavePayload(baseConfig, {
       sonioxAlwaysOn: {

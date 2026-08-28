@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 pub const SONIOX_TTS_WS: &str = "wss://tts-rt.soniox.com/tts-websocket";
 pub const TTS_SAMPLE_RATE: u32 = 24000;
 pub const DEFAULT_SONIOX_TTS_MODEL: &str = "tts-rt-v1";
@@ -9,12 +7,16 @@ pub const DEFAULT_SONIOX_TTS_SPEED: f32 = 1.0;
 pub const SONIOX_TTS_SPEED_MIN: f32 = 0.7;
 pub const SONIOX_TTS_SPEED_MAX: f32 = 1.3;
 
-/// End an open TTS stream if no text arrives for this long (keeps WebSocket).
-/// Prevents Soniox `request_timeout` from idle mid-stream pauses.
-pub const STREAM_IDLE_TEXT_END: Duration = Duration::from_secs(3);
+/// Hold this much PCM before the first mux emit of each generation so later
+/// audio packets can queue before the DAC starts. 200 ms @ 24 kHz = 4800 samples.
+pub const PLAYOUT_JITTER_MS: u32 = 200;
 
-/// Match ElevenLabs coalesce (~80 ms @ 24 kHz) so first PCM is not held longer.
+/// Match ElevenLabs coalesce (~80 ms @ 24 kHz) after preroll has started.
 pub const SONIOX_PCM_COALESCE_MIN_SAMPLES: usize = 1920;
+
+pub fn playout_jitter_samples() -> usize {
+    (TTS_SAMPLE_RATE as usize * PLAYOUT_JITTER_MS as usize) / 1000
+}
 
 pub fn default_soniox_tts_voice() -> String {
     DEFAULT_SONIOX_TTS_VOICE.to_string()
@@ -73,9 +75,8 @@ mod tests {
     }
 
     #[test]
-    fn stream_idle_text_end_is_under_server_timeout() {
-        // Must be shorter than Soniox request_timeout for idle mid-stream pauses.
-        assert!(STREAM_IDLE_TEXT_END.as_secs() >= 2);
-        assert!(STREAM_IDLE_TEXT_END.as_secs() <= 5);
+    fn playout_jitter_is_200ms_at_24k() {
+        assert_eq!(PLAYOUT_JITTER_MS, 200);
+        assert_eq!(playout_jitter_samples(), 4800);
     }
 }

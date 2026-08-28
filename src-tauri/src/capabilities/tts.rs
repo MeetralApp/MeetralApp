@@ -125,6 +125,7 @@ pub fn scaffolds_inbound_text_tts(config: &AppConfig) -> bool {
     config.inbound_voice_output.uses_custom_tts()
         || config.is_elevenlabs_api_key_configured()
         || config.is_fishaudio_api_key_configured()
+        || config.is_xai_api_key_configured()
 }
 
 /// Which transcript fanout implementation to spawn.

@@ -45,9 +45,13 @@ pub struct FishAudioSettings {
     #[serde(default = "default_fishaudio_temperature")]
     pub fishaudio_inbound_temperature: f32,
     #[serde(default = "default_fishaudio_speed")]
-    pub fishaudio_speed: f32,
+    pub fishaudio_outbound_speed: f32,
+    #[serde(default = "default_fishaudio_speed")]
+    pub fishaudio_inbound_speed: f32,
     #[serde(default = "default_fishaudio_top_p")]
-    pub fishaudio_top_p: f32,
+    pub fishaudio_outbound_top_p: f32,
+    #[serde(default = "default_fishaudio_top_p")]
+    pub fishaudio_inbound_top_p: f32,
 }
 
 pub(crate) fn default_fishaudio_tts_model() -> String {
@@ -80,8 +84,10 @@ impl Default for FishAudioSettings {
             fishaudio_inbound_latency: FishAudioLatency::Balanced,
             fishaudio_temperature: default_fishaudio_temperature(),
             fishaudio_inbound_temperature: default_fishaudio_temperature(),
-            fishaudio_speed: default_fishaudio_speed(),
-            fishaudio_top_p: default_fishaudio_top_p(),
+            fishaudio_outbound_speed: default_fishaudio_speed(),
+            fishaudio_inbound_speed: default_fishaudio_speed(),
+            fishaudio_outbound_top_p: default_fishaudio_top_p(),
+            fishaudio_inbound_top_p: default_fishaudio_top_p(),
         }
     }
 }

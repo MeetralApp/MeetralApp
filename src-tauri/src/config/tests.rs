@@ -161,8 +161,6 @@ fn legacy_flat_soniox_and_elevenlabs_settings_deserialize() {
             "sonioxEndpointSensitivity": 0.8,
             "elevenlabsApiKey": "eleven-key",
             "elevenlabsVoiceId": "voice-id",
-            "elevenlabsPlaybackCrossfade": true,
-            "elevenlabsCrossfadeMs": 12,
             "elevenlabsInboundVoiceId": "inbound-voice"
         }"#,
     )
@@ -173,8 +171,6 @@ fn legacy_flat_soniox_and_elevenlabs_settings_deserialize() {
     assert!((config.soniox.soniox_endpoint_sensitivity - 0.8).abs() < f64::EPSILON);
     assert_eq!(config.elevenlabs.elevenlabs_api_key, "eleven-key");
     assert_eq!(config.elevenlabs.elevenlabs_voice_id, "voice-id");
-    assert!(config.elevenlabs.elevenlabs_playback_crossfade);
-    assert_eq!(config.elevenlabs.elevenlabs_crossfade_ms, 12);
     assert_eq!(
         config.elevenlabs.elevenlabs_inbound_voice_id,
         "inbound-voice"
@@ -317,6 +313,30 @@ fn validate_custom_voice_mixed_vendors() {
     config.elevenlabs.elevenlabs_inbound_voice_id = "el-voice".into();
     config.fishaudio.fishaudio_api_key = "fish".into();
     config.fishaudio.fishaudio_voice_id = "fish-voice".into();
+    assert!(config.validate_custom_voice_outbound_setup().is_ok());
+    assert!(config.validate_custom_voice_inbound_setup().is_ok());
+}
+
+#[test]
+fn validate_custom_voice_xai_mixed_with_fish() {
+    let mut config = AppConfig {
+        outbound_voice_output: OutboundVoiceOutput::Custom,
+        inbound_voice_output: InboundVoiceOutput::Custom,
+        outbound_mode: PipelineOutputMode::Translated,
+        inbound_mode: PipelineOutputMode::Translated,
+        outbound_custom_voice_vendor: crate::config::CustomVoiceVendor::Xai,
+        inbound_custom_voice_vendor: crate::config::CustomVoiceVendor::FishAudio,
+        ..AppConfig::default()
+    };
+    let outbound_err = config.validate_custom_voice_outbound_setup().unwrap_err();
+    assert!(outbound_err.contains("xAI"));
+    let inbound_err = config.validate_custom_voice_inbound_setup().unwrap_err();
+    assert!(inbound_err.contains("Fish Audio"));
+
+    config.xai.xai_api_key = "xai".into();
+    // defaults already set voice_id to "eve"
+    config.fishaudio.fishaudio_api_key = "fish".into();
+    config.fishaudio.fishaudio_inbound_voice_id = "fish-voice".into();
     assert!(config.validate_custom_voice_outbound_setup().is_ok());
     assert!(config.validate_custom_voice_inbound_setup().is_ok());
 }

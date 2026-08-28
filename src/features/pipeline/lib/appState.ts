@@ -102,7 +102,9 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     sonioxTtsVoice: data.sonioxTtsVoice ?? "Adrian",
     sonioxTtsOutboundVoice:
       data.sonioxTtsOutboundVoice ?? data.sonioxTtsVoice ?? "Adrian",
-    sonioxTtsModel: data.sonioxTtsModel ?? "tts-rt-v1",
+    sonioxTtsOutboundModel: data.sonioxTtsOutboundModel ?? "tts-rt-v1",
+    sonioxTtsInboundModel:
+      data.sonioxTtsInboundModel ?? data.sonioxTtsOutboundModel ?? "tts-rt-v1",
     sonioxTtsVoices: data.sonioxTtsVoices ?? [],
     sonioxTtsModels: data.sonioxTtsModels ?? [],
     sonioxTtsInboundSpeed: data.sonioxTtsInboundSpeed ?? 1.0,
@@ -132,8 +134,6 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     elevenlabsTtsLanguageAuto: data.elevenlabsTtsLanguageAuto ?? true,
     elevenlabsTtsLanguageCode: data.elevenlabsTtsLanguageCode ?? "",
     elevenlabsTtsSynthesisMode: data.elevenlabsTtsSynthesisMode ?? "streaming",
-    elevenlabsPlaybackCrossfade: data.elevenlabsPlaybackCrossfade ?? false,
-    elevenlabsCrossfadeMs: data.elevenlabsCrossfadeMs ?? 8,
     fishaudioVoiceId: data.fishaudioVoiceId ?? "",
     fishaudioInboundVoiceId: data.fishaudioInboundVoiceId ?? "",
     fishaudioVoices: data.fishaudioVoices ?? [],
@@ -144,8 +144,18 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     fishaudioInboundLatency: data.fishaudioInboundLatency ?? "balanced",
     fishaudioTemperature: data.fishaudioTemperature ?? 0.7,
     fishaudioInboundTemperature: data.fishaudioInboundTemperature ?? 0.7,
-    fishaudioSpeed: data.fishaudioSpeed ?? 1.0,
-    fishaudioTopP: data.fishaudioTopP ?? 0.7,
+    fishaudioOutboundSpeed: data.fishaudioOutboundSpeed ?? 1.0,
+    fishaudioInboundSpeed: data.fishaudioInboundSpeed ?? 1.0,
+    fishaudioOutboundTopP: data.fishaudioOutboundTopP ?? 0.7,
+    fishaudioInboundTopP: data.fishaudioInboundTopP ?? 0.7,
+    xaiApiKeyConfigured: data.xaiApiKeyConfigured ?? false,
+    xaiVoiceId: data.xaiVoiceId ?? "eve",
+    xaiInboundVoiceId: data.xaiInboundVoiceId ?? "eve",
+    xaiVoices: data.xaiVoices ?? [],
+    xaiLatency: data.xaiLatency ?? "balanced",
+    xaiInboundLatency: data.xaiInboundLatency ?? "balanced",
+    xaiOutboundSpeed: data.xaiOutboundSpeed ?? 1.0,
+    xaiInboundSpeed: data.xaiInboundSpeed ?? 1.0,
     liveModel:
       data.liveModel ??
       (data.aiProvider === "openAi"

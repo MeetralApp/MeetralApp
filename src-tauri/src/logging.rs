@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use tauri::AppHandle;
-use tauri::Manager;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -67,12 +66,15 @@ pub fn init(app: &AppHandle) -> Option<LogGuard> {
         .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
         .init();
 
-    tracing::info!("logging initialized at {}", log_dir.display());
+    tracing::info!(
+        "logging initialized at {}",
+        crate::app_data::for_display(&log_dir).display()
+    );
     Some(LogGuard(Mutex::new(Some(guard))))
 }
 
 fn app_log_dir(app: &AppHandle) -> anyhow::Result<PathBuf> {
-    let mut dir = app.path().app_data_dir()?;
+    let mut dir = crate::app_data::dir(app)?;
     dir.push("logs");
     Ok(dir)
 }

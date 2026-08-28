@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::audio::pcm_crossfade::{PcmChunkBoundary, PlaybackPcmChunk};
 use crate::audio::try_send_pcm_bounded;
+use crate::audio::PlaybackPcmChunk;
 use anyhow::{anyhow, Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
@@ -13,7 +13,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use super::config::{tts_ws_url, SONIOX_PCM_COALESCE_MIN_SAMPLES, STREAM_IDLE_TEXT_END};
+use super::config::tts_ws_url;
+use super::playback::PcmCoalesce;
 use super::protocol::{
     build_cancel_message, build_keepalive_message, build_text_message, build_tts_config_message,
     parse_tts_message,
@@ -27,6 +28,8 @@ type WsStream =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 type WsSink = futures_util::stream::SplitSink<WsStream, Message>;
 type WsRead = futures_util::stream::SplitStream<WsStream>;
+
+const TERMINATE_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone)]
 pub struct SonioxTtsWorkerConfig {
@@ -45,29 +48,21 @@ enum SessionEnd {
     Reconnect(PendingWork),
 }
 
+/// One Engine TTS generation (mirrors xAI: each AppendDelta is its own clip).
 struct PendingStream {
     text: String,
-    flush: bool,
 }
 
 struct PendingWork {
     queue: VecDeque<PendingStream>,
 }
 
-fn queue_append_delta(queue: &mut VecDeque<PendingStream>, text: String) {
-    if let Some(back) = queue.back_mut() {
-        if !back.flush {
-            back.text.push_str(&text);
-            return;
-        }
+/// Enqueue a closed generation. Do not concat into the previous unit.
+fn queue_enqueue_utterance(queue: &mut VecDeque<PendingStream>, text: String) {
+    if !text.chars().any(|c| !c.is_whitespace()) {
+        return;
     }
-    queue.push_back(PendingStream { text, flush: false });
-}
-
-fn queue_mark_flush(queue: &mut VecDeque<PendingStream>) {
-    if let Some(back) = queue.back_mut() {
-        back.flush = true;
-    }
+    queue.push_back(PendingStream { text });
 }
 
 fn pending_work_from_queue(queue: VecDeque<PendingStream>) -> Option<PendingWork> {
@@ -76,6 +71,19 @@ fn pending_work_from_queue(queue: VecDeque<PendingStream>) -> Option<PendingWork
     } else {
         Some(PendingWork { queue })
     }
+}
+
+fn emit_chunks(
+    chunks: Vec<PlaybackPcmChunk>,
+    audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
+    pcm_drops: &AtomicU64,
+) -> Result<()> {
+    for chunk in chunks {
+        if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
+            return Err(anyhow!("playback channel closed"));
+        }
+    }
+    Ok(())
 }
 
 pub fn spawn_soniox_tts_worker(
@@ -248,36 +256,36 @@ async fn warmup_authenticate(
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     loop {
         tokio::select! {
-                   biased;
-                   _ = cancel.cancelled() => return Err(anyhow!("cancelled during warmup")),
-                   _ = tokio::time::sleep_until(deadline) => {
-        // Auth message was sent; proceed even if terminated is slow.
-                       debug::log_soniox_tts("warmup_auth_timeout_continue");
-                       return Ok(());
-                   }
-                   maybe_msg = read.next() => {
-                       match maybe_msg {
-                           Some(Ok(Message::Text(text))) => {
-                               if let Some(parsed) = parse_tts_message(&text) {
-                                   if parsed.terminated {
-                                       debug::log_soniox_tts("warmup_auth_terminated");
-                                       return Ok(());
-                                   }
-                                   if let Some(err) = parsed.error {
-                                       if !is_recoverable_tts_error(&err) {
-                                           return Err(anyhow!("soniox tts warmup error: {err}"));
-                                       }
-                                   }
-                               }
-                           }
-                           Some(Ok(Message::Close(_))) | None => {
-                               return Err(anyhow!("soniox tts warmup connection closed"));
-                           }
-                           Some(Ok(_)) => {}
-                           Some(Err(e)) => return Err(e.into()),
-                       }
-                   }
-               }
+            biased;
+            _ = cancel.cancelled() => return Err(anyhow!("cancelled during warmup")),
+            _ = tokio::time::sleep_until(deadline) => {
+                // Auth message was sent; proceed even if terminated is slow.
+                debug::log_soniox_tts("warmup_auth_timeout_continue");
+                return Ok(());
+            }
+            maybe_msg = read.next() => {
+                match maybe_msg {
+                    Some(Ok(Message::Text(text))) => {
+                        if let Some(parsed) = parse_tts_message(&text) {
+                            if parsed.terminated {
+                                debug::log_soniox_tts("warmup_auth_terminated");
+                                return Ok(());
+                            }
+                            if let Some(err) = parsed.error {
+                                if !is_recoverable_tts_error(&err) {
+                                    return Err(anyhow!("soniox tts warmup error: {err}"));
+                                }
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => {
+                        return Err(anyhow!("soniox tts warmup connection closed"));
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(e)) => return Err(e.into()),
+                }
+            }
+        }
     }
 }
 
@@ -301,9 +309,13 @@ async fn wait_for_work_keepalive(
             cmd = cmd_rx.recv() => {
                 match cmd {
                     Some(TtsTextCommand::AppendDelta { text, .. }) if !text.is_empty() => {
-                        queue_append_delta(&mut queue, text);
+                        queue_enqueue_utterance(&mut queue, text);
+                        if queue.is_empty() {
+                            continue;
+                        }
                         return Some(PendingWork { queue });
                     }
+                    // Fanout still Flush on turn_complete; Engine TTS already closed each delta.
                     Some(TtsTextCommand::Flush) => {}
                     Some(TtsTextCommand::Reset) => queue.clear(),
                     Some(_) => {}
@@ -330,451 +342,276 @@ async fn run_connected_session(
     let keepalive_interval = Duration::from_secs(20);
     let mut keepalive_at = tokio::time::Instant::now() + keepalive_interval;
     let mut stream_id: Option<String> = None;
-    let mut stream_open = false;
     let mut awaiting_terminated = false;
     let mut terminate_deadline: Option<tokio::time::Instant> = None;
     let mut pending_queue: VecDeque<PendingStream> = seed.queue;
-    let mut coalesce_buf: Vec<i16> = Vec::new();
-    // Warmup already authenticated this connection.
-    let mut authenticated = true;
+    let mut pcm = PcmCoalesce::new();
     const IDLE_DISCONNECT: Duration = Duration::from_secs(90);
     let mut idle_deadline: Option<tokio::time::Instant> = None;
-    let mut stream_idle_deadline: Option<tokio::time::Instant> = None;
-    const TERMINATE_TIMEOUT: Duration = Duration::from_secs(15);
 
-    let flush_coalesce = |buf: &mut Vec<i16>,
-                          boundary: PcmChunkBoundary,
-                          audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
-                          pcm_drops: &AtomicU64|
-     -> Result<()> {
-        if buf.is_empty() {
-            if boundary == PcmChunkBoundary::SegmentEnd {
-                let chunk = PlaybackPcmChunk {
-                    samples: Vec::new(),
-                    boundary: PcmChunkBoundary::SegmentEnd,
-                };
-                if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
-                    return Err(anyhow!("playback channel closed"));
-                }
-            }
-            return Ok(());
-        }
-        let chunk = PlaybackPcmChunk {
-            samples: std::mem::take(buf),
-            boundary,
-        };
-        if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
-            return Err(anyhow!("playback channel closed"));
-        }
-        Ok(())
-    };
-
-    async fn open_and_send_text(
+    /// Start one generation: config + text with `text_end: true` (xAI-style closed clip).
+    async fn start_generation(
         write: &mut WsSink,
         config: &SonioxTtsWorkerConfig,
         stream_id: &mut Option<String>,
-        stream_open: &mut bool,
-        authenticated: &mut bool,
+        awaiting_terminated: &mut bool,
+        terminate_deadline: &mut Option<tokio::time::Instant>,
         first_audio_ms: &AtomicU64,
         text: &str,
     ) -> Result<()> {
-        if !*stream_open {
-            let id = format!("tts-{}", Uuid::new_v4());
-            write
-                .send(Message::Text(build_tts_config_message(
-                    &config.api_key,
-                    &config.language,
-                    &config.voice,
-                    &id,
-                    &config.model,
-                    config.speed,
-                )))
-                .await
-                .context("soniox tts config send")?;
-            *stream_id = Some(id.clone());
-            *stream_open = true;
-            *authenticated = true;
-            // Re-arm per-stream immediate flush for the next first PCM chunk.
-            first_audio_ms.store(0, Ordering::Relaxed);
-            debug!(stream_id = %id, "soniox tts stream started");
-        }
-        if text.is_empty() {
-            return Ok(());
-        }
-        let Some(id) = stream_id.as_ref() else {
-            anyhow::bail!("soniox tts: stream marked open without stream id");
-        };
+        debug_assert!(
+            text.chars().any(|c| !c.is_whitespace()),
+            "start_generation requires non-whitespace text"
+        );
+        let id = format!("tts-{}", Uuid::new_v4());
         write
-            .send(Message::Text(build_text_message(id, text, false)))
+            .send(Message::Text(build_tts_config_message(
+                &config.api_key,
+                &config.language,
+                &config.voice,
+                &id,
+                &config.model,
+                config.speed,
+            )))
+            .await
+            .context("soniox tts config send")?;
+        *stream_id = Some(id.clone());
+        // Re-arm per-generation first-audio latency stamp.
+        first_audio_ms.store(0, Ordering::Relaxed);
+        debug!(stream_id = %id, "soniox tts stream started");
+
+        write
+            .send(Message::Text(build_text_message(&id, text, true)))
             .await
             .context("soniox tts text send")?;
         debug::log_soniox_tts_ws_text(text.chars().count());
-        Ok(())
-    }
+        debug::log_soniox_tts_ws_text_end();
 
-    async fn send_text_end_and_await(
-        write: &mut WsSink,
-        stream_id: &Option<String>,
-        stream_open: &mut bool,
-        awaiting_terminated: &mut bool,
-        terminate_deadline: &mut Option<tokio::time::Instant>,
-    ) -> Result<()> {
-        if !*stream_open {
-            return Ok(());
-        }
-        let Some(id) = stream_id.as_ref() else {
-            anyhow::bail!("soniox tts: stream marked open without stream id");
-        };
-        write
-            .send(Message::Text(build_text_message(id, "", true)))
-            .await
-            .context("soniox tts flush send")?;
-        *stream_open = false;
         *awaiting_terminated = true;
         *terminate_deadline = Some(tokio::time::Instant::now() + TERMINATE_TIMEOUT);
-        debug::log_soniox_tts_ws_text_end();
         debug::log_soniox_tts("text_end_awaiting_terminated");
         debug!(stream_id = %id, "soniox tts text_end — awaiting terminated");
         Ok(())
     }
 
-    // First utterance on this warm socket — open stream + send seed text.
-    let seed_unit = pending_queue.pop_front().unwrap_or(PendingStream {
-        text: String::new(),
-        flush: false,
-    });
-    open_and_send_text(
-        &mut write,
-        config,
-        &mut stream_id,
-        &mut stream_open,
-        &mut authenticated,
-        first_audio_ms,
-        &seed_unit.text,
-    )
-    .await?;
-    if seed_unit.flush {
-        send_text_end_and_await(
+    // First utterance on this warm socket — one closed generation.
+    if let Some(seed_unit) = pending_queue.pop_front() {
+        start_generation(
             &mut write,
-            &stream_id,
-            &mut stream_open,
+            config,
+            &mut stream_id,
             &mut awaiting_terminated,
             &mut terminate_deadline,
+            first_audio_ms,
+            &seed_unit.text,
         )
         .await?;
-        stream_idle_deadline = None;
-    } else if stream_open {
-        stream_idle_deadline = Some(tokio::time::Instant::now() + STREAM_IDLE_TEXT_END);
     }
 
     loop {
         tokio::select! {
-                   biased;
-                   _ = cancel.cancelled() => {
-                       if let Some(ref id) = stream_id {
-                           if stream_open || awaiting_terminated {
-                               let _ = write.send(Message::Text(build_cancel_message(id))).await;
-                           }
-                       }
-                       let _ = flush_coalesce(&mut coalesce_buf, PcmChunkBoundary::SegmentEnd, audio_tx, pcm_drops);
-                       let _ = write.close().await;
-                       return Ok(SessionEnd::Done);
-                   }
-                   _ = async {
-                       match terminate_deadline {
-                           Some(deadline) => tokio::time::sleep_until(deadline).await,
-                           None => std::future::pending::<()>().await,
-                       }
-                   }, if awaiting_terminated && terminate_deadline.is_some() => {
-                       warn!("soniox tts terminated timeout — dropping websocket");
-                       debug::log_soniox_tts("terminated_timeout_drop_ws");
-                       let _ = flush_coalesce(&mut coalesce_buf, PcmChunkBoundary::SegmentEnd, audio_tx, pcm_drops);
-                       let _ = write.close().await;
-                       if let Some(pending) = pending_work_from_queue(pending_queue) {
-                           return Ok(SessionEnd::Reconnect(pending));
-                       }
-                       return Ok(SessionEnd::Idle);
-                   }
-                   _ = async {
-                       match stream_idle_deadline {
-                           Some(deadline) => tokio::time::sleep_until(deadline).await,
-                           None => std::future::pending::<()>().await,
-                       }
-                   }, if stream_open && stream_idle_deadline.is_some() => {
-                       debug::log_soniox_tts("stream_idle_text_end");
-                       debug!("soniox tts stream idle — sending text_end (keep ws)");
-                       stream_idle_deadline = None;
-                       send_text_end_and_await(
-                           &mut write,
-                           &stream_id,
-                           &mut stream_open,
-                           &mut awaiting_terminated,
-                           &mut terminate_deadline,
-                       )
-                       .await?;
-                   }
-                   _ = async {
-                       match idle_deadline {
-                           Some(deadline) => tokio::time::sleep_until(deadline).await,
-                           None => std::future::pending::<()>().await,
-                       }
-                   }, if idle_deadline.is_some()
-                       && !stream_open
-                       && !awaiting_terminated
-                       && pending_queue.is_empty() =>
-                   {
-                       debug::log_soniox_tts("idle_disconnect");
-                       let _ = write.close().await;
-                       return Ok(SessionEnd::Idle);
-                   }
-                   _ = tokio::time::sleep_until(keepalive_at), if authenticated => {
-                       keepalive_at = tokio::time::Instant::now() + keepalive_interval;
-                       let _ = write.send(Message::Text(build_keepalive_message())).await;
-                   }
-                   cmd = cmd_rx.recv() => {
-                       keepalive_at = tokio::time::Instant::now() + keepalive_interval;
-                       idle_deadline = None;
-                       match cmd {
-                           Some(TtsTextCommand::AppendDelta { text, .. }) if !text.is_empty() => {
-                               if awaiting_terminated {
-                                   queue_append_delta(&mut pending_queue, text);
-                                   continue;
-                               }
-                               open_and_send_text(
-                                   &mut write,
-                                   config,
-                                   &mut stream_id,
-                                   &mut stream_open,
-                                   &mut authenticated,
-                                   first_audio_ms,
-                                   &text,
-                               )
-                               .await?;
-                               if stream_open {
-                                   stream_idle_deadline =
-                                       Some(tokio::time::Instant::now() + STREAM_IDLE_TEXT_END);
-                               }
-                           }
-                           Some(TtsTextCommand::Flush) => {
-                               if awaiting_terminated {
-                                   queue_mark_flush(&mut pending_queue);
-                                   continue;
-                               }
-                               stream_idle_deadline = None;
-                               send_text_end_and_await(
-                                   &mut write,
-                                   &stream_id,
-                                   &mut stream_open,
-                                   &mut awaiting_terminated,
-                                   &mut terminate_deadline,
-                               )
-                               .await?;
-                           }
-                           Some(TtsTextCommand::Reset) => {
-        // Soft reset: cancel stream, keep authenticated WebSocket.
-                               if stream_open || awaiting_terminated {
-                                   if let Some(ref id) = stream_id {
-                                       let _ = write
-                                           .send(Message::Text(build_cancel_message(id)))
-                                           .await;
-                                   }
-                               }
-                               pending_queue.clear();
-                               stream_open = false;
-                               awaiting_terminated = false;
-                               terminate_deadline = None;
-                               stream_idle_deadline = None;
-                               stream_id = None;
-                               let _ = flush_coalesce(
-                                   &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
-                                   audio_tx,
-                                   pcm_drops,
-                               );
-                               idle_deadline = Some(tokio::time::Instant::now() + IDLE_DISCONNECT);
-                               debug::log_soniox_tts("soft_reset_keep_ws");
-                           }
-                           Some(_) => {}
-                           None => {
-                               if stream_open {
-                                   if let Some(ref id) = stream_id {
-                                       let _ = write
-                                           .send(Message::Text(build_text_message(id, "", true)))
-                                           .await;
-                                   }
-                               }
-                               let _ = flush_coalesce(
-                                   &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
-                                   audio_tx,
-                                   pcm_drops,
-                               );
-                               let _ = write.close().await;
-                               return Ok(SessionEnd::Done);
-                           }
-                       }
-                   }
-                   maybe_msg = read.next() => {
-                       match maybe_msg {
-                           Some(Ok(Message::Text(text))) => {
-                               let Some(parsed) = parse_tts_message(&text) else {
-                                   continue;
-                               };
-        // A cancelled/terminated stream keeps sending trailing
-        // audio/terminated until the server finalizes it. Those
-        // messages must not touch the live stream's state.
-                               if is_stale_stream_message(
-                                   parsed.stream_id.as_deref(),
-                                   stream_id.as_deref(),
-                               ) {
-                                   debug::log_soniox_tts("stale_stream_message_ignored");
-                                   continue;
-                               }
-                               if let Some(err) = parsed.error {
-                                   if is_stream_input_closed_error(&err) {
-                                       warn!("soniox tts stream input closed; awaiting terminated: {err}");
-                                       stream_open = false;
-                                       stream_idle_deadline = None;
-                                       awaiting_terminated = true;
-                                       terminate_deadline =
-                                           Some(tokio::time::Instant::now() + TERMINATE_TIMEOUT);
-                                       continue;
-                                   }
-                                   if is_recoverable_tts_error(&err) {
-                                       debug::log_soniox_tts("recoverable_error_reconnect");
-                                       warn!("soniox tts recoverable error — reconnecting: {err}");
-                                       let _ = flush_coalesce(
-                                           &mut coalesce_buf,
-                                           PcmChunkBoundary::SegmentEnd,
-                                           audio_tx,
-                                           pcm_drops,
-                                       );
-                                       let _ = write.close().await;
-                                       if let Some(pending) = pending_work_from_queue(pending_queue) {
-                                           return Ok(SessionEnd::Reconnect(pending));
-                                       }
-                                       return Ok(SessionEnd::Idle);
-                                   }
-                                   crate::runtime::control_channel::try_send_control(
-                                       status_tx,
-                                       VoiceTtsStatus::Degraded {
-                                           message: format!("Soniox TTS error: {err}"),
-                                       },
-                                       "tts-status",
-                                   );
-                                   return Err(anyhow!("soniox tts error: {err}"));
-                               }
-                               if !parsed.samples.is_empty() {
-                                   idle_deadline = None;
-                                   let is_first = mark_first_audio_if_unmarked(first_audio_ms);
-                                   if is_first {
-                                       turn_latency.record_first_audio();
-                                       debug::log_soniox_tts("first_audio");
-                                   }
-                                   coalesce_buf.extend(parsed.samples);
-        // Flush first audio immediately for lower TTFB; then coalesce.
-                                   if is_first || coalesce_buf.len() >= SONIOX_PCM_COALESCE_MIN_SAMPLES {
-                                       flush_coalesce(
-                                           &mut coalesce_buf,
-                                           PcmChunkBoundary::Continuation,
-                                           audio_tx,
-                                           pcm_drops,
-                                       )?;
-                                   }
-                               }
-                               if parsed.audio_end || parsed.terminated {
-                                   flush_coalesce(
-                                       &mut coalesce_buf,
-                                       PcmChunkBoundary::SegmentEnd,
-                                       audio_tx,
-                                       pcm_drops,
-                                   )?;
-                               }
-                               if parsed.terminated {
-                                   stream_open = false;
-                                   stream_idle_deadline = None;
-                                   awaiting_terminated = false;
-                                   terminate_deadline = None;
-                                   stream_id = None;
-                                   debug::log_soniox_tts("stream_terminated");
-                                   debug!("soniox tts stream terminated");
-                                   if let Some(next) = pending_queue.pop_front() {
-                                       open_and_send_text(
-                                           &mut write,
-                                           config,
-                                           &mut stream_id,
-                                           &mut stream_open,
-                                           &mut authenticated,
-                                           first_audio_ms,
-                                           &next.text,
-                                       )
-                                       .await?;
-                                       if next.flush {
-                                           send_text_end_and_await(
-                                               &mut write,
-                                               &stream_id,
-                                               &mut stream_open,
-                                               &mut awaiting_terminated,
-                                               &mut terminate_deadline,
-                                           )
-                                           .await?;
-                                       } else if stream_open {
-                                           stream_idle_deadline = Some(
-                                               tokio::time::Instant::now() + STREAM_IDLE_TEXT_END,
-                                           );
-                                       }
-                                   } else {
-                                       idle_deadline =
-                                           Some(tokio::time::Instant::now() + IDLE_DISCONNECT);
-                                   }
-                               }
-                           }
-                           Some(Ok(Message::Close(_))) => {
-                               let _ = flush_coalesce(
-                                   &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
-                                   audio_tx,
-                                   pcm_drops,
-                               );
-                               if let Some(pending) = pending_work_from_queue(pending_queue) {
-                                   return Ok(SessionEnd::Reconnect(pending));
-                               }
-                               return Ok(SessionEnd::Idle);
-                           }
-                           Some(Ok(_)) => {}
-                           Some(Err(e)) => {
-                               let msg = e.to_string();
-                               if is_recoverable_tts_error(&msg) {
-                                   debug::log_soniox_tts("ws_error_idle_reconnect");
-                                   warn!("soniox tts ws error — idle reconnect: {msg}");
-                                   let _ = flush_coalesce(
-                                       &mut coalesce_buf,
-                                       PcmChunkBoundary::SegmentEnd,
-                                       audio_tx,
-                                       pcm_drops,
-                                   );
-                                   if let Some(pending) = pending_work_from_queue(pending_queue) {
-                                       return Ok(SessionEnd::Reconnect(pending));
-                                   }
-                                   return Ok(SessionEnd::Idle);
-                               }
-                               return Err(e.into());
-                           }
-                           None => {
-                               let _ = flush_coalesce(
-                                   &mut coalesce_buf,
-                                   PcmChunkBoundary::SegmentEnd,
-                                   audio_tx,
-                                   pcm_drops,
-                               );
-                               if let Some(pending) = pending_work_from_queue(pending_queue) {
-                                   return Ok(SessionEnd::Reconnect(pending));
-                               }
-                               return Ok(SessionEnd::Idle);
-                           }
-                       }
-                   }
-               }
+            biased;
+            _ = cancel.cancelled() => {
+                if awaiting_terminated {
+                    if let Some(ref id) = stream_id {
+                        let _ = write.send(Message::Text(build_cancel_message(id))).await;
+                    }
+                }
+                let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                let _ = write.close().await;
+                return Ok(SessionEnd::Done);
+            }
+            _ = async {
+                match terminate_deadline {
+                    Some(deadline) => tokio::time::sleep_until(deadline).await,
+                    None => std::future::pending::<()>().await,
+                }
+            }, if awaiting_terminated && terminate_deadline.is_some() => {
+                warn!("soniox tts terminated timeout — dropping websocket");
+                debug::log_soniox_tts("terminated_timeout_drop_ws");
+                let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                let _ = write.close().await;
+                if let Some(pending) = pending_work_from_queue(pending_queue) {
+                    return Ok(SessionEnd::Reconnect(pending));
+                }
+                return Ok(SessionEnd::Idle);
+            }
+            _ = async {
+                match idle_deadline {
+                    Some(deadline) => tokio::time::sleep_until(deadline).await,
+                    None => std::future::pending::<()>().await,
+                }
+            }, if idle_deadline.is_some()
+                && !awaiting_terminated
+                && pending_queue.is_empty() =>
+            {
+                debug::log_soniox_tts("idle_disconnect");
+                let _ = write.close().await;
+                return Ok(SessionEnd::Idle);
+            }
+            _ = tokio::time::sleep_until(keepalive_at) => {
+                keepalive_at = tokio::time::Instant::now() + keepalive_interval;
+                let _ = write.send(Message::Text(build_keepalive_message())).await;
+            }
+            cmd = cmd_rx.recv() => {
+                keepalive_at = tokio::time::Instant::now() + keepalive_interval;
+                idle_deadline = None;
+                match cmd {
+                    Some(TtsTextCommand::AppendDelta { text, .. }) if !text.is_empty() => {
+                        if awaiting_terminated {
+                            queue_enqueue_utterance(&mut pending_queue, text);
+                            continue;
+                        }
+                        if !text.chars().any(|c| !c.is_whitespace()) {
+                            continue;
+                        }
+                        start_generation(
+                            &mut write,
+                            config,
+                            &mut stream_id,
+                            &mut awaiting_terminated,
+                            &mut terminate_deadline,
+                            first_audio_ms,
+                            &text,
+                        )
+                        .await?;
+                    }
+                    // Fanout Flush on turn_complete — already closed each AppendDelta.
+                    Some(TtsTextCommand::Flush) => {}
+                    Some(TtsTextCommand::Reset) => {
+                        // Soft reset: cancel in-flight generation, keep authenticated WebSocket.
+                        if awaiting_terminated {
+                            if let Some(ref id) = stream_id {
+                                let _ = write
+                                    .send(Message::Text(build_cancel_message(id)))
+                                    .await;
+                            }
+                        }
+                        pending_queue.clear();
+                        awaiting_terminated = false;
+                        terminate_deadline = None;
+                        stream_id = None;
+                        let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                        idle_deadline = Some(tokio::time::Instant::now() + IDLE_DISCONNECT);
+                        debug::log_soniox_tts("soft_reset_keep_ws");
+                    }
+                    Some(_) => {}
+                    None => {
+                        let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                        let _ = write.close().await;
+                        return Ok(SessionEnd::Done);
+                    }
+                }
+            }
+            maybe_msg = read.next() => {
+                match maybe_msg {
+                    Some(Ok(Message::Text(text))) => {
+                        let Some(parsed) = parse_tts_message(&text) else {
+                            continue;
+                        };
+                        // A cancelled/terminated stream keeps sending trailing
+                        // audio/terminated until the server finalizes it. Those
+                        // messages must not touch the live stream's state.
+                        if is_stale_stream_message(
+                            parsed.stream_id.as_deref(),
+                            stream_id.as_deref(),
+                        ) {
+                            debug::log_soniox_tts("stale_stream_message_ignored");
+                            continue;
+                        }
+                        if let Some(err) = parsed.error {
+                            if is_stream_input_closed_error(&err) {
+                                warn!("soniox tts stream input closed; awaiting terminated: {err}");
+                                awaiting_terminated = true;
+                                terminate_deadline =
+                                    Some(tokio::time::Instant::now() + TERMINATE_TIMEOUT);
+                                continue;
+                            }
+                            if is_recoverable_tts_error(&err) {
+                                debug::log_soniox_tts("recoverable_error_reconnect");
+                                warn!("soniox tts recoverable error — reconnecting: {err}");
+                                let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                                let _ = write.close().await;
+                                if let Some(pending) = pending_work_from_queue(pending_queue) {
+                                    return Ok(SessionEnd::Reconnect(pending));
+                                }
+                                return Ok(SessionEnd::Idle);
+                            }
+                            crate::runtime::control_channel::try_send_control(
+                                status_tx,
+                                VoiceTtsStatus::Degraded {
+                                    message: format!("Soniox TTS error: {err}"),
+                                },
+                                "tts-status",
+                            );
+                            return Err(anyhow!("soniox tts error: {err}"));
+                        }
+                        if !parsed.samples.is_empty() {
+                            idle_deadline = None;
+                            let is_first = mark_first_audio_if_unmarked(first_audio_ms);
+                            if is_first {
+                                turn_latency.record_first_audio();
+                                debug::log_soniox_tts("first_audio");
+                            }
+                            emit_chunks(pcm.push(parsed.samples), audio_tx, pcm_drops)?;
+                        }
+                        if parsed.audio_end || parsed.terminated {
+                            emit_chunks(pcm.finish_segment(), audio_tx, pcm_drops)?;
+                        }
+                        if parsed.terminated {
+                            awaiting_terminated = false;
+                            terminate_deadline = None;
+                            stream_id = None;
+                            debug::log_soniox_tts("stream_terminated");
+                            debug!("soniox tts stream terminated");
+                            if let Some(next) = pending_queue.pop_front() {
+                                start_generation(
+                                    &mut write,
+                                    config,
+                                    &mut stream_id,
+                                    &mut awaiting_terminated,
+                                    &mut terminate_deadline,
+                                    first_audio_ms,
+                                    &next.text,
+                                )
+                                .await?;
+                            } else {
+                                idle_deadline =
+                                    Some(tokio::time::Instant::now() + IDLE_DISCONNECT);
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) => {
+                        let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                        if let Some(pending) = pending_work_from_queue(pending_queue) {
+                            return Ok(SessionEnd::Reconnect(pending));
+                        }
+                        return Ok(SessionEnd::Idle);
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(e)) => {
+                        let msg = e.to_string();
+                        if is_recoverable_tts_error(&msg) {
+                            debug::log_soniox_tts("ws_error_idle_reconnect");
+                            warn!("soniox tts ws error — idle reconnect: {msg}");
+                            let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                            if let Some(pending) = pending_work_from_queue(pending_queue) {
+                                return Ok(SessionEnd::Reconnect(pending));
+                            }
+                            return Ok(SessionEnd::Idle);
+                        }
+                        return Err(e.into());
+                    }
+                    None => {
+                        let _ = emit_chunks(pcm.reset(), audio_tx, pcm_drops);
+                        if let Some(pending) = pending_work_from_queue(pending_queue) {
+                            return Ok(SessionEnd::Reconnect(pending));
+                        }
+                        return Ok(SessionEnd::Idle);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -784,8 +621,7 @@ fn is_stream_input_closed_error(err: &str) -> bool {
 }
 
 /// Returns true once per zeroed slot, stamping it with now. The slot is reset
-/// to 0 on every stream open so each turn's first PCM chunk flushes immediately
-/// instead of waiting for the coalesce threshold.
+/// to 0 on every generation open so latency metrics re-arm per clip.
 fn mark_first_audio_if_unmarked(first_audio_ms: &AtomicU64) -> bool {
     first_audio_ms
         .compare_exchange(
@@ -823,6 +659,7 @@ fn is_recoverable_tts_error(err: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::soniox::tts::config::SONIOX_PCM_COALESCE_MIN_SAMPLES;
 
     #[test]
     fn detects_text_end_closed_error() {
@@ -833,11 +670,11 @@ mod tests {
     }
 
     #[test]
-    fn first_audio_marks_once_per_stream_open() {
+    fn first_audio_marks_once_per_generation_open() {
         let slot = AtomicU64::new(0);
         assert!(mark_first_audio_if_unmarked(&slot));
         assert!(!mark_first_audio_if_unmarked(&slot));
-        // New stream/turn re-arms the immediate first-chunk flush.
+        // New generation re-arms the first-audio latency stamp.
         slot.store(0, Ordering::Relaxed);
         assert!(mark_first_audio_if_unmarked(&slot));
         assert!(!mark_first_audio_if_unmarked(&slot));
@@ -864,38 +701,34 @@ mod tests {
     }
 
     #[test]
-    fn pending_queue_keeps_sentence_units_separate() {
+    fn each_append_delta_is_its_own_generation() {
         let mut queue = VecDeque::new();
-        queue_append_delta(&mut queue, "Sentence one.".into());
-        queue_mark_flush(&mut queue);
-        queue_append_delta(&mut queue, "Sentence two.".into());
-        queue_mark_flush(&mut queue);
-        queue_append_delta(&mut queue, "Sentence three.".into());
-        queue_mark_flush(&mut queue);
-
-        assert_eq!(queue.len(), 3);
-        assert_eq!(queue[0].text, "Sentence one.");
-        assert!(queue[0].flush);
-        assert_eq!(queue[1].text, "Sentence two.");
-        assert!(queue[1].flush);
-        assert_eq!(queue[2].text, "Sentence three.");
-        assert!(queue[2].flush);
+        queue_enqueue_utterance(&mut queue, "Hello".into());
+        queue_enqueue_utterance(&mut queue, " world".into());
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue[0].text, "Hello");
+        assert_eq!(queue[1].text, " world");
     }
 
     #[test]
-    fn pending_queue_appends_into_unflushed_unit() {
+    fn whitespace_only_does_not_enqueue_generation() {
         let mut queue = VecDeque::new();
-        queue_append_delta(&mut queue, "Hello".into());
-        queue_append_delta(&mut queue, " world".into());
-        assert_eq!(queue.len(), 1);
-        assert_eq!(queue[0].text, "Hello world");
-        assert!(!queue[0].flush);
+        queue_enqueue_utterance(&mut queue, "   ".into());
+        queue_enqueue_utterance(&mut queue, "".into());
+        assert!(queue.is_empty());
+    }
 
-        queue_mark_flush(&mut queue);
-        queue_append_delta(&mut queue, "Next".into());
-        assert_eq!(queue.len(), 2);
-        assert_eq!(queue[1].text, "Next");
-        assert!(!queue[1].flush);
+    #[test]
+    fn pending_queue_keeps_generations_separate() {
+        let mut queue = VecDeque::new();
+        queue_enqueue_utterance(&mut queue, "Sentence one.".into());
+        queue_enqueue_utterance(&mut queue, "Sentence two.".into());
+        queue_enqueue_utterance(&mut queue, "Sentence three.".into());
+
+        assert_eq!(queue.len(), 3);
+        assert_eq!(queue[0].text, "Sentence one.");
+        assert_eq!(queue[1].text, "Sentence two.");
+        assert_eq!(queue[2].text, "Sentence three.");
     }
 
     #[test]

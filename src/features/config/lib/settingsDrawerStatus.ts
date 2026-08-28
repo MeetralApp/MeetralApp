@@ -58,6 +58,11 @@ function customVoiceDirectionReady(
         : config.fishaudioInboundVoiceId;
     return Boolean(config.fishaudioApiKeyConfigured) && Boolean(voiceId?.trim());
   }
+  if (vendor === "xai") {
+    const voiceId =
+      direction === "outbound" ? config.xaiVoiceId : config.xaiInboundVoiceId;
+    return Boolean(config.xaiApiKeyConfigured) && Boolean(voiceId?.trim());
+  }
   const voiceId =
     direction === "outbound"
       ? config.elevenlabsVoiceId

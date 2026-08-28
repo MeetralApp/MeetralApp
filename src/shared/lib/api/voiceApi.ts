@@ -5,6 +5,7 @@ import type {
   FishAudioModelOption,
   FishAudioVoiceOption,
   SonioxVoiceOption,
+  XaiVoiceOption,
 } from "@/shared/lib/types/pipeline";
 
 export async function testElevenLabsApiKey(apiKey: string): Promise<void> {
@@ -93,6 +94,34 @@ export async function previewFishAudioVoice(
   apiKey = "",
 ): Promise<void> {
   await invoke("preview_fishaudio_voice", {
+    request: { apiKey, voiceId },
+  });
+}
+
+export async function testXaiApiKey(apiKey: string): Promise<void> {
+  await invoke("test_xai_api_key", { request: { apiKey } });
+}
+
+export async function listXaiVoices(apiKey = ""): Promise<XaiVoiceOption[]> {
+  return invoke<XaiVoiceOption[]>("list_xai_voices", {
+    request: { apiKey },
+  });
+}
+
+export async function validateXaiVoice(
+  voiceId: string,
+  apiKey = "",
+): Promise<void> {
+  await invoke("validate_xai_voice", {
+    request: { apiKey, voiceId },
+  });
+}
+
+export async function previewXaiVoice(
+  voiceId: string,
+  apiKey = "",
+): Promise<void> {
+  await invoke("preview_xai_voice", {
     request: { apiKey, voiceId },
   });
 }

@@ -2,8 +2,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::audio::pcm_crossfade::{PcmChunkBoundary, PlaybackPcmChunk};
 use crate::audio::try_send_pcm_bounded;
+use crate::audio::PlaybackPcmChunk;
 use anyhow::{anyhow, Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
@@ -183,36 +183,14 @@ async fn run_session(
 
     let mut coalesce_buf: Vec<i16> = Vec::new();
     let flush_coalesce = |buf: &mut Vec<i16>,
-                          boundary: PcmChunkBoundary,
                           audio_tx: &mpsc::Sender<PlaybackPcmChunk>,
                           pcm_drops: &AtomicU64,
                           status_tx: &mpsc::Sender<VoiceTtsStatus>|
      -> Result<()> {
         if buf.is_empty() {
-            if boundary == PcmChunkBoundary::SegmentEnd {
-                let chunk = PlaybackPcmChunk {
-                    samples: Vec::new(),
-                    boundary: PcmChunkBoundary::SegmentEnd,
-                };
-                if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
-                    warn!("fishaudio audio playback channel closed");
-                    crate::runtime::control_channel::try_send_control(
-                        status_tx,
-                        VoiceTtsStatus::Degraded {
-                            message: "Custom voice playback unavailable — Stop and Start to retry."
-                                .into(),
-                        },
-                        "tts-status",
-                    );
-                    return Err(anyhow!("playback channel closed"));
-                }
-            }
             return Ok(());
         }
-        let chunk = PlaybackPcmChunk {
-            samples: std::mem::take(buf),
-            boundary,
-        };
+        let chunk = PlaybackPcmChunk::new(std::mem::take(buf));
         if !try_send_pcm_bounded(audio_tx, chunk, pcm_drops) && audio_tx.is_closed() {
             warn!("fishaudio audio playback channel closed");
             crate::runtime::control_channel::try_send_control(
@@ -228,11 +206,6 @@ async fn run_session(
     };
 
     let mut deliver_pcm = |parsed: super::protocol::ParsedAudio, is_final: bool| -> Result<()> {
-        let boundary = if is_final {
-            PcmChunkBoundary::SegmentEnd
-        } else {
-            PcmChunkBoundary::Continuation
-        };
         if !parsed.samples.is_empty() {
             debug!(samples = parsed.samples.len(), "fishaudio received audio");
             if first_audio_ms.load(Ordering::Relaxed) == 0 {
@@ -243,16 +216,10 @@ async fn run_session(
             coalesce_buf.extend(parsed.samples);
         }
         if is_final {
-            return flush_coalesce(&mut coalesce_buf, boundary, audio_tx, pcm_drops, status_tx);
+            return flush_coalesce(&mut coalesce_buf, audio_tx, pcm_drops, status_tx);
         }
         if coalesce_buf.len() >= crate::voice::config::EL_PCM_COALESCE_MIN_SAMPLES {
-            return flush_coalesce(
-                &mut coalesce_buf,
-                PcmChunkBoundary::Continuation,
-                audio_tx,
-                pcm_drops,
-                status_tx,
-            );
+            return flush_coalesce(&mut coalesce_buf, audio_tx, pcm_drops, status_tx);
         }
         Ok(())
     };
@@ -261,13 +228,7 @@ async fn run_session(
         tokio::select! {
             biased;
             _ = cancel.cancelled() => {
-                let _ = flush_coalesce(
-                    &mut coalesce_buf,
-                    PcmChunkBoundary::SegmentEnd,
-                    audio_tx,
-                    pcm_drops,
-                    status_tx,
-                );
+                let _ = flush_coalesce(&mut coalesce_buf, audio_tx, pcm_drops, status_tx);
                 let _ = write.send(Message::Binary(pack_stop_message()?)).await;
                 let _ = write.close().await;
                 info!("fishaudio tts websocket closed on cancel");
@@ -299,7 +260,6 @@ async fn run_session(
                     Some(TtsTextCommand::Reset) => {
                         let _ = flush_coalesce(
                             &mut coalesce_buf,
-                            PcmChunkBoundary::SegmentEnd,
                             audio_tx,
                             pcm_drops,
                             status_tx,
@@ -312,7 +272,6 @@ async fn run_session(
                     None => {
                         let _ = flush_coalesce(
                             &mut coalesce_buf,
-                            PcmChunkBoundary::SegmentEnd,
                             audio_tx,
                             pcm_drops,
                             status_tx,

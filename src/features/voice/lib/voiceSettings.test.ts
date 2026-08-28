@@ -41,7 +41,8 @@ describe("voiceSettings", () => {
 });
 
 describe("normalizeCustomVoiceVendor", () => {
-  it("keeps Fish Audio and falls back to ElevenLabs", () => {
+  it("keeps xAI and Fish Audio and falls back to ElevenLabs", () => {
+    expect(normalizeCustomVoiceVendor("xai")).toBe("xai");
     expect(normalizeCustomVoiceVendor("fishAudio")).toBe("fishAudio");
     expect(normalizeCustomVoiceVendor("elevenLabs")).toBe("elevenLabs");
     expect(normalizeCustomVoiceVendor(undefined)).toBe("elevenLabs");

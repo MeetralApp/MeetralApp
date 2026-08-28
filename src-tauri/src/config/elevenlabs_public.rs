@@ -3,8 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::elevenlabs_settings::{
-    default_elevenlabs_chunk_schedule_preset, default_elevenlabs_crossfade_ms,
-    default_elevenlabs_playback_crossfade, default_elevenlabs_similarity_boost,
+    default_elevenlabs_chunk_schedule_preset, default_elevenlabs_similarity_boost,
     default_elevenlabs_speed, default_elevenlabs_stability, default_elevenlabs_tts_language_auto,
     default_elevenlabs_tts_model, default_elevenlabs_tts_synthesis_mode,
     default_elevenlabs_use_speaker_boost, ElevenLabsSettings,
@@ -37,10 +36,6 @@ pub struct ElevenLabsPublicSettings {
     pub elevenlabs_tts_language_code: String,
     #[serde(default = "default_elevenlabs_tts_synthesis_mode")]
     pub elevenlabs_tts_synthesis_mode: crate::voice::config::TtsSynthesisMode,
-    #[serde(default = "default_elevenlabs_playback_crossfade")]
-    pub elevenlabs_playback_crossfade: bool,
-    #[serde(default = "default_elevenlabs_crossfade_ms")]
-    pub elevenlabs_crossfade_ms: u32,
     #[serde(default)]
     pub elevenlabs_inbound_voice_id: String,
     #[serde(default = "default_elevenlabs_tts_model")]
@@ -68,8 +63,6 @@ impl From<&ElevenLabsSettings> for ElevenLabsPublicSettings {
             elevenlabs_tts_language_auto: s.elevenlabs_tts_language_auto,
             elevenlabs_tts_language_code: s.elevenlabs_tts_language_code.clone(),
             elevenlabs_tts_synthesis_mode: s.elevenlabs_tts_synthesis_mode,
-            elevenlabs_playback_crossfade: s.elevenlabs_playback_crossfade,
-            elevenlabs_crossfade_ms: s.elevenlabs_crossfade_ms,
             elevenlabs_inbound_voice_id: s.elevenlabs_inbound_voice_id.clone(),
             elevenlabs_inbound_tts_model: s.elevenlabs_inbound_tts_model.clone(),
             elevenlabs_inbound_stability: s.elevenlabs_inbound_stability,
@@ -98,8 +91,6 @@ impl ElevenLabsPublicSettings {
             elevenlabs_tts_synthesis_mode: self.elevenlabs_tts_synthesis_mode,
             elevenlabs_auto_mode: existing.elevenlabs_auto_mode,
             unified_outbound_topology: existing.unified_outbound_topology,
-            elevenlabs_playback_crossfade: self.elevenlabs_playback_crossfade,
-            elevenlabs_crossfade_ms: self.elevenlabs_crossfade_ms,
             elevenlabs_inbound_voice_id: self.elevenlabs_inbound_voice_id.clone(),
             elevenlabs_inbound_tts_model: self.elevenlabs_inbound_tts_model.clone(),
             elevenlabs_inbound_stability: self.elevenlabs_inbound_stability,

@@ -1,6 +1,7 @@
 pub mod api;
 pub mod config;
 pub mod delivery;
+pub mod playback;
 pub mod protocol;
 pub mod worker;
 

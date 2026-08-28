@@ -4,7 +4,6 @@ mod stored;
 
 use anyhow::{Context, Result};
 use tauri::AppHandle;
-use tauri::Manager;
 
 use crate::audio::{backfill_device_ids, list_devices};
 use crate::config::AppConfig;
@@ -15,11 +14,7 @@ use stored::StoredConfig;
 const CONFIG_FILE: &str = "config.json";
 
 pub fn config_path(app: &AppHandle) -> Result<std::path::PathBuf> {
-    let mut path = app
-        .path()
-        .app_data_dir()
-        .context("failed to resolve app data directory")?;
-    std::fs::create_dir_all(&path).context("failed to create app data directory")?;
+    let mut path = crate::app_data::ensure_dir(app)?;
     path.push(CONFIG_FILE);
     Ok(path)
 }

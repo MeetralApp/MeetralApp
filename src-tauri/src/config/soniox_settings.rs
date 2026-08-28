@@ -18,7 +18,11 @@ pub struct SonioxSettings {
     #[serde(default)]
     pub soniox_tts_outbound_voice: String,
     #[serde(default = "default_soniox_tts_model_field")]
-    pub soniox_tts_model: String,
+    pub soniox_tts_outbound_model: String,
+    /// Meeting → You Soniox TTS model when Engine voice is selected.
+    /// Empty on load → normalized from [`Self::soniox_tts_outbound_model`].
+    #[serde(default)]
+    pub soniox_tts_inbound_model: String,
     #[serde(default)]
     pub soniox_tts_voices: Vec<crate::voice::SonioxVoiceOption>,
     #[serde(default)]
@@ -67,7 +71,8 @@ impl Default for SonioxSettings {
             soniox_active_context_profile_id: None,
             soniox_tts_voice: default_soniox_tts_voice_field(),
             soniox_tts_outbound_voice: String::new(),
-            soniox_tts_model: default_soniox_tts_model_field(),
+            soniox_tts_outbound_model: default_soniox_tts_model_field(),
+            soniox_tts_inbound_model: String::new(),
             soniox_tts_voices: Vec::new(),
             soniox_tts_models: Vec::new(),
             soniox_tts_inbound_speed: default_soniox_tts_speed_field(),

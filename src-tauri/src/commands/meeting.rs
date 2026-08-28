@@ -916,7 +916,11 @@ fn entity_view(row: EntityRow) -> EntityView {
 #[tauri::command]
 pub async fn default_meeting_audio_folder(app: AppHandle) -> Result<String, String> {
     meeting::store::default_recordings_dir(&app)
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|p| {
+            crate::app_data::for_display(&p)
+                .to_string_lossy()
+                .to_string()
+        })
         .map_err(error::log_and_stringify)
 }
 
@@ -945,7 +949,7 @@ pub async fn open_meeting_audio_folder(
     let path = meeting::store::resolve_recordings_base(&app, &configured)
         .map_err(error::log_and_stringify)?;
     std::fs::create_dir_all(&path).map_err(error::log_and_stringify)?;
-    open_path_in_os(&path).map_err(error::log_and_stringify)
+    open_path_in_os(&crate::app_data::for_display(&path)).map_err(error::log_and_stringify)
 }
 
 fn open_path_in_os(path: &std::path::Path) -> anyhow::Result<()> {

@@ -1,25 +1,17 @@
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use tauri::AppHandle;
-use tauri::Manager;
 
 pub fn meeting_db_path(app: &AppHandle) -> Result<PathBuf> {
-    let mut path = app
-        .path()
-        .app_data_dir()
-        .context("failed to resolve app data directory")?;
-    std::fs::create_dir_all(&path).context("failed to create app data directory")?;
+    let mut path = crate::app_data::ensure_dir(app)?;
     path.push("meetings.db");
     Ok(path)
 }
 
 /// Default recordings root: `{app_data}/recordings`.
 pub fn default_recordings_dir(app: &AppHandle) -> Result<PathBuf> {
-    let mut path = app
-        .path()
-        .app_data_dir()
-        .context("failed to resolve app data directory")?;
+    let mut path = crate::app_data::dir(app)?;
     path.push("recordings");
     Ok(path)
 }

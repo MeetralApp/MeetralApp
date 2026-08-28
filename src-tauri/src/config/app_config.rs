@@ -13,6 +13,7 @@ use super::modes::{
 };
 use super::overlay_settings::OverlaySettings;
 use super::soniox_settings::SonioxSettings;
+use super::xai_settings::XaiSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +113,8 @@ pub struct AppConfig {
     pub elevenlabs: ElevenLabsSettings,
     #[serde(default, flatten)]
     pub fishaudio: FishAudioSettings,
+    #[serde(default, flatten)]
+    pub xai: XaiSettings,
     /// Meeting Intelligence: structured artifacts (decisions/action items/entities).
     #[serde(default = "default_true")]
     pub artifacts_enabled: bool,
@@ -210,6 +213,7 @@ impl Default for AppConfig {
             soniox: SonioxSettings::default(),
             elevenlabs: ElevenLabsSettings::default(),
             fishaudio: FishAudioSettings::default(),
+            xai: XaiSettings::default(),
             artifacts_enabled: true,
             answer_language: String::new(),
             meeting_context: super::meeting_context::MeetingContextPayload::default(),
@@ -364,8 +368,6 @@ impl AppConfig {
             crate::voice::config::normalize_chunk_schedule_preset(
                 self.elevenlabs.elevenlabs_chunk_schedule_preset,
             );
-        self.elevenlabs.elevenlabs_crossfade_ms =
-            self.elevenlabs.elevenlabs_crossfade_ms.clamp(0, 20);
         self.soniox.soniox_tts_voice =
             crate::providers::soniox::tts::config::normalize_soniox_tts_voice(
                 &self.soniox.soniox_tts_voice,
@@ -377,9 +379,12 @@ impl AppConfig {
             crate::providers::soniox::tts::config::normalize_soniox_tts_voice(
                 &self.soniox.soniox_tts_outbound_voice,
             );
-        if self.soniox.soniox_tts_model.trim().is_empty() {
-            self.soniox.soniox_tts_model =
+        if self.soniox.soniox_tts_outbound_model.trim().is_empty() {
+            self.soniox.soniox_tts_outbound_model =
                 crate::config::soniox_settings::default_soniox_tts_model_field();
+        }
+        if self.soniox.soniox_tts_inbound_model.trim().is_empty() {
+            self.soniox.soniox_tts_inbound_model = self.soniox.soniox_tts_outbound_model.clone();
         }
         self.soniox.soniox_tts_inbound_speed =
             crate::providers::soniox::tts::config::clamp_soniox_tts_speed(
@@ -389,15 +394,40 @@ impl AppConfig {
             crate::providers::soniox::tts::config::clamp_soniox_tts_speed(
                 self.soniox.soniox_tts_outbound_speed,
             );
-        if !self.soniox.soniox_tts_models.is_empty()
-            && !self
+        if !self.soniox.soniox_tts_models.is_empty() {
+            if !self
                 .soniox
                 .soniox_tts_models
                 .iter()
-                .any(|m| m.id == self.soniox.soniox_tts_model)
-        {
-            self.soniox.soniox_tts_model = self.soniox.soniox_tts_models[0].id.clone();
+                .any(|m| m.id == self.soniox.soniox_tts_outbound_model)
+            {
+                self.soniox.soniox_tts_outbound_model = self.soniox.soniox_tts_models[0].id.clone();
+            }
+            if !self
+                .soniox
+                .soniox_tts_models
+                .iter()
+                .any(|m| m.id == self.soniox.soniox_tts_inbound_model)
+            {
+                self.soniox.soniox_tts_inbound_model = self.soniox.soniox_tts_models[0].id.clone();
+            }
         }
+        self.xai.xai_outbound_speed =
+            crate::providers::xai::config::clamp_speed(self.xai.xai_outbound_speed);
+        self.xai.xai_inbound_speed =
+            crate::providers::xai::config::clamp_speed(self.xai.xai_inbound_speed);
+        self.fishaudio.fishaudio_outbound_speed = crate::providers::fishaudio::config::clamp_speed(
+            self.fishaudio.fishaudio_outbound_speed,
+        );
+        self.fishaudio.fishaudio_inbound_speed = crate::providers::fishaudio::config::clamp_speed(
+            self.fishaudio.fishaudio_inbound_speed,
+        );
+        self.fishaudio.fishaudio_outbound_top_p = crate::providers::fishaudio::config::clamp_top_p(
+            self.fishaudio.fishaudio_outbound_top_p,
+        );
+        self.fishaudio.fishaudio_inbound_top_p = crate::providers::fishaudio::config::clamp_top_p(
+            self.fishaudio.fishaudio_inbound_top_p,
+        );
         if !self.soniox.soniox_tts_voices.is_empty()
             && !self
                 .soniox
@@ -501,6 +531,10 @@ impl AppConfig {
 
     pub fn is_fishaudio_api_key_configured(&self) -> bool {
         !self.fishaudio.fishaudio_api_key.trim().is_empty()
+    }
+
+    pub fn is_xai_api_key_configured(&self) -> bool {
+        !self.xai.xai_api_key.trim().is_empty()
     }
 
     pub fn needs_custom_tts_for_outbound(&self) -> bool {

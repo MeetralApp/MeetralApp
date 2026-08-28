@@ -9,8 +9,8 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
 use crate::audio::runtime::atomic_to_mode;
+use crate::audio::PlaybackPcmChunk;
 use crate::capabilities::{
     bridge_play_audio_enabled, live_caps,
     tts_text_pipeline_active as routing_tts_text_pipeline_active,
@@ -274,7 +274,7 @@ pub async fn ensure_provider_tts_worker(
         SonioxTtsWorkerConfig {
             api_key: config.soniox_api_key.clone(),
             voice: config.soniox.soniox_tts_outbound_voice.clone(),
-            model: config.soniox.soniox_tts_model.clone(),
+            model: config.soniox.soniox_tts_outbound_model.clone(),
             language: language.to_string(),
             speed: config.soniox.soniox_tts_outbound_speed,
         },

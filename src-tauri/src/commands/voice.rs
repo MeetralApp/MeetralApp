@@ -88,7 +88,15 @@ pub async fn list_soniox_voices(
             .preferred_model
             .filter(|s| !s.trim().is_empty())
             .or_else(|| {
-                let m = guard.soniox.soniox_tts_model.trim();
+                let m = guard.soniox.soniox_tts_outbound_model.trim();
+                if m.is_empty() {
+                    None
+                } else {
+                    Some(m.to_string())
+                }
+            })
+            .or_else(|| {
+                let m = guard.soniox.soniox_tts_inbound_model.trim();
                 if m.is_empty() {
                     None
                 } else {
@@ -416,4 +424,105 @@ pub async fn preview_fishaudio_voice(
         request.voice_id.clone()
     };
     crate::providers::fishaudio::preview_voice(&api_key, &voice_id, &config, &devices).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestXaiApiKeyRequest {
+    pub api_key: String,
+}
+
+fn resolve_xai_api_key(stored: &str, request: &str) -> Result<String, String> {
+    let api_key = if request.trim().is_empty() {
+        stored.to_string()
+    } else {
+        request.to_string()
+    };
+    if api_key.trim().is_empty() {
+        return Err("xAI API key is empty".into());
+    }
+    Ok(api_key)
+}
+
+#[tauri::command]
+pub async fn test_xai_api_key(
+    request: TestXaiApiKeyRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<(), String> {
+    let api_key = {
+        let guard = store.lock().await;
+        resolve_xai_api_key(&guard.xai.xai_api_key, &request.api_key)?
+    };
+    crate::providers::xai::test_api_key(&api_key).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListXaiVoicesRequest {
+    pub api_key: String,
+}
+
+#[tauri::command]
+pub async fn list_xai_voices(
+    request: ListXaiVoicesRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<Vec<crate::providers::xai::XaiVoiceOption>, String> {
+    let api_key = {
+        let guard = store.lock().await;
+        resolve_xai_api_key(&guard.xai.xai_api_key, &request.api_key)?
+    };
+    crate::providers::xai::list_voices(&api_key).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateXaiVoiceRequest {
+    pub api_key: String,
+    pub voice_id: String,
+}
+
+#[tauri::command]
+pub async fn validate_xai_voice(
+    request: ValidateXaiVoiceRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<(), String> {
+    let (api_key, voice_id) = {
+        let guard = store.lock().await;
+        let api_key = resolve_xai_api_key(&guard.xai.xai_api_key, &request.api_key)?;
+        let voice_id = if request.voice_id.trim().is_empty() {
+            guard.xai.xai_voice_id.clone()
+        } else {
+            request.voice_id.clone()
+        };
+        (api_key, voice_id)
+    };
+    crate::providers::xai::validate_voice(&api_key, &voice_id).await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewXaiVoiceRequest {
+    pub api_key: String,
+    pub voice_id: String,
+}
+
+#[tauri::command]
+pub async fn preview_xai_voice(
+    request: PreviewXaiVoiceRequest,
+    store: State<'_, AsyncMutex<AppConfig>>,
+) -> Result<(), String> {
+    let (config, devices) = {
+        let guard = store.lock().await;
+        (
+            guard.clone(),
+            crate::audio::list_devices_async().await.unwrap_or_default(),
+        )
+    };
+    let api_key = resolve_xai_api_key(&config.xai.xai_api_key, &request.api_key)?;
+    let voice_id = if request.voice_id.trim().is_empty() {
+        config.xai.xai_voice_id.clone()
+    } else {
+        request.voice_id.clone()
+    };
+    crate::providers::xai::preview_voice(&api_key, &voice_id, &config, &devices).await
 }

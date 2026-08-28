@@ -20,7 +20,7 @@ Product language for Meetral. Prefer these terms in code comments, UI copy, and 
 | **TipTap SSOT** | Summary truth is `generated_json`, not a parallel markdown/chat document. |
 | **Bridge STS** | Speech-to-speech PCM from the Gemini/OpenAI live bridge. |
 | **Provider TTS** | Separate TTS WebSocket (Soniox). |
-| **Custom voice** | Custom voice TTS path (`PlaybackSource::CustomTts`) via ElevenLabs and/or Fish Audio, both directions. Toolbar is Engine vs Custom; vendor is a Settings control per column. |
+| **Custom voice** | Custom voice TTS path (`PlaybackSource::CustomTts`) via ElevenLabs, Fish Audio, and/or xAI, both directions. Toolbar is Engine vs Custom; vendor is a Settings control per column. |
 | **`keep_direct_audio`** | When true, Direct relay stays up on idle / non-translating directions. |
 
 **Do not use as types:** CommitEngine (the type is `SegmentEngine`), LiveCaps (the type is `ProviderCapabilities`).

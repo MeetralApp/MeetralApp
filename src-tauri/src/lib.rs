@@ -4,6 +4,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 pub mod ai;
+pub mod app_data;
 pub mod app_state;
 pub mod audio;
 pub mod capabilities;
@@ -118,6 +119,10 @@ pub fn run() {
             commands::list_fishaudio_models,
             commands::validate_fishaudio_voice,
             commands::preview_fishaudio_voice,
+            commands::test_xai_api_key,
+            commands::list_xai_voices,
+            commands::validate_xai_voice,
+            commands::preview_xai_voice,
             commands::list_live_models,
             commands::seed_live_model_catalog,
             commands::get_ai_catalog,

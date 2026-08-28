@@ -78,15 +78,20 @@ describe("toSavePayload mode stashes", () => {
     expect(payload.interpreterInboundVoiceOutput).toBe("custom");
   });
 
-  it("omits selected Soniox TTS model when persisting catalogs only", () => {
+  it("omits selected Soniox TTS models when persisting catalogs only", () => {
     const payload = toSavePayload(
-      { ...baseConfig, sonioxTtsModel: "tts-rt-v1" },
+      {
+        ...baseConfig,
+        sonioxTtsOutboundModel: "tts-rt-v1",
+        sonioxTtsInboundModel: "tts-rt-v2",
+      },
       {
         skipSonioxTtsModel: true,
         sonioxTtsModels: [{ id: "tts-rt-v1", languages: [] }],
       },
     );
-    expect(payload.sonioxTtsModel).toBeUndefined();
+    expect(payload.sonioxTtsOutboundModel).toBeUndefined();
+    expect(payload.sonioxTtsInboundModel).toBeUndefined();
     expect(payload.sonioxTtsModels).toHaveLength(1);
   });
 });

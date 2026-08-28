@@ -1,4 +1,4 @@
-//! Custom-voice factory — ElevenLabs vs Fish Audio spawn/validate only.
+//! Custom-voice factory — ElevenLabs / Fish Audio / xAI spawn/validate only.
 //! Pipeline / engine call this; they must not `match` vendor identity.
 
 use std::sync::atomic::AtomicU64;
@@ -8,9 +8,10 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::audio::pcm_crossfade::PlaybackPcmChunk;
+use crate::audio::PlaybackPcmChunk;
 use crate::config::{AppConfig, CustomVoiceVendor};
 use crate::providers::fishaudio::{spawn_fishaudio_tts_worker, FishAudioWorkerConfig};
+use crate::providers::xai::{spawn_xai_tts_worker, XaiWorkerConfig};
 use crate::runtime::control_channel;
 use crate::runtime::voice_runtime::OutboundTtsSession;
 use crate::voice::elevenlabs::latency::TurnLatencySlot;
@@ -38,6 +39,7 @@ fn vendor_label(vendor: CustomVoiceVendor) -> &'static str {
     match vendor {
         CustomVoiceVendor::ElevenLabs => "ElevenLabs",
         CustomVoiceVendor::FishAudio => "Fish Audio",
+        CustomVoiceVendor::Xai => "xAI",
     }
 }
 
@@ -57,6 +59,10 @@ pub async fn validate_outbound_custom_voice(config: &AppConfig) -> Result<(), St
                 &config.fishaudio.fishaudio_voice_id,
             )
             .await
+        }
+        CustomVoiceVendor::Xai => {
+            crate::providers::xai::validate_voice(&config.xai.xai_api_key, &config.xai.xai_voice_id)
+                .await
         }
     }
 }
@@ -131,6 +137,21 @@ pub async fn spawn_custom_tts_session(
                 init_settings: match direction {
                     CustomVoiceDirection::Outbound => config.fishaudio_outbound_init_settings(),
                     CustomVoiceDirection::Inbound => config.fishaudio_inbound_init_settings(),
+                },
+            },
+            tts_cmd_rx,
+            pcm_tx,
+            pcm_drops,
+            worker_status_tx,
+            turn_latency,
+            worker_cancel.clone(),
+        ),
+        CustomVoiceVendor::Xai => spawn_xai_tts_worker(
+            XaiWorkerConfig {
+                api_key: config.xai.xai_api_key.clone(),
+                init_settings: match direction {
+                    CustomVoiceDirection::Outbound => config.xai_outbound_init_settings(),
+                    CustomVoiceDirection::Inbound => config.xai_inbound_init_settings(),
                 },
             },
             tts_cmd_rx,

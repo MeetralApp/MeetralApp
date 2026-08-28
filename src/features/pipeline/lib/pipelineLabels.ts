@@ -44,6 +44,11 @@ export function isOutboundCustomVoiceReady(config: ConfigView): boolean {
       Boolean(config.fishaudioVoiceId?.trim())
     );
   }
+  if (vendor === "xai") {
+    return (
+      Boolean(config.xaiApiKeyConfigured) && Boolean(config.xaiVoiceId?.trim())
+    );
+  }
   return (
     config.elevenlabsApiKeyConfigured && Boolean(config.elevenlabsVoiceId?.trim())
   );
@@ -55,6 +60,12 @@ export function isInboundCustomVoiceReady(config: ConfigView): boolean {
     return (
       Boolean(config.fishaudioApiKeyConfigured) &&
       Boolean(config.fishaudioInboundVoiceId?.trim())
+    );
+  }
+  if (vendor === "xai") {
+    return (
+      Boolean(config.xaiApiKeyConfigured) &&
+      Boolean(config.xaiInboundVoiceId?.trim())
     );
   }
   return (
