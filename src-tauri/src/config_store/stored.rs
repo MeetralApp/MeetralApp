@@ -89,6 +89,10 @@ pub(crate) struct StoredConfig {
     #[serde(default = "default_true")]
     pub(crate) close_to_tray: bool,
     #[serde(default)]
+    pub(crate) auto_end_meeting: bool,
+    #[serde(default = "default_auto_end_meeting_after_min")]
+    pub(crate) auto_end_meeting_after_min: u32,
+    #[serde(default)]
     pub(crate) theme_preference: ThemePreference,
     #[serde(default)]
     pub(crate) proactive_session_refresh: bool,
@@ -306,6 +310,10 @@ pub(crate) fn default_inbound_original_ducked_gain() -> f32 {
 
 pub(crate) fn default_vad_silence() -> u32 {
     800
+}
+
+pub(crate) fn default_auto_end_meeting_after_min() -> u32 {
+    crate::config::DEFAULT_AUTO_END_MEETING_AFTER_MIN
 }
 
 pub(crate) fn default_elevenlabs_tts_model() -> String {
@@ -598,6 +606,8 @@ impl StoredConfig {
             inbound_original_under_translation: self.inbound_original_under_translation,
             inbound_original_ducked_gain: self.inbound_original_ducked_gain,
             close_to_tray: self.close_to_tray,
+            auto_end_meeting: self.auto_end_meeting,
+            auto_end_meeting_after_min: self.auto_end_meeting_after_min,
             theme_preference: self.theme_preference,
             proactive_session_refresh: self.proactive_session_refresh,
             record_meeting_audio: self.record_meeting_audio,
@@ -793,6 +803,8 @@ impl StoredConfig {
             inbound_original_under_translation: config.inbound_original_under_translation,
             inbound_original_ducked_gain: config.inbound_original_ducked_gain,
             close_to_tray: config.close_to_tray,
+            auto_end_meeting: config.auto_end_meeting,
+            auto_end_meeting_after_min: config.auto_end_meeting_after_min,
             theme_preference: config.theme_preference,
             proactive_session_refresh: config.proactive_session_refresh,
             record_meeting_audio: config.record_meeting_audio,

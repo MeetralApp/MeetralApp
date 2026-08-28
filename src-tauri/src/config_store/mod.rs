@@ -123,6 +123,11 @@ mod tests {
         let parsed: StoredConfig = serde_json::from_slice(json).expect("parse");
         let config = parsed.into_app_config().expect("into app config");
         assert_eq!(config.transcript_layout, TranscriptLayout::SideBySide);
+        assert!(!config.auto_end_meeting);
+        assert_eq!(
+            config.auto_end_meeting_after_min,
+            crate::config::DEFAULT_AUTO_END_MEETING_AFTER_MIN
+        );
     }
 
     #[test]

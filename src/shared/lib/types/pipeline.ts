@@ -277,6 +277,8 @@ export interface ConfigView {
   inboundOriginalUnderTranslation?: boolean;
   inboundOriginalDuckedGain?: number;
   closeToTray: boolean;
+  autoEndMeeting?: boolean;
+  autoEndMeetingAfterMin?: number;
   themePreference?: ThemePreference;
   proactiveSessionRefresh: boolean;
   transcriptLayout: TranscriptLayout;
@@ -435,6 +437,8 @@ export interface SaveConfigPayload {
   inboundOriginalUnderTranslation?: boolean;
   inboundOriginalDuckedGain?: number;
   closeToTray: boolean;
+  autoEndMeeting?: boolean;
+  autoEndMeetingAfterMin?: number;
   themePreference?: ThemePreference;
   proactiveSessionRefresh: boolean;
   transcriptLayout: TranscriptLayout;

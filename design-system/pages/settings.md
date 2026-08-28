@@ -178,8 +178,13 @@ Tab owns the name — omit redundant L1 “Intelligence” while only one cluste
 |---------|---------|
 | **Transcript display** | Segment layout (Side by side \| Stacked) |
 | **Overlay** | L2 Appearance / Behavior; Open overlay (not “Preview”) |
-| **Preferences** | L2 **Theme** + Application (tray); no Keep Direct |
+| **Preferences** | L2 **Theme** + Application (tray + auto-end meeting); no Keep Direct |
 | **About** | `AboutFooter` |
+
+Application:
+
+- **Minimize to tray** checkbox (draft + Save)
+- **Auto-end meeting** ButtonGroup: **Off** (default) · **1 min** · **5** · **10** · **15**. Instant persist. Idle = no new persisted transcript; Direct with no translation also counts. Unknown stored minutes snap to the nearest preset.
 
 ---
 
@@ -187,7 +192,7 @@ Tab owns the name — omit redundant L1 “Intelligence” while only one cluste
 
 | Pattern | Examples |
 |---------|----------|
-| Instant | Engine, languages, live/summary model, Soniox TTS voice/speed, voice mode, segment layout, overlay, theme |
+| Instant | Engine, languages, live/summary model, Soniox TTS voice/speed, voice mode, segment layout, overlay, theme, auto-end meeting |
 | Draft + Save | API keys (Translate + Intelligence), Audio devices, Speech detection, Soniox context edit, custom voice Advanced, tray prefs |
 
 All drafts (including Intelligence API key) → drawer discard dialog.

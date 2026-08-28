@@ -22,5 +22,6 @@ Product language for Meetral. Prefer these terms in code comments, UI copy, and 
 | **Provider TTS** | Separate TTS WebSocket (Soniox). |
 | **Custom voice** | Custom voice TTS path (`PlaybackSource::CustomTts`) via ElevenLabs, Fish Audio, and/or xAI, both directions. Toolbar is Engine vs Custom; vendor is a Settings control per column. |
 | **`keep_direct_audio`** | When true, Direct relay stays up on idle / non-translating directions. |
+| **Auto-end meeting** | Optional idle timeout (`autoEndMeeting` + `autoEndMeetingAfterMin`). Off by default. Presets: 1 / 5 / 10 / 15 minutes. When on, no new persisted segment for that long ends the live meeting — including Direct with no translation. |
 
 **Do not use as types:** CommitEngine (the type is `SegmentEngine`), LiveCaps (the type is `ProviderCapabilities`).

@@ -1129,7 +1129,6 @@ pub(super) async fn check_meeting_idle_end_shared(
     app: &AppHandle,
     config: &AppConfig,
 ) {
-    use super::MEETING_IDLE_NO_SEGMENT_MS;
     use crate::meeting::{
         clear_meeting_idle_clock, end_active_meeting, meeting_idle_elapsed_ms, ActiveMeetingId,
         MeetingIdleClock, MeetingStore,
@@ -1140,10 +1139,13 @@ pub(super) async fn check_meeting_idle_end_shared(
         return;
     };
     let now = unix_ms_now_u64();
+    let Some(threshold_ms) = config.auto_end_meeting_idle_ms() else {
+        return;
+    };
     let Some(elapsed) = meeting_idle_elapsed_ms(clock.inner(), now) else {
         return;
     };
-    if elapsed < MEETING_IDLE_NO_SEGMENT_MS {
+    if elapsed < threshold_ms {
         return;
     }
 
@@ -1166,7 +1168,8 @@ pub(super) async fn check_meeting_idle_end_shared(
 
     tracing::info!(
         elapsed_ms = elapsed,
-        "ending meeting after {MEETING_IDLE_NO_SEGMENT_MS}ms with no new segments"
+        threshold_ms,
+        "ending meeting after {threshold_ms}ms with no new segments"
     );
     if let Err(error) = end_active_meeting(app, store.inner(), active.inner()) {
         tracing::warn!("failed to end idle meeting: {error:#}");

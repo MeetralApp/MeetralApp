@@ -86,6 +86,11 @@ pub struct AppConfig {
     pub inbound_original_ducked_gain: f32,
     #[serde(default = "default_true")]
     pub close_to_tray: bool,
+    /// End the live meeting after no new transcript segment for `auto_end_meeting_after_min`.
+    #[serde(default)]
+    pub auto_end_meeting: bool,
+    #[serde(default = "default_auto_end_meeting_after_min")]
+    pub auto_end_meeting_after_min: u32,
     #[serde(default)]
     pub theme_preference: ThemePreference,
     #[serde(default)]
@@ -163,6 +168,23 @@ pub(crate) fn default_vad_silence() -> u32 {
     800
 }
 
+/// Default idle duration when auto-end is on (Settings preset).
+pub const DEFAULT_AUTO_END_MEETING_AFTER_MIN: u32 = 5;
+pub const AUTO_END_MEETING_AFTER_MIN_PRESETS: [u32; 4] = [1, 5, 10, 15];
+
+pub(crate) fn default_auto_end_meeting_after_min() -> u32 {
+    DEFAULT_AUTO_END_MEETING_AFTER_MIN
+}
+
+/// Snap a stored/typed minute value onto the Settings presets.
+pub(crate) fn normalize_auto_end_meeting_after_min(value: u32) -> u32 {
+    AUTO_END_MEETING_AFTER_MIN_PRESETS
+        .iter()
+        .copied()
+        .min_by_key(|preset| preset.abs_diff(value))
+        .unwrap_or(DEFAULT_AUTO_END_MEETING_AFTER_MIN)
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -200,6 +222,8 @@ impl Default for AppConfig {
             inbound_original_under_translation: true,
             inbound_original_ducked_gain: default_inbound_original_ducked_gain(),
             close_to_tray: true,
+            auto_end_meeting: false,
+            auto_end_meeting_after_min: DEFAULT_AUTO_END_MEETING_AFTER_MIN,
             theme_preference: ThemePreference::Dark,
             proactive_session_refresh: false,
             record_meeting_audio: false,
@@ -354,6 +378,8 @@ impl AppConfig {
         self.summary_model =
             normalize_summary_model_for_provider(self.summary_provider, &self.summary_model);
         self.vad_silence_duration_ms = self.vad_silence_duration_ms.clamp(100, 3000);
+        self.auto_end_meeting_after_min =
+            normalize_auto_end_meeting_after_min(self.auto_end_meeting_after_min);
         self.inbound_original_ducked_gain = self.inbound_original_ducked_gain.clamp(0.0, 0.5);
         if self.session_mode.is_notes() {
             // Gemini Live Translate cannot omit MT — clamp to a Notes-capable provider.
@@ -459,6 +485,14 @@ impl AppConfig {
                 self.soniox.soniox_max_endpoint_delay_ms,
             );
         self.overlay.normalize();
+    }
+
+    /// Watchdog idle auto-end threshold. `None` when the setting is off.
+    pub fn auto_end_meeting_idle_ms(&self) -> Option<u64> {
+        if !self.auto_end_meeting {
+            return None;
+        }
+        Some(u64::from(self.auto_end_meeting_after_min) * 60_000)
     }
 
     pub fn active_api_key(&self) -> &str {

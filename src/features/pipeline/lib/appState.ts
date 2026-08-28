@@ -83,6 +83,8 @@ export function normalizeConfigView(data: ConfigView): ConfigView {
     inboundOriginalUnderTranslation: data.inboundOriginalUnderTranslation ?? true,
     inboundOriginalDuckedGain: data.inboundOriginalDuckedGain ?? 0.18,
     closeToTray: data.closeToTray ?? true,
+    autoEndMeeting: data.autoEndMeeting ?? false,
+    autoEndMeetingAfterMin: data.autoEndMeetingAfterMin ?? 5,
     themePreference: data.themePreference ?? "dark",
     proactiveSessionRefresh: data.proactiveSessionRefresh ?? false,
     transcriptLayout: data.transcriptLayout ?? "sideBySide",

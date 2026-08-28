@@ -87,6 +87,7 @@ Do not add a third primary mode button on live view.
 | Setup incomplete | `SetupBanner` → `LiveNotice.Strip` | Warning + **Settings** |
 | Column connection | `ConnectionBanner` → `LiveNotice.Rail` | “Reconnecting translation” + `n/5`; full copy in tooltip |
 | Audio device | `AudioDeviceBanner` → `LiveNotice.Rail` | “Reconnecting audio” + `n/5` (or “Audio restored”). After **5** failed audio reconnects → path **lost**; if a meeting is **live**, engine auto-ends it (persist + Direct), same as user End meeting |
+| Idle auto-end | Settings **Auto-end meeting** (default Off) | When on, no new persisted segment for 1 / 5 / 10 / 15 min → same persist + Direct as End meeting. Toast “Meeting saved” |
 | Session drift | `SessionDriftHint` → `LiveNotice.Rail` | Neutral “Long session” + dismiss |
 | Column idle | `ColumnHeaderStatus` | Icon-only `size-6`. `ready`: hidden. When `SetupBanner` visible, hide `setup` / `api-key`. Keep icons for `audio-lost` / `error` / reconnect / checking — label in tooltip only |
 | Column active | `ColumnHeaderStatus` | Reconnect / custom-unavailable only. Starting/stopping + custom-active paint in the path button group — do not duplicate. **No** per-column WS elapsed timer |

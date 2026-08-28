@@ -30,6 +30,8 @@ export const baseConfig: ConfigView = {
   inboundOriginalUnderTranslation: true,
   inboundOriginalDuckedGain: 0.18,
   closeToTray: true,
+  autoEndMeeting: false,
+  autoEndMeetingAfterMin: 5,
   proactiveSessionRefresh: false,
   transcriptLayout: "sideBySide",
   inboundVoiceOutput: "providerNative",

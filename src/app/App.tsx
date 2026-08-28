@@ -31,7 +31,6 @@ function MainApp() {
     config,
     setup,
     loading,
-    status,
     setOutboundAudioMode,
     setInboundAudioMode,
   } = usePipelineRuntime();
@@ -42,7 +41,7 @@ function MainApp() {
   const prevLiveMeetingIdRef = useRef<string | null>(null);
   const skipAutoEndToastRef = useRef(false);
 
-  // Engine auto-ends the live meeting after audio reconnect exhausts (5/5).
+  // Engine auto-ends the live meeting (idle timeout or audio reconnect exhausted).
   // Mirror the manual End meeting toast + transcript clear (skip when user ended).
   useEffect(() => {
     const prevId = prevLiveMeetingIdRef.current;
@@ -53,18 +52,9 @@ function MainApp() {
       skipAutoEndToastRef.current = false;
       return;
     }
-    const audioLost =
-      status?.outboundAudio === "lost" || status?.inboundAudio === "lost";
-    if (!audioLost) return;
     clearTranscripts();
     showToast("success", "Meeting saved");
-  }, [
-    activeMeeting,
-    status?.outboundAudio,
-    status?.inboundAudio,
-    clearTranscripts,
-    showToast,
-  ]);
+  }, [activeMeeting, clearTranscripts, showToast]);
 
   const bootstrapping = loading || !config || !setup;
   const showBootSkeleton = useMinDisplayDelay(bootstrapping);
