@@ -103,6 +103,8 @@ impl LegacyStoredConfig {
             inbound_original_under_translation: true,
             inbound_original_ducked_gain: 0.18,
             close_to_tray: true,
+            auto_end_meeting: false,
+            auto_end_meeting_after_min: crate::config::DEFAULT_AUTO_END_MEETING_AFTER_MIN,
             theme_preference: crate::config::ThemePreference::Dark,
             proactive_session_refresh: false,
             transcript_layout: TranscriptLayout::SideBySide,

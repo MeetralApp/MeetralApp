@@ -166,6 +166,8 @@ export function toSavePayload(
     inboundOriginalUnderTranslation: config.inboundOriginalUnderTranslation ?? true,
     inboundOriginalDuckedGain: config.inboundOriginalDuckedGain ?? 0.18,
     closeToTray: config.closeToTray,
+    autoEndMeeting: config.autoEndMeeting ?? false,
+    autoEndMeetingAfterMin: config.autoEndMeetingAfterMin ?? 5,
     themePreference: config.themePreference ?? "dark",
     proactiveSessionRefresh: config.proactiveSessionRefresh,
     transcriptLayout: config.transcriptLayout,

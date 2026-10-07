@@ -76,6 +76,8 @@ describe("normalizeConfigView", () => {
     const normalized = normalizeConfigView({
       ...baseConfig,
       keepDirectAudio: undefined as never,
+      autoEndMeeting: undefined as never,
+      autoEndMeetingAfterMin: undefined as never,
       inboundVoiceOutput: undefined,
       outboundVoiceOutput: undefined as never,
       sonioxAlwaysOn: undefined,
@@ -87,6 +89,8 @@ describe("normalizeConfigView", () => {
       elevenlabsVoiceId: undefined as never,
     });
     expect(normalized.keepDirectAudio).toBe(true);
+    expect(normalized.autoEndMeeting).toBe(false);
+    expect(normalized.autoEndMeetingAfterMin).toBe(5);
     expect(normalized.inboundVoiceOutput).toBe("providerNative");
     expect(normalized.outboundVoiceOutput).toBe("providerNative");
     expect(normalized.sonioxAlwaysOn).toEqual({

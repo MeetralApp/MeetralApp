@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::AiProvider;
 
-use super::app_config::{default_inbound_original_ducked_gain, default_true, AppConfig};
+use super::app_config::{
+    default_auto_end_meeting_after_min, default_inbound_original_ducked_gain, default_true,
+    AppConfig,
+};
 use super::device::DeviceRef;
 use super::elevenlabs_public::ElevenLabsPublicSettings;
 use super::modes::{
@@ -70,6 +73,10 @@ pub struct ConfigView {
     pub inbound_original_ducked_gain: f32,
     #[serde(default = "default_true")]
     pub close_to_tray: bool,
+    #[serde(default)]
+    pub auto_end_meeting: bool,
+    #[serde(default = "default_auto_end_meeting_after_min")]
+    pub auto_end_meeting_after_min: u32,
     #[serde(default)]
     pub theme_preference: ThemePreference,
     #[serde(default)]
@@ -167,6 +174,8 @@ impl From<&AppConfig> for ConfigView {
             inbound_original_under_translation: config.inbound_original_under_translation,
             inbound_original_ducked_gain: config.inbound_original_ducked_gain,
             close_to_tray: config.close_to_tray,
+            auto_end_meeting: config.auto_end_meeting,
+            auto_end_meeting_after_min: config.auto_end_meeting_after_min,
             theme_preference: config.theme_preference,
             proactive_session_refresh: config.proactive_session_refresh,
             record_meeting_audio: config.record_meeting_audio,
@@ -242,6 +251,8 @@ impl ConfigView {
             inbound_original_under_translation: self.inbound_original_under_translation,
             inbound_original_ducked_gain: self.inbound_original_ducked_gain,
             close_to_tray: self.close_to_tray,
+            auto_end_meeting: self.auto_end_meeting,
+            auto_end_meeting_after_min: self.auto_end_meeting_after_min,
             theme_preference: self.theme_preference,
             proactive_session_refresh: self.proactive_session_refresh,
             record_meeting_audio: self.record_meeting_audio,

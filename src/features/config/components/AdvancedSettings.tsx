@@ -21,6 +21,19 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
+const AUTO_END_MEETING_AFTER_MIN_PRESETS = [1, 5, 10, 15] as const;
+type AutoEndMeetingAfterMin = (typeof AUTO_END_MEETING_AFTER_MIN_PRESETS)[number];
+
+type AutoEndSelection = "off" | AutoEndMeetingAfterMin;
+
+const AUTO_END_OPTIONS: { value: AutoEndSelection; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: 1, label: "1 min" },
+  { value: 5, label: "5" },
+  { value: 10, label: "10" },
+  { value: 15, label: "15" },
+];
+
 interface Props {
   config: ConfigView;
   onSave: (payload: SaveConfigPayload) => Promise<SaveConfigResult | void>;
@@ -31,34 +44,43 @@ interface Props {
 type Draft = {
   closeToTray: boolean;
   themePreference: ThemePreference;
+  autoEndMeeting: boolean;
+  autoEndMeetingAfterMin: AutoEndMeetingAfterMin;
 };
 
 const DEFAULT_CLOSE_TO_TRAY = true;
+const DEFAULT_AUTO_END_MEETING = false;
+const DEFAULT_AUTO_END_MEETING_AFTER_MIN: AutoEndMeetingAfterMin = 5;
 
 function formatOnOff(value: boolean): string {
   return value ? "On" : "Off";
+}
+
+function snapAutoEndMinutes(value: number): AutoEndMeetingAfterMin {
+  if (!Number.isFinite(value)) return DEFAULT_AUTO_END_MEETING_AFTER_MIN;
+  return AUTO_END_MEETING_AFTER_MIN_PRESETS.reduce((best, preset) =>
+    Math.abs(preset - value) < Math.abs(best - value) ? preset : best,
+  );
 }
 
 function draftFromConfig(config: ConfigView): Draft {
   return {
     closeToTray: config.closeToTray ?? true,
     themePreference: config.themePreference ?? "dark",
+    autoEndMeeting: config.autoEndMeeting ?? DEFAULT_AUTO_END_MEETING,
+    autoEndMeetingAfterMin: snapAutoEndMinutes(
+      config.autoEndMeetingAfterMin ?? DEFAULT_AUTO_END_MEETING_AFTER_MIN,
+    ),
   };
 }
 
-function draftsEqual(a: Draft, b: Draft): boolean {
-  return (
-    a.closeToTray === b.closeToTray &&
-    a.themePreference === b.themePreference
-  );
+function autoEndSelection(draft: Draft): AutoEndSelection {
+  return draft.autoEndMeeting ? draft.autoEndMeetingAfterMin : "off";
 }
 
-/** Theme auto-saves on select — exclude it so Save doesn't flash. */
+/** Theme and auto-end auto-save on select — exclude them so Save doesn't flash. */
 function isAppDraftDirty(draft: Draft, saved: Draft): boolean {
-  return !draftsEqual(
-    { ...draft, themePreference: saved.themePreference },
-    saved,
-  );
+  return draft.closeToTray !== saved.closeToTray;
 }
 
 export default function AdvancedSettings({
@@ -91,6 +113,8 @@ export default function AdvancedSettings({
           ...config,
           closeToTray: draft.closeToTray,
           themePreference: draft.themePreference,
+          autoEndMeeting: draft.autoEndMeeting,
+          autoEndMeetingAfterMin: draft.autoEndMeetingAfterMin,
         }),
       );
       onToast("success", "Settings saved");
@@ -115,6 +139,42 @@ export default function AdvancedSettings({
     },
     [config, onSave, onToast, setThemePreference],
   );
+
+  const saveAutoEnd = useCallback(
+    (selection: AutoEndSelection) => {
+      const next: Pick<Draft, "autoEndMeeting" | "autoEndMeetingAfterMin"> =
+        selection === "off"
+          ? {
+              autoEndMeeting: false,
+              autoEndMeetingAfterMin: draft.autoEndMeetingAfterMin,
+            }
+          : { autoEndMeeting: true, autoEndMeetingAfterMin: selection };
+      if (
+        next.autoEndMeeting === draft.autoEndMeeting &&
+        next.autoEndMeetingAfterMin === draft.autoEndMeetingAfterMin
+      ) {
+        return;
+      }
+      setDraft((d) => ({ ...d, ...next }));
+      void onSave(
+        toSavePayload({
+          ...config,
+          autoEndMeeting: next.autoEndMeeting,
+          autoEndMeetingAfterMin: next.autoEndMeetingAfterMin,
+        }),
+      ).catch((e) => {
+        setDraft((d) => ({
+          ...d,
+          autoEndMeeting: saved.autoEndMeeting,
+          autoEndMeetingAfterMin: saved.autoEndMeetingAfterMin,
+        }));
+        onToast("error", String(e));
+      });
+    },
+    [config, draft, onSave, onToast, saved],
+  );
+
+  const selectedAutoEnd = autoEndSelection(draft);
 
   return (
     <div className="flex flex-col gap-3">
@@ -166,6 +226,31 @@ export default function AdvancedSettings({
               the window. Default: {formatOnOff(DEFAULT_CLOSE_TO_TRAY)}.
             </SettingInfoHint>
           </span>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="inline-flex items-center gap-1.5">
+            <span className={settingsFieldLabelClass}>Auto-end meeting</span>
+            <SettingInfoHint label="About Auto-end meeting">
+              Ends the live meeting when no new transcript is saved for this
+              long — including Direct with no translation. Default: Off.
+            </SettingInfoHint>
+          </span>
+          <ButtonGroup aria-label="Auto-end meeting" className="w-full">
+            {AUTO_END_OPTIONS.map(({ value, label }) => (
+              <Button
+                key={String(value)}
+                type="button"
+                size="sm"
+                variant={selectedAutoEnd === value ? "default" : "secondary"}
+                aria-pressed={selectedAutoEnd === value}
+                className="h-7 min-w-0 flex-1 px-2 text-xs font-medium"
+                onClick={() => saveAutoEnd(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </ButtonGroup>
         </div>
       </SettingsGroup>
 

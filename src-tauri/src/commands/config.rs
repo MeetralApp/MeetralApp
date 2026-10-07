@@ -83,6 +83,10 @@ pub struct SaveConfigRequest {
     #[serde(default = "default_true")]
     pub close_to_tray: bool,
     #[serde(default)]
+    pub auto_end_meeting: bool,
+    #[serde(default = "default_auto_end_meeting_after_min")]
+    pub auto_end_meeting_after_min: u32,
+    #[serde(default)]
     pub theme_preference: ThemePreference,
     #[serde(default)]
     pub proactive_session_refresh: bool,
@@ -250,6 +254,10 @@ fn default_vad_silence() -> u32 {
     800
 }
 
+fn default_auto_end_meeting_after_min() -> u32 {
+    crate::config::DEFAULT_AUTO_END_MEETING_AFTER_MIN
+}
+
 impl SaveConfigRequest {
     fn into_app_config(self, existing: &AppConfig) -> AppConfig {
         let gemini_api_key = if self.clear_gemini_api_key {
@@ -380,6 +388,8 @@ impl SaveConfigRequest {
             inbound_original_under_translation: self.inbound_original_under_translation,
             inbound_original_ducked_gain: self.inbound_original_ducked_gain,
             close_to_tray: self.close_to_tray,
+            auto_end_meeting: self.auto_end_meeting,
+            auto_end_meeting_after_min: self.auto_end_meeting_after_min,
             theme_preference: self.theme_preference,
             proactive_session_refresh: self.proactive_session_refresh,
             record_meeting_audio: self.record_meeting_audio,

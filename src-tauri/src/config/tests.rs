@@ -354,3 +354,45 @@ fn config_view_exposes_fallback_key_flags() {
     assert!(!view.openai_api_key_configured);
     assert!(view.summary_fallback_available);
 }
+
+#[test]
+fn auto_end_meeting_defaults_off_with_five_minute_on_value() {
+    let config = AppConfig::default();
+    assert!(!config.auto_end_meeting);
+    assert_eq!(
+        config.auto_end_meeting_after_min,
+        super::DEFAULT_AUTO_END_MEETING_AFTER_MIN
+    );
+    assert_eq!(config.auto_end_meeting_idle_ms(), None);
+
+    let mut enabled = AppConfig {
+        auto_end_meeting: true,
+        auto_end_meeting_after_min: 5,
+        ..AppConfig::default()
+    };
+    assert_eq!(enabled.auto_end_meeting_idle_ms(), Some(300_000));
+
+    enabled.auto_end_meeting_after_min = 0;
+    enabled.normalize();
+    assert_eq!(enabled.auto_end_meeting_after_min, 1);
+
+    enabled.auto_end_meeting_after_min = 8;
+    enabled.normalize();
+    assert_eq!(enabled.auto_end_meeting_after_min, 10);
+
+    enabled.auto_end_meeting_after_min = 999;
+    enabled.normalize();
+    assert_eq!(enabled.auto_end_meeting_after_min, 15);
+}
+
+#[test]
+fn config_view_round_trips_auto_end_meeting() {
+    let config = AppConfig {
+        auto_end_meeting: true,
+        auto_end_meeting_after_min: 10,
+        ..AppConfig::default()
+    };
+    let view = ConfigView::from(&config);
+    assert!(view.auto_end_meeting);
+    assert_eq!(view.auto_end_meeting_after_min, 10);
+}

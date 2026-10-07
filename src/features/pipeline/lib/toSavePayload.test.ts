@@ -14,6 +14,8 @@ describe("toSavePayload", () => {
     expect(payload.elevenlabsApiKey).toBe("");
     expect(payload.inboundVoiceOutput).toBe("providerNative");
     expect(payload.outboundVoiceOutput).toBe("providerNative");
+    expect(payload.autoEndMeeting).toBe(false);
+    expect(payload.autoEndMeetingAfterMin).toBe(5);
   });
 
   it("applies option overrides for keys and voice", () => {

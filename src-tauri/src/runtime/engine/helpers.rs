@@ -16,8 +16,10 @@ pub const AUDIO_OUTBOUND_LOST_MESSAGE: &str =
 pub const AUDIO_INBOUND_LOST_MESSAGE: &str =
     "Audio device lost (meeting capture). Translation stopped.";
 pub const PROACTIVE_SESSION_MS: i64 = 60 * 60 * 1000;
-/// End active meeting when no new transcript segment commits for this long.
-pub const MEETING_IDLE_NO_SEGMENT_MS: u64 = 5 * 60 * 1000;
+/// Default idle duration when auto-end is on (5 minutes). Runtime reads
+/// `AppConfig::auto_end_meeting_idle_ms` — this constant is the On default.
+pub const MEETING_IDLE_NO_SEGMENT_MS: u64 =
+    crate::config::DEFAULT_AUTO_END_MEETING_AFTER_MIN as u64 * 60_000;
 pub const ENSURE_DIRECT_AUDIO_EVERY_TICKS: u32 = 5;
 pub const WATCHDOG_TICK_STABLE_MS: u64 = 2000;
 pub const WATCHDOG_TICK_IDLE_MS: u64 = 8000;

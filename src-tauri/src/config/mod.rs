@@ -19,7 +19,9 @@ pub mod xai_settings;
 #[cfg(test)]
 mod tests;
 
-pub use app_config::AppConfig;
+pub use app_config::{
+    AppConfig, AUTO_END_MEETING_AFTER_MIN_PRESETS, DEFAULT_AUTO_END_MEETING_AFTER_MIN,
+};
 pub use custom_llm::{
     normalize_custom_llm_profile, CustomLlmProfile, CustomLlmProfileView, LlmSelection,
 };
