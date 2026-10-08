@@ -4,6 +4,10 @@
   "version": "4.8.6",
   "license": "MIT",
   "author": "iamnhaan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MeetralApp/MeetralApp.git"
+  },
   "description": "Real-time voice translation for online meetings",
   "type": "module",
   "scripts": {
