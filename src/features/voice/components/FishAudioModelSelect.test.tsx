@@ -130,11 +130,11 @@ describe("FishAudioModelSelect", () => {
       ),
     );
 
-    await waitFor(() => {
-      expect(onListModels).toHaveBeenCalledTimes(1);
-    });
+    const refresh = await screen.findByRole("button", { name: "Refresh models" });
+    expect(onListModels).toHaveBeenCalledTimes(1);
+    expect((refresh as HTMLButtonElement).disabled).toBe(false);
 
-    fireEvent.click(screen.getByLabelText("Refresh models"));
+    fireEvent.click(refresh);
 
     await waitFor(() => {
       expect(onListModels).toHaveBeenCalledTimes(2);
