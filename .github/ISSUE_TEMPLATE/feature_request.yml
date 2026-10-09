@@ -1,7 +1,7 @@
 name: Feature request
 description: A change to something Meetral already does, or a proposal for something it does not
 title: "[feature] "
-labels: []
+labels: ["enhancement"]
 body:
   - type: textarea
     id: problem
