@@ -51,7 +51,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@tanstack/react-virtual": "^3.14.3",
     "@tauri-apps/api": "^2.5.0",
-    "@tauri-apps/plugin-store": "^2.2.0",
+    "@tauri-apps/plugin-store": "^2.5.0",
     "@tiptap/core": "^3.29.0",
     "@tiptap/extension-placeholder": "^3.29.0",
     "@tiptap/pm": "^3.29.0",
