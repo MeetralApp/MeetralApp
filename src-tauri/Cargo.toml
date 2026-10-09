@@ -45,7 +45,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 rmp-serde = "1.3"
 serde_bytes = "0.11"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-tauri-plugin-prevent-default = "5.0.1"
+tauri-plugin-prevent-default = "6.0.1"
 dotenvy = "0.15"
 unicode-segmentation = "1.13"
 opus = "0.3"
