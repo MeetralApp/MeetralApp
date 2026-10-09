@@ -46,6 +46,7 @@ jobs:
       # ephemeral self-signed cert and grouping requires manual cert trust.
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SPARSE_DEV_PFX_BASE64: ${{ secrets.SPARSE_DEV_PFX_BASE64 }}
           SPARSE_DEV_PFX_PASSWORD: ${{ secrets.SPARSE_DEV_PFX_PASSWORD }}
         with:
