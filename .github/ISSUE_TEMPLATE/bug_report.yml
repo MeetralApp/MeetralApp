@@ -1,0 +1,60 @@
+name: Bug report
+description: Something failed in the app or the build
+title: "[bug] "
+labels: []
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "4.8.6"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - macOS
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Live engine
+      options:
+        - Gemini
+        - OpenAI
+        - Soniox
+        - Direct only (no engine)
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: path
+    attributes:
+      label: Audio path
+      options:
+        - You Translate
+        - Meeting Translate
+        - You Direct
+        - Meeting Direct
+        - Notes
+        - Not sure
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Redact API keys. Windows dev log is %APPDATA%\com.meetral.desktop.dev\logs\app.log.
+    validations:
+      required: false

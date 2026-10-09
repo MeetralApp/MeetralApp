@@ -1,6 +1,6 @@
 # Meetral documentation
 
-Living knowledge for developers and coding agents. Start at [AGENTS.md](../AGENTS.md). Human onboarding (clone, audio roles, troubleshooting) stays in [README.md](../README.md).
+Living knowledge for developers and coding agents. Start at [AGENTS.md](../AGENTS.md). Human onboarding (clone, audio roles, troubleshooting) stays in [README.md](../README.md). Community policy lives at the repo root: [PRIVACY.md](../PRIVACY.md), [SECURITY.md](../SECURITY.md), [CONTRIBUTING.md](../CONTRIBUTING.md), [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md).
 
 ## Source of truth vs working knowledge
 

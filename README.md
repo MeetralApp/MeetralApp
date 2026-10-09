@@ -10,7 +10,7 @@ Desktop app (Windows & macOS) for real-time speech translation in online meeting
 
 - Bidirectional live translate (**You** / **Meeting**): Direct passthrough or Translate
 - Multi-provider live engines (**Gemini**, **OpenAI**, **Soniox**)
-- Custom voice via **ElevenLabs** and/or **Fish Audio** (You and Meeting columns)
+- Custom voice via **ElevenLabs**, **Fish Audio**, and/or **xAI** (You and Meeting columns)
 - Meeting library: SQLite transcripts, FTS, AI summary, artifacts, history drawer
 - System tray (close-to-tray) and hot-plug audio resilience
 
@@ -27,12 +27,14 @@ Also: **Node.js 18+**, headphones (reduce echo), and API keys for the providers 
 ## Quick start
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/MeetralApp/MeetralApp.git
 cd MeetralApp
-cp .env.example .env   # optional; keys are normally set in Settings
+cp .env.example .env   # optional; API keys belong in Settings, not in git
 npm install
 npm run tauri:dev
 ```
+
+Published installers are **unsigned**. Windows SmartScreen and macOS Gatekeeper will warn until you allow the file. Download release binaries only from [GitHub Releases](https://github.com/MeetralApp/MeetralApp/releases). What leaves the machine: [PRIVACY.md](PRIVACY.md).
 
 Release build:
 
@@ -100,7 +102,7 @@ npm run test:all       # both
 npm run check          # full local CI gate before push
 ```
 
-Agent entrypoint: [AGENTS.md](AGENTS.md). Docs map: [docs/README.md](docs/README.md). Tests: [docs/development/testing.md](docs/development/testing.md).
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Agent entrypoint: [AGENTS.md](AGENTS.md). Docs map: [docs/README.md](docs/README.md). Tests: [docs/development/testing.md](docs/development/testing.md).
 
 ## Structure
 
@@ -128,6 +130,10 @@ Details: [docs/README.md](docs/README.md). Do not put implementation contracts i
 | [docs/integrations/direct-audio.md](docs/integrations/direct-audio.md) | Direct audio relay |
 | [docs/development/macos.md](docs/development/macos.md) | macOS build & audio |
 | [design-system/MASTER.md](design-system/MASTER.md) | UI design system |
+| [PRIVACY.md](PRIVACY.md) | What stays on device vs what is sent to providers |
+| [SECURITY.md](SECURITY.md) | How to report a vulnerability |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose a change |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community conduct |
 
 ## Troubleshooting
 
@@ -144,3 +150,7 @@ Details: [docs/README.md](docs/README.md). Do not put implementation contracts i
 | Debug log (macOS, `tauri:dev`) | `~/Library/Application Support/com.meetral.desktop.dev/logs/app.log` |
 | Debug log (macOS, install) | `~/Library/Application Support/com.meetral.desktop/logs/app.log` |
 | macOS mic permission | System Settings → Privacy → Microphone; grant when prompted |
+
+## Trademarks
+
+Teams, Slack, Gemini, OpenAI, Soniox, ElevenLabs, Fish Audio, xAI, VoiceMeeter, VB-CABLE, and BlackHole are trademarks of their respective owners. Meetral is not affiliated with them.

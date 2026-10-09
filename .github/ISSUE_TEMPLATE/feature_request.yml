@@ -1,0 +1,25 @@
+name: Feature request
+description: A change to something Meetral already does, or a proposal for something it does not
+title: "[feature] "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who is stuck, and what they are trying to do.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: checkboxes
+    id: catalog
+    attributes:
+      label: Catalog
+      options:
+        - label: I checked docs/features/catalog.md. If this capability is not listed, I understand it needs a discussion before any implementation.
+          required: true

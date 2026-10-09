@@ -31,7 +31,7 @@
     "active": true,
     "targets": "all",
     "publisher": "iamnhaan",
-    "copyright": "Copyright (C) 2026 iamnhaan",
+    "copyright": "Copyright (C) 2026 Meetral",
     "category": "Utility",
     "shortDescription": "Real-time voice translation for online meetings",
     "longDescription": "Meetral translates speech live between you and your meeting (Teams, Slack, and more). Switch Direct audio or Translate per direction, pick Gemini, OpenAI, or Soniox, optional ElevenLabs voice clone, and keep transcripts with AI summaries — all on your desktop with system-tray support.",

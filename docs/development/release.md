@@ -58,3 +58,9 @@ this task is scheduled.
 
 Until then, users must bypass Gatekeeper/SmartScreen warnings for unsigned
 artifacts, and no updater feed is published.
+
+When you publish a draft release, say so in the notes:
+
+- Installers are unsigned. On Windows choose **More info → Run anyway**. On macOS, right-click the app and choose **Open**, or allow it under **Privacy & Security**.
+- Download binaries only from this GitHub Release.
+- Link [PRIVACY.md](../../PRIVACY.md) so people can see which audio and text leave the machine.
