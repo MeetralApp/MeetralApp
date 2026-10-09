@@ -19,18 +19,18 @@ jobs:
             args: "--target aarch64-apple-darwin"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: aarch64-apple-darwin
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
 
@@ -44,7 +44,7 @@ jobs:
       # SPARSE_DEV_PFX_* signs the sparse-identity MSIX on Windows with the shared
       # dev cert (scripts/sparse-identity). Without the secret, CI falls back to an
       # ephemeral self-signed cert and grouping requires manual cert trust.
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           SPARSE_DEV_PFX_BASE64: ${{ secrets.SPARSE_DEV_PFX_BASE64 }}
           SPARSE_DEV_PFX_PASSWORD: ${{ secrets.SPARSE_DEV_PFX_PASSWORD }}

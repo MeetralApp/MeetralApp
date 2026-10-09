@@ -151,6 +151,10 @@ Details: [docs/README.md](docs/README.md). Do not put implementation contracts i
 | Debug log (macOS, install) | `~/Library/Application Support/com.meetral.desktop/logs/app.log` |
 | macOS mic permission | System Settings → Privacy → Microphone; grant when prompted |
 
+## License
+
+Meetral is released under the [MIT License](LICENSE).
+
 ## Trademarks
 
 Teams, Slack, Gemini, OpenAI, Soniox, ElevenLabs, Fish Audio, xAI, VoiceMeeter, VB-CABLE, and BlackHole are trademarks of their respective owners. Meetral is not affiliated with them.
